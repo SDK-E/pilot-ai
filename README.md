@@ -16,3 +16,5 @@ pnpm build
 ```
 
 Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package documentation. Production runtime storage will use the environment-specific Neon PostgreSQL database; never add a file-backed database or expose a tool before Pilot enforces its capability and approval policy.
+
+GitHub Actions builds the runtime and checks known high-severity vulnerabilities for pull requests and `main`.
