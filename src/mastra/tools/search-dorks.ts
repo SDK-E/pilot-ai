@@ -29,6 +29,30 @@ function normalize(values?: string[]): string[] {
   ];
 }
 
+function extractSites(rawQuery?: string): {
+  query: string;
+  sites: string[];
+} {
+  const raw = rawQuery?.trim() ?? '';
+  const sites: string[] = [];
+
+  const query = raw
+    .replace(
+      /(?:^|\s)site:([^\s()]+)/gi,
+      (_match, site: string) => {
+        sites.push(site.trim());
+        return ' ';
+      },
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return {
+    query,
+    sites: normalize(sites),
+  };
+}
+
 function buildBaseQuery(input: {
   terms?: string[];
   exactPhrases?: string[];
@@ -104,31 +128,34 @@ function buildQueries(input: {
   before?: string;
   maxQueries: number;
 }): string[] {
-  const base = input.rawQuery?.trim() ||
+  const extracted = extractSites(input.rawQuery);
+
+  const base = extracted.query ||
     buildBaseQuery(input);
 
   if (!base) {
     return [];
   }
 
-  const sites = normalize(input.sites);
+  const sites = normalize([
+    ...extracted.sites,
+    ...normalize(input.sites),
+  ]);
 
   if (sites.length === 0) {
     return [base];
   }
 
-  const queries = sites.map(
-    (site) => `${base} site:${site}`,
-  );
-
-  return queries.slice(0, input.maxQueries);
+  return sites
+    .map((site) => `${base} site:${site}`)
+    .slice(0, input.maxQueries);
 }
 
 export const searchDorks = createTool({
   id: 'search-dorks',
 
   description:
-    'Build and execute precise public-web search dorks. Use for targeted discovery with site:, intitle:, inurl:, filetype:, exact phrases, exclusions, OR groups, and date bounds. This searches the public web; it is not an internal tool-discovery function.',
+    'Build and execute precise public-web search dorks. Use for targeted discovery with site:, intitle:, inurl:, filetype:, exact phrases, exclusions, OR groups, and date bounds. Multiple site: operators are automatically split into separate search branches instead of being ANDed into an impossible query. This searches the public web; it is not an internal tool-discovery function.',
 
   inputSchema: z.object({
     rawQuery: z
