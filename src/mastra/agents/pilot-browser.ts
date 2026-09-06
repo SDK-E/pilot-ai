@@ -1,7 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import {
   TokenLimiterProcessor,
-  ToolSearchProcessor,
   UnicodeNormalizer,
 } from '@mastra/core/processors';
 import { TaskSignalProvider } from '@mastra/core/signals';
@@ -56,29 +55,12 @@ import { githubPublic } from '../tools/github-public';
 import { markdownFile } from '../tools/markdown-file';
 import { researchScratchpad } from '../tools/research-scratchpad';
 import { resultCollector } from '../tools/result-collector';
+import { searchDorks } from '../tools/search-dorks';
 import { siteDiscovery } from '../tools/site-discovery';
 import { skillsMarketplace } from '../tools/skills-marketplace';
 import { stagehandBrowser } from '../tools/stagehand-browser';
 import { structuredData } from '../tools/structured-data';
 import { webSearch } from '../tools/web-search';
-
-const toolSearchProcessor =
-  new ToolSearchProcessor({
-    tools: {
-      bulkUrlFetch,
-      domainIntelligence,
-      githubPublic,
-      siteDiscovery,
-      structuredData,
-    },
-
-    search: {
-      topK: 4,
-      minScore: 0.1,
-    },
-
-    ttl: 3_600_000,
-  });
 
 export const pilotBrowser =
   new Agent({
@@ -214,8 +196,6 @@ Do not abandon the parent objective.
       failureRecoveryProcessor,
       memoryHygieneProcessor,
 
-      toolSearchProcessor,
-
       new TokenLimiterProcessor({
         limit:
           pilotConfig.agent.main
@@ -232,8 +212,15 @@ Do not abandon the parent objective.
 
     tools: {
       webSearch,
+      searchDorks,
       stagehandBrowser,
       skillsMarketplace,
+
+      bulkUrlFetch,
+      siteDiscovery,
+      structuredData,
+      domainIntelligence,
+      githubPublic,
 
       researchScratchpad,
       resultCollector,
