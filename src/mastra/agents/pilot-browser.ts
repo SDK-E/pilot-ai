@@ -5,10 +5,7 @@ import {
   UnicodeNormalizer,
 } from '@mastra/core/processors';
 import { TaskSignalProvider } from '@mastra/core/signals';
-import {
-  askUserTool,
-  webFetchTool,
-} from '@mastra/core/tools';
+import { askUserTool } from '@mastra/core/tools';
 
 import { pilotConfig } from '../config';
 
@@ -50,16 +47,19 @@ import {
 } from './subagents';
 
 import { bulkUrlFetch } from '../tools/bulk-url-fetch';
+import { csvFile } from '../tools/csv-file';
 import { domainIntelligence } from '../tools/domain-intelligence';
 import { exportResults } from '../tools/export-results';
 import { exportValidator } from '../tools/export-validator';
 import { githubPublic } from '../tools/github-public';
-import { langSearch } from '../tools/langsearch';
+import { markdownFile } from '../tools/markdown-file';
 import { researchScratchpad } from '../tools/research-scratchpad';
 import { resultCollector } from '../tools/result-collector';
 import { siteDiscovery } from '../tools/site-discovery';
+import { skillsMarketplace } from '../tools/skills-marketplace';
 import { stagehandBrowser } from '../tools/stagehand-browser';
 import { structuredData } from '../tools/structured-data';
+import { webSearch } from '../tools/web-search';
 
 const toolSearchProcessor =
   new ToolSearchProcessor({
@@ -229,15 +229,17 @@ Do not abandon the parent objective.
     outputProcessors: [],
 
     tools: {
-      langSearch,
-      webFetchTool,
+      webSearch,
       stagehandBrowser,
+      skillsMarketplace,
 
       researchScratchpad,
       resultCollector,
 
       exportValidator,
       exportResults,
+      csvFile,
+      markdownFile,
 
       askUserTool,
     },
