@@ -1,10 +1,8 @@
 import { Agent } from '@mastra/core/agent';
 import {
   TokenLimiterProcessor,
-  ToolSearchProcessor,
   UnicodeNormalizer,
 } from '@mastra/core/processors';
-import { webFetchTool } from '@mastra/core/tools';
 
 import { pilotConfig } from '../../config';
 
@@ -18,25 +16,20 @@ import {
 } from '../../processors';
 
 import { bulkUrlFetch } from '../../tools/bulk-url-fetch';
-import { langSearch } from '../../tools/langsearch';
+import { csvFile } from '../../tools/csv-file';
+import { domainIntelligence } from '../../tools/domain-intelligence';
+import { exportResults } from '../../tools/export-results';
+import { exportValidator } from '../../tools/export-validator';
+import { githubPublic } from '../../tools/github-public';
+import { markdownFile } from '../../tools/markdown-file';
+import { researchScratchpad } from '../../tools/research-scratchpad';
+import { resultCollector } from '../../tools/result-collector';
+import { searchDorks } from '../../tools/search-dorks';
 import { siteDiscovery } from '../../tools/site-discovery';
+import { skillsMarketplace } from '../../tools/skills-marketplace';
+import { stagehandBrowser } from '../../tools/stagehand-browser';
 import { structuredData } from '../../tools/structured-data';
-
-const discoveryToolSearch =
-  new ToolSearchProcessor({
-    tools: {
-      bulkUrlFetch,
-      siteDiscovery,
-      structuredData,
-    },
-
-    search: {
-      topK: 3,
-      minScore: 0.1,
-    },
-
-    ttl: 3_600_000,
-  });
+import { webSearch } from '../../tools/web-search';
 
 export const discoveryAgent =
   new Agent({
@@ -57,6 +50,28 @@ You are a specialist subagent of Pilot Browser.
 Your purpose is fast, broad, high-quality discovery.
 
 Use the delegated objective exactly as provided by the supervisor.
+
+TOOL SEMANTICS
+
+Use webSearch or searchDorks for public internet search.
+
+Never treat an internal tool-discovery function such as search_tools as Google or public-web search. If such a function is present, it only discovers registered agent tools.
+
+You have direct access to the research toolset. Do not waste steps searching for a tool that is already available.
+
+CURRENT DATE
+
+The runtime current-context system message is authoritative.
+
+For current/recent work, anchor searches to that date. Do not spray old years into keywords. Add a year only when it intentionally improves precision.
+
+QUERY QUALITY
+
+Search for evidence, not just topics.
+
+Combine the subject with useful signals such as role, hiring, freelance, contractor, consulting, procurement, transformation, funding, migration, expansion, vendor, tender, or other intent terms appropriate to the objective.
+
+Use searchDorks for targeted site:, intitle:, inurl:, filetype:, exact-phrase, exclusion, OR, and date-bounded searches.
 
 CACHE
 
@@ -96,9 +111,10 @@ Search using:
 - aliases
 - synonyms
 - geography
-- dates
+- dates only when useful
 - relevant terminology
 - source-specific terminology
+- intent and evidence signals
 
 Avoid semantically equivalent searches.
 
@@ -115,13 +131,7 @@ Prefer:
 2. authoritative specialist sources
 3. reputable secondary sources
 
-Treat:
-- aggregators
-- directories
-- copied pages
-- search snippets
-
-as weaker evidence.
+Treat aggregators, directories, copied pages, and search snippets as weaker evidence.
 
 SOURCE DIVERSITY
 
@@ -138,43 +148,9 @@ ENTITY RESOLUTION
 
 Resolve obvious duplicates.
 
-Preserve canonical identifiers when possible:
-- canonical name
-- canonical URL
-- official domain
-- repository owner/name
-- public profile URL
+Preserve canonical identifiers when possible.
 
 Do not merge distinct entities merely because names are similar.
-
-RESULTS
-
-For each useful result preserve when available:
-- entity or subject
-- finding
-- canonical URL
-- evidence URL
-- source type
-- date
-- relevance
-- uncertainty
-
-Do not fabricate missing fields.
-
-EFFICIENCY
-
-Prefer:
-- search first
-- direct fetch second
-- site discovery for known sites
-- bulk fetch for several known pages
-- structured data when useful
-
-Avoid:
-- repeated fetches
-- duplicate searches
-- weak pages
-- unnecessary over-verification
 
 FAILURE RECOVERY
 
@@ -182,20 +158,6 @@ If a source or tool fails:
 - try another evidence path
 - do not repeatedly retry identical failing calls
 - preserve partial useful results
-
-COMPLETION
-
-Continue until:
-- the delegated objective is satisfied
-- important requested fields are covered
-- obvious duplicates are resolved
-- strongest useful evidence is collected
-- additional discovery has low expected value
-
-When the run becomes large:
-- stop low-value exploration first
-- finish high-value active branches
-- return a complete useful result
 
 READ ONLY
 
@@ -237,8 +199,6 @@ Stay within the delegated objective.
       sourceDiversityProcessor,
       failureRecoveryProcessor,
 
-      discoveryToolSearch,
-
       new TokenLimiterProcessor({
         limit:
           pilotConfig.agent.subagent
@@ -251,7 +211,20 @@ Stay within the delegated objective.
     ],
 
     tools: {
-      langSearch,
-      webFetchTool,
+      webSearch,
+      searchDorks,
+      stagehandBrowser,
+      skillsMarketplace,
+      bulkUrlFetch,
+      siteDiscovery,
+      structuredData,
+      domainIntelligence,
+      githubPublic,
+      researchScratchpad,
+      resultCollector,
+      exportValidator,
+      exportResults,
+      csvFile,
+      markdownFile,
     },
   });
