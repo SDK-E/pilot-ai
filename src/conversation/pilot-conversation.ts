@@ -1,8 +1,4 @@
-import { Agent } from '@mastra/core/agent';
-import {
-  TokenLimiterProcessor,
-  UnicodeNormalizer,
-} from '@mastra/core/processors';
+import type { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
 import { PostgresStore } from '@mastra/pg';
 
@@ -14,21 +10,8 @@ import {
 import { conversationRuntimeConfig } from './config';
 import { conversationAgentIdentity } from './identity';
 import { conversationCoreInstructions } from './instructions/core';
-import {
-  currentContextProcessor,
-  failureRecoveryProcessor,
-  processNarrationGateProcessor,
-  qualityGateProcessor,
-  responseVerbosityProcessor,
-  staleObjectiveResetProcessor,
-} from '#runtime/processors';
-
-import {
-  buildAnswerRelevancyScorer,
-} from '#runtime/scorers';
-import {
-  webSearch,
-} from '#runtime/tools/search/web-search';
+import { createBaseAgent } from '#runtime/agent/base-agent';
+import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
 
 export {
   generateConversationReplySchema,
@@ -40,13 +23,20 @@ function createConversationAgent(
   command: GenerateConversationReply,
   memory: Memory,
 ): Agent {
-  return new Agent({
+  return createBaseAgent({
+    base: {
+      maxSteps: conversationRuntimeConfig.maxSteps,
+      tokenLimit: conversationRuntimeConfig.tokenLimit,
+      warningAt: 2,
+      finalAt: 3,
+    },
     id: 'pilot-conversation',
     name: conversationAgentIdentity.name,
 
     description: conversationAgentIdentity.jobDescription,
 
     instructions: [
+      buildBaseAgentInstructions(conversationAgentIdentity),
       conversationCoreInstructions(conversationAgentIdentity),
       command.worker.instructions,
     ].join('\n\n'),
@@ -57,26 +47,6 @@ function createConversationAgent(
       },
     ],
     memory,
-    defaultOptions: {
-      maxSteps: conversationRuntimeConfig.maxSteps,
-      maxProcessorRetries: 0,
-    },
-    inputProcessors: [
-      new UnicodeNormalizer({
-        stripControlChars: true,
-        collapseWhitespace: true,
-      }),
-      new TokenLimiterProcessor({
-        limit: conversationRuntimeConfig.tokenLimit,
-        strategy: 'truncate',
-      }),
-      currentContextProcessor,
-      staleObjectiveResetProcessor,
-      responseVerbosityProcessor,
-      processNarrationGateProcessor,
-      qualityGateProcessor,
-      failureRecoveryProcessor,
-    ],
     tools: {},
   });
 }

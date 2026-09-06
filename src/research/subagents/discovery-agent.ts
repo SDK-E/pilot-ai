@@ -5,7 +5,7 @@ import {
   UnicodeNormalizer,
 } from '@mastra/core/processors';
 
-import { pilotConfig } from '#research/runtime/config';
+import { pilotConfig } from '#runtime/research/config';
 
 import {
   currentContextProcessor,
@@ -18,22 +18,22 @@ import {
   runtimeSkillResolverProcessor,
   sourceDiversityProcessor,
   subagentStepBudgetProcessor,
-} from '#research/runtime/processors';
+} from '#runtime/research/processors';
 
 import { bulkUrlFetch } from '#runtime/tools/bulk-url-fetch';
 import { csvFile } from '#runtime/tools/csv-file';
 import { domainIntelligence } from '#runtime/tools/domain-intelligence';
 import { exportResults } from '#runtime/tools/export-results';
 import { exportValidator } from '#runtime/tools/export-validator';
-import { githubPublic } from '#research/runtime/tools/github-public';
+import { githubPublic } from '#runtime/research/tools/github-public';
 import { markdownFile } from '#runtime/tools/markdown-file';
 import { queryPlanner } from '#runtime/tools/query-planner';
 import { researchScratchpad } from '#runtime/tools/research-scratchpad';
 import { resultCollector } from '#runtime/tools/result-collector';
 import { searchDorks } from '#runtime/tools/search/search-dorks';
 import { siteDiscovery } from '#runtime/tools/site-discovery';
-import { skillsMarketplace } from '#research/runtime/tools/skills-marketplace';
-import { stagehandBrowser } from '#research/runtime/tools/stagehand-browser';
+import { skillsMarketplace } from '#runtime/research/tools/skills-marketplace';
+import { stagehandBrowser } from '#runtime/research/tools/stagehand-browser';
 import { structuredData } from '#runtime/tools/structured-data';
 import { webSearch } from '#runtime/tools/search/web-search';
 

@@ -12,25 +12,29 @@ execution records, and approvals. Mastra supplies agent, memory, workflow, and
 durable-execution capabilities; it does not own Pilot domain records or make
 authorization decisions.
 
-`src/index.ts` is the only service entrypoint. It holds the Pilot route
-and conditionally registers both agents. `src/conversation` and
-`src/research` contain only their agent-specific declarations,
-instructions, memory behavior, subagents, and evals. `src/runtime` contains
-shared processors, configuration, schemas, scorers, tools, storage, workflows,
-skills, and caches. Browser, local LibSQL, DuckDB, embeddings, evals, editor,
-observability, and Stagehand remain development dependencies of Pilot Research.
+`src/index.ts` is the only service entrypoint. It holds the Pilot route and
+conditionally registers both agents. `src/runtime/agent/base-agent.ts` is the
+shared BaseAgent factory: every agent receives the same input normalization,
+current-context, objective-continuity, response-quality, failure-recovery,
+token-limit, step-budget, and bounded API-retry pipeline. Agent-specific code
+lives in `src/conversation` and `src/research`; shared and research-capability
+runtime components live in `src/runtime`. Browser, local LibSQL, DuckDB,
+embeddings, evals, editor, observability, and Stagehand remain development
+dependencies of Pilot Research.
 
 The `pilot` adapter is the beginning of the product runtime. It
 accepts only a server-generated, validated command; maps the organization and
 Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
 to the Mastra thread; and uses `@mastra/pg` with the matching Neon database.
 It allows only the Kilo Gateway development model `kilo/kilo-auto/free` and
-has no tools. Its only endpoint is `POST /pilot/conversations/generate`, which
+has no enabled tools. Its only endpoint is `POST /pilot/conversations/generate`, which
 is disabled unless `PILOT_MASTRA_DATABASE_URL` is configured. Deploy it only
 behind Vercel Deployment Protection with Pilot configured as a Trusted Source;
 it relies on that server-to-server boundary and must never be attached to a
 public custom domain. Tool access will be added as a narrow, request-scoped
-capability after Pilot enforces its capability and approval policy.
+capability after Pilot enforces its capability and approval policy. It must use
+Mastra's restart-safe `ToolSearchProcessor` context storage and capability
+filter, never browser-provided tool identifiers.
 
 On 2026-09-06, `pnpm verify:memory` proved the development path with the
 matching Neon database and Kilo Gateway: a first runtime wrote a message, a

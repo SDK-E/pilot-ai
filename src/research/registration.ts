@@ -3,20 +3,20 @@ import { pilotResearchSmokeAgent } from './smoke-agent';
 import {
   createResearchDevelopmentObservability,
   createResearchDevelopmentStorage,
-} from '#research/runtime/storage';
+} from '#runtime/research/storage';
 import {
   buildAnswerRelevancyScorer,
   completenessScorer,
   sourceCoverageScorer,
   taskCompletionScorer,
 } from '#runtime/scorers';
-import { companyResearchWorkflow } from '#research/runtime/workflows/company-research';
-import { deepResearchWorkflow } from '#research/runtime/workflows/deep-research';
-import { leadResearchWorkflow } from '#research/runtime/workflows/lead-research';
-import { peopleResearchWorkflow } from '#research/runtime/workflows/people-research';
-import { technicalResearchWorkflow } from '#research/runtime/workflows/technical-research';
-import { webSearchWorkflow } from '#research/runtime/workflows/web-search';
-import { createUrlFetchConfig } from '#research/runtime/cache';
+import { companyResearchWorkflow } from '#runtime/research/workflows/company-research';
+import { deepResearchWorkflow } from '#runtime/research/workflows/deep-research';
+import { leadResearchWorkflow } from '#runtime/research/workflows/lead-research';
+import { peopleResearchWorkflow } from '#runtime/research/workflows/people-research';
+import { technicalResearchWorkflow } from '#runtime/research/workflows/technical-research';
+import { webSearchWorkflow } from '#runtime/research/workflows/web-search';
+import { createUrlFetchConfig } from '#runtime/research/cache';
 import { setUrlFetchConfig } from '#runtime/tools/url-fetch';
 import { setLangSearchConfig } from '#runtime/tools/search/langsearch';
 import { setWebSearchConfig } from '#runtime/tools/search/web-search';
@@ -31,7 +31,7 @@ import {
 import {
   researchMemoryDatabaseAuthToken,
   researchMemoryDatabaseUrl,
-} from '#research/runtime/config/research-agent/storage';
+} from '#runtime/research/config/research-agent/storage';
 
 setUrlFetchConfig(createUrlFetchConfig());
 

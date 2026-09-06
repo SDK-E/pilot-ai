@@ -9,7 +9,7 @@ import {
   checks,
 } from '@mastra/evals/checks';
 
-import { pilotConfig } from '#research/runtime/config';
+import { pilotConfig } from '#runtime/research/config';
 
 import {
   buildAnswerRelevancyScorer,

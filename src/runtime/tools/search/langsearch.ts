@@ -7,7 +7,7 @@ import {
   setCachedValue,
 } from '#runtime/cache';
 
-import { pilotConfig } from '#runtime/config';
+import { pilotConfig } from '#runtime/research/config';
 
 export type LangSearchConfig = {
   apiKey?: string;

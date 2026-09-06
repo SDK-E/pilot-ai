@@ -5,7 +5,7 @@ import {
 
 import {
   pilotConfig,
-} from '#research/runtime/config';
+} from '#runtime/research/config';
 
 import { researchAgentIdentity } from './identity';
 

@@ -7,7 +7,7 @@ import {
   type SearchResult,
 } from './langsearch';
 import { performDorkSearch } from './search-dorks';
-import { performStagehandSearch } from '#research/runtime/tools/stagehand-browser';
+import { performStagehandSearch } from '#runtime/research/tools/stagehand-browser';
 import { performUrlFetch } from '#runtime/tools/url-fetch';
 
 export type WebSearchConfig = {

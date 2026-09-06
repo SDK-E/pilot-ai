@@ -13,6 +13,7 @@ The model never decides whether it may use a capability. Pilot resolves the acti
 | Pilot Research Agent component | Pilot Conversation decision |
 | --- | --- |
 | Kilo Gateway model configuration and retry policy | Reuse as the initial model adapter, with the Worker-selected model checked against Pilot's server allowlist. |
+| `BaseAgent` | Reuse the identity contract and shared normalization, context, objective continuity, response-quality, recovery, bounded retry, token and step-budget pipeline. |
 | `UnicodeNormalizer` | Reuse to normalize untrusted message text before model input. |
 | `TokenLimiterProcessor` and step budget | Reuse with smaller conversational limits and a clear terminal reply when a limit is reached. |
 | Response quality, verbosity and process-narration processors | Reuse their conversation-safe parts so replies stay direct, proportionate and free of internal runtime narration. |
@@ -58,7 +59,7 @@ Use `@mastra/pg` with the matching Neon environment for Mastra storage. Do not u
 1. Replace deployed storage with `@mastra/pg` and prove restart-safe message history. **Verified locally against development Neon on 2026-09-06; preview and production still need runtime configuration.**
 2. Add `pilot-conversation` with direct chat behavior and no enabled capabilities by default. **Implemented and covered by deterministic command-validation tests.**
 3. Add the typed internal endpoint and protected Pilot-to-runtime transport. **The runtime endpoint is implemented; Pilot still needs to become the authenticated caller and Vercel Trusted Sources must be configured before deployment.**
-4. Keep the local Research Agent in the shared Pilot runtime before deployment. **Implemented with `src/index.ts` registering both agents and `src/research` holding research-specific code. The normal Pilot build does not load research dependencies.**
+4. Keep the local Research Agent in the shared Pilot runtime before deployment. **Implemented with `src/index.ts` registering both agents, `src/runtime/agent/base-agent.ts` providing their shared behavior, and `src/research` holding research-specific code. The normal Pilot build does not load research dependencies.**
 5. Add Pilot-side message persistence and the authenticated server-to-server call, then prove one complete user message/reply flow.
 6. Add dynamic, capability-filtered read-only tools and prove denied tools cannot be discovered, loaded or called.
 7. Add durable approval/suspension for mutation tools, then browser control and integrations.

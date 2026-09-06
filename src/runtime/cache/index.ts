@@ -11,8 +11,8 @@ import {
 import {
   researchMemoryDatabaseAuthToken,
   researchMemoryDatabaseUrl,
-} from '#research/runtime/config/research-agent/storage';
-import { pilotConfig } from '#research/runtime/config';
+} from '#runtime/research/config/research-agent/storage';
+import { pilotConfig } from '#runtime/research/config';
 
 const client: Client = createClient({
   url: researchMemoryDatabaseUrl,

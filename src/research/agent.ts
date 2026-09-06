@@ -1,13 +1,8 @@
-import { Agent } from '@mastra/core/agent';
-import {
-  TokenLimiterProcessor,
-  ToolSearchProcessor,
-  UnicodeNormalizer,
-} from '@mastra/core/processors';
+import { ToolSearchProcessor } from '@mastra/core/processors';
 import { TaskSignalProvider } from '@mastra/core/signals';
 import { askUserTool } from '@mastra/core/tools';
 
-import { pilotConfig } from '#research/runtime/config';
+import { pilotConfig } from '#runtime/research/config';
 
 import { researchAgentIdentity } from './identity';
 
@@ -20,18 +15,8 @@ import { orgContext } from './instructions/org-context';
 
 import { pilotResearchMemory } from './memory/memory';
 
-import {
-  currentContextProcessor,
-  failureRecoveryProcessor,
-  staleObjectiveResetProcessor,
-} from '#runtime/processors';
-
-import {
-  processNarrationGateProcessor,
-  qualityGateProcessor,
-  responseVerbosityProcessor,
-  createStepBudgetProcessor,
-} from '#runtime/processors';
+import { createBaseAgent } from '#runtime/agent/base-agent';
+import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
 
 import {
   challengeClaimProcessor,
@@ -47,7 +32,7 @@ import {
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
   taskDependencyProcessor,
-} from '#research/runtime/processors';
+} from '#runtime/research/processors';
 
 import {
   discoveryAgent,
@@ -60,15 +45,15 @@ import { csvFile } from '#runtime/tools/csv-file';
 import { domainIntelligence } from '#runtime/tools/domain-intelligence';
 import { exportResults } from '#runtime/tools/export-results';
 import { exportValidator } from '#runtime/tools/export-validator';
-import { githubPublic } from './runtime/tools/github-public';
+import { githubPublic } from '#runtime/research/tools/github-public';
 import { markdownFile } from '#runtime/tools/markdown-file';
 import { queryPlanner } from '#runtime/tools/query-planner';
 import { researchScratchpad } from '#runtime/tools/research-scratchpad';
 import { resultCollector } from '#runtime/tools/result-collector';
 import { searchDorks } from '#runtime/tools/search/search-dorks';
 import { siteDiscovery } from '#runtime/tools/site-discovery';
-import { skillsMarketplace } from './runtime/tools/skills-marketplace';
-import { stagehandBrowser } from './runtime/tools/stagehand-browser';
+import { skillsMarketplace } from '#runtime/research/tools/skills-marketplace';
+import { stagehandBrowser } from '#runtime/research/tools/stagehand-browser';
 import { structuredData } from '#runtime/tools/structured-data';
 import { webSearch } from '#runtime/tools/search/web-search';
 
@@ -90,12 +75,17 @@ const toolSearchProcessor =
       topK: 5,
       minScore: 0.1,
     },
-
-    ttl: 3_600_000,
+    storage: 'context',
   });
 
 export const pilotResearchAgent =
-  new Agent({
+  createBaseAgent({
+    base: {
+      maxSteps: pilotConfig.agent.main.maxSteps,
+      tokenLimit: pilotConfig.agent.main.tokenLimit,
+      warningAt: pilotConfig.agent.main.stepBudget.warningAt,
+      finalAt: pilotConfig.agent.main.stepBudget.finalAt,
+    },
     id: 'pilot-research',
 
     name: researchAgentIdentity.name,
@@ -103,6 +93,7 @@ export const pilotResearchAgent =
     description: researchAgentIdentity.jobDescription,
 
     instructions: [
+      buildBaseAgentInstructions(researchAgentIdentity),
       coreInstructions(researchAgentIdentity),
       researchPlanningInstructions,
       toolUsageInstructions,
@@ -119,7 +110,6 @@ export const pilotResearchAgent =
     ],
 
     defaultOptions: {
-      maxSteps: pilotConfig.agent.main.maxSteps,
       autoResumeSuspendedTools: true,
 
       delegation: {
@@ -167,21 +157,11 @@ Do not abandon the parent objective.
     },
 
     inputProcessors: [
-      new UnicodeNormalizer({
-        stripControlChars: true,
-        collapseWhitespace: true,
-      }),
-
-      currentContextProcessor,
-      staleObjectiveResetProcessor,
       promptEnhancerProcessor,
       researchPolicyProcessor,
       researchBudgetProcessor,
-      responseVerbosityProcessor,
       runtimeSkillResolverProcessor,
-      processNarrationGateProcessor,
       negativeClaimVerificationProcessor,
-      qualityGateProcessor,
       taskDependencyProcessor,
       sourceConfidenceProcessor,
       entityResolutionProcessor,
@@ -189,20 +169,8 @@ Do not abandon the parent objective.
       contradictionCheckProcessor,
       sourceDiversityProcessor,
       challengeClaimProcessor,
-      failureRecoveryProcessor,
       memoryHygieneProcessor,
       toolSearchProcessor,
-
-      new TokenLimiterProcessor({
-        limit: pilotConfig.agent.main.tokenLimit,
-        strategy: 'truncate',
-      }),
-
-      createStepBudgetProcessor({
-        maxSteps: pilotConfig.agent.main.maxSteps,
-        warningAt: pilotConfig.agent.main.stepBudget.warningAt,
-        finalAt: pilotConfig.agent.main.stepBudget.finalAt,
-      }),
     ],
 
     outputProcessors: [],
