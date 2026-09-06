@@ -5,6 +5,7 @@ import {
   UnicodeNormalizer,
 } from '@mastra/core/processors';
 import { TaskSignalProvider } from '@mastra/core/signals';
+import { askUserTool } from '@mastra/core/tools';
 
 import { pilotConfig } from '../config';
 
@@ -112,6 +113,7 @@ export const pilotBrowser =
 
     defaultOptions: {
       maxSteps: pilotConfig.agent.main.maxSteps,
+      autoResumeSuspendedTools: true,
 
       delegation: {
         messageFilter: ({ messages }) => messages.slice(-12),
@@ -202,5 +204,6 @@ Do not abandon the parent objective.
       skillsMarketplace,
       researchScratchpad,
       resultCollector,
+      askUserTool,
     },
   });
