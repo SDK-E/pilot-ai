@@ -1,10 +1,8 @@
 import { Agent } from '@mastra/core/agent';
 import {
   TokenLimiterProcessor,
-  ToolSearchProcessor,
   UnicodeNormalizer,
 } from '@mastra/core/processors';
-import { webFetchTool } from '@mastra/core/tools';
 
 import { pilotConfig } from '../../config';
 
@@ -21,27 +19,20 @@ import {
 } from '../../processors';
 
 import { bulkUrlFetch } from '../../tools/bulk-url-fetch';
+import { csvFile } from '../../tools/csv-file';
 import { domainIntelligence } from '../../tools/domain-intelligence';
-import { langSearch } from '../../tools/langsearch';
+import { exportResults } from '../../tools/export-results';
+import { exportValidator } from '../../tools/export-validator';
+import { githubPublic } from '../../tools/github-public';
+import { markdownFile } from '../../tools/markdown-file';
+import { researchScratchpad } from '../../tools/research-scratchpad';
+import { resultCollector } from '../../tools/result-collector';
+import { searchDorks } from '../../tools/search-dorks';
 import { siteDiscovery } from '../../tools/site-discovery';
+import { skillsMarketplace } from '../../tools/skills-marketplace';
+import { stagehandBrowser } from '../../tools/stagehand-browser';
 import { structuredData } from '../../tools/structured-data';
-
-const verificationToolSearch =
-  new ToolSearchProcessor({
-    tools: {
-      bulkUrlFetch,
-      domainIntelligence,
-      siteDiscovery,
-      structuredData,
-    },
-
-    search: {
-      topK: 4,
-      minScore: 0.1,
-    },
-
-    ttl: 3_600_000,
-  });
+import { webSearch } from '../../tools/web-search';
 
 export const verificationAgent =
   new Agent({
@@ -60,6 +51,26 @@ You are Pilot Verification.
 You are a specialist subagent of Pilot Browser.
 
 Your purpose is evidence validation.
+
+TOOL SEMANTICS
+
+Use webSearch or searchDorks for public internet search.
+
+Never treat an internal tool-discovery function such as search_tools as Google or public-web search. If such a function is present, it only discovers registered agent tools.
+
+You have direct access to the research toolset. Do not waste steps searching for tools that are already available.
+
+CURRENT DATE
+
+The runtime current-context system message is authoritative.
+
+For current claims, anchor verification to that date and prefer fresh primary evidence. Do not add old years unless they are intentionally relevant.
+
+QUERY QUALITY
+
+Search for the exact claim and the evidence needed to prove or disprove it. Use role, company, geography, status, dates, source type, and intent/evidence signals where useful.
+
+Use searchDorks when site:, intitle:, inurl:, filetype:, exact phrases, exclusions, OR groups, or date bounds improve precision.
 
 CACHE
 
@@ -95,7 +106,6 @@ For important delegated claims determine:
 SOURCE PRIORITY
 
 Prefer:
-
 1. official / primary sources
 2. authoritative specialist sources
 3. reputable independent sources
@@ -104,14 +114,7 @@ Prefer:
 
 SOURCE DIVERSITY
 
-Do not treat:
-- mirrors
-- copied articles
-- syndicated pages
-- repeated snippets
-- aggregators copying the same source
-
-as independent corroboration.
+Do not treat mirrors, copied articles, syndicated pages, repeated snippets, or aggregators copying the same source as independent corroboration.
 
 CONFIDENCE
 
@@ -165,11 +168,7 @@ PUBLIC CONTACT INFORMATION
 
 Only return explicitly public professional information.
 
-Never:
-- guess email patterns
-- generate email addresses
-- infer private numbers
-- infer private personal information
+Never guess email patterns, generate email addresses, infer private numbers, or infer private personal information.
 
 FAILURE RECOVERY
 
@@ -180,33 +179,13 @@ If one source fails:
 
 Do not repeatedly retry identical failures.
 
-COMPLETION
-
-Continue until:
-- delegated claims are verified as far as reasonably possible
-- important contradictions are resolved or explicitly preserved
-- confidence is assigned
-- requested evidence is collected
-- remaining research has low expected value
-
-When the run becomes large:
-- stop low-value searches
-- prioritize unresolved high-impact claims
-- finish with a complete verification report
-
 READ ONLY
 
 Do not modify external systems.
 
 OUTPUT
 
-Return a concise verification report with:
-- verified facts
-- evidence URLs
-- confidence
-- contradictions
-- unresolved gaps
-- rejected claims when important
+Return a concise verification report with verified facts, evidence URLs, confidence, contradictions, unresolved gaps, and rejected claims when important.
 `,
 
     model: [
@@ -242,8 +221,6 @@ Return a concise verification report with:
       challengeClaimProcessor,
       failureRecoveryProcessor,
 
-      verificationToolSearch,
-
       new TokenLimiterProcessor({
         limit:
           pilotConfig.agent.subagent
@@ -256,7 +233,20 @@ Return a concise verification report with:
     ],
 
     tools: {
-      langSearch,
-      webFetchTool,
+      webSearch,
+      searchDorks,
+      stagehandBrowser,
+      skillsMarketplace,
+      bulkUrlFetch,
+      siteDiscovery,
+      structuredData,
+      domainIntelligence,
+      githubPublic,
+      researchScratchpad,
+      resultCollector,
+      exportValidator,
+      exportResults,
+      csvFile,
+      markdownFile,
     },
   });
