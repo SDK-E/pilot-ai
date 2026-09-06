@@ -33,6 +33,7 @@ import {
   researchBudgetProcessor,
   researchPolicyProcessor,
   responseVerbosityProcessor,
+  runtimeSkillResolverProcessor,
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
   staleObjectiveResetProcessor,
@@ -195,6 +196,7 @@ Do not abandon the parent objective.
       researchPolicyProcessor,
       researchBudgetProcessor,
       responseVerbosityProcessor,
+      runtimeSkillResolverProcessor,
 
       processNarrationGateProcessor,
       negativeClaimVerificationProcessor,
