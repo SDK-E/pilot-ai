@@ -1,58 +1,80 @@
-type MessageContentPart = {
-  type?: string;
-  text?: string;
-};
-
-type MessageLike = {
+type TextLike = {
+  text?: unknown;
   content?: unknown;
+  output?: unknown;
+  message?: unknown;
+  messages?: unknown;
+  response?: unknown;
 };
 
 function contentToText(
-  content: unknown,
+  value: unknown,
+  seen = new Set<unknown>(),
 ): string {
-  if (typeof content === 'string') {
-    return content;
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return '';
   }
 
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === 'string') {
-          return part;
-        }
+  if (typeof value === 'string') {
+    return value;
+  }
 
-        if (
-          part &&
-          typeof part === 'object'
-        ) {
-          const value =
-            part as MessageContentPart;
+  if (
+    typeof value !== 'object'
+  ) {
+    return '';
+  }
 
-          if (
-            value.type === 'text' &&
-            typeof value.text === 'string'
-          ) {
-            return value.text;
-          }
-        }
+  if (seen.has(value)) {
+    return '';
+  }
 
-        return '';
-      })
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        contentToText(
+          item,
+          seen,
+        ),
+      )
       .filter(Boolean)
       .join('\n');
   }
 
-  if (
-    content &&
-    typeof content === 'object'
-  ) {
-    const value =
-      content as {
-        text?: unknown;
-      };
+  const object =
+    value as TextLike;
 
-    if (typeof value.text === 'string') {
-      return value.text;
+  if (
+    typeof object.text ===
+    'string'
+  ) {
+    return object.text;
+  }
+
+  const candidates = [
+    object.content,
+    object.output,
+    object.message,
+    object.messages,
+    object.response,
+  ];
+
+  for (
+    const candidate of candidates
+  ) {
+    const text =
+      contentToText(
+        candidate,
+        seen,
+      );
+
+    if (text) {
+      return text;
     }
   }
 
@@ -62,42 +84,9 @@ function contentToText(
 export function agentOutputToText(
   output: unknown,
 ): string {
-  if (typeof output === 'string') {
-    return output;
-  }
-
-  if (Array.isArray(output)) {
-    return output
-      .map((message) => {
-        if (
-          !message ||
-          typeof message !== 'object'
-        ) {
-          return '';
-        }
-
-        return contentToText(
-          (message as MessageLike)
-            .content,
-        );
-      })
-      .filter(Boolean)
-      .join('\n');
-  }
-
-  if (
-    output &&
-    typeof output === 'object'
-  ) {
-    const value =
-      output as MessageLike;
-
-    return contentToText(
-      value.content,
-    );
-  }
-
-  return '';
+  return contentToText(
+    output,
+  ).trim();
 }
 
 export function uniqueUrls(
