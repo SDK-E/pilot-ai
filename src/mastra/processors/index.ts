@@ -19,6 +19,11 @@ export {
 } from './research-policy';
 
 export {
+  ResearchBudgetProcessor,
+  researchBudgetProcessor,
+} from './research-budget';
+
+export {
   TaskDependencyProcessor,
   taskDependencyProcessor,
 } from './task-dependency';

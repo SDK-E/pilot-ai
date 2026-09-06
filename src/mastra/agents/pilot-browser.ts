@@ -31,6 +31,7 @@ import {
   promptEnhancerProcessor,
   qualityGateProcessor,
   recencyCheckProcessor,
+  researchBudgetProcessor,
   researchPolicyProcessor,
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
@@ -75,46 +76,53 @@ const toolSearchProcessor =
     ttl: 3_600_000,
   });
 
-export const pilotBrowser = new Agent({
-  id: 'pilot-browser',
+export const pilotBrowser =
+  new Agent({
+    id: 'pilot-browser',
 
-  name: 'Pilot Browser',
+    name: 'Pilot Browser',
 
-  description:
-    'General-purpose internet research and browsing agent. Researches any public topic, entity, company, person, technology, repository, market, product, event, job, lead, document, claim, or question using the web.',
+    description:
+      'General-purpose internet research and browsing agent. Researches any public topic, entity, company, person, technology, repository, market, product, event, job, lead, document, claim, or question using the web.',
 
-  instructions: [
-    coreInstructions,
-    researchPlanningInstructions,
-    toolUsageInstructions,
-    verificationInstructions,
-    completionInstructions,
-    orgContext,
-  ].join('\n\n'),
+    instructions: [
+      coreInstructions,
+      researchPlanningInstructions,
+      toolUsageInstructions,
+      verificationInstructions,
+      completionInstructions,
+      orgContext,
+    ].join('\n\n'),
 
-  model: [
-    {
-      model: pilotConfig.model.id,
-      maxRetries:
-        pilotConfig.model.maxRetries,
-    },
-  ],
+    model: [
+      {
+        model:
+          pilotConfig.model.id,
 
-  defaultOptions: {
-    maxSteps:
-      pilotConfig.agent.main.maxSteps,
+        maxRetries:
+          pilotConfig.model
+            .maxRetries,
+      },
+    ],
 
-    delegation: {
-      messageFilter: ({
-        messages,
-      }) => messages.slice(-12),
+    defaultOptions: {
+      maxSteps:
+        pilotConfig.agent.main
+          .maxSteps,
 
-      onDelegationStart: async ({
-        prompt,
-      }) => ({
-        proceed: true,
+      delegation: {
+        messageFilter: ({
+          messages,
+        }) =>
+          messages.slice(-12),
 
-        modifiedPrompt: `
+        onDelegationStart:
+          async ({
+            prompt,
+          }) => ({
+            proceed: true,
+
+            modifiedPrompt: `
 ${prompt}
 
 Stay strictly within the delegated objective.
@@ -125,99 +133,106 @@ Do not broaden into unrelated research.
 
 Current time: ${new Date().toISOString()}
 `,
-      }),
+          }),
 
-      onDelegationComplete: async ({
-        primitiveId,
-        error,
-      }) => {
-        if (!error) {
-          return;
-        }
+        onDelegationComplete:
+          async ({
+            primitiveId,
+            error,
+          }) => {
+            if (!error) {
+              return;
+            }
 
-        console.warn(
-          `[pilot-browser] delegation to ${primitiveId} failed`,
-          error,
-        );
+            console.warn(
+              `[pilot-browser] delegation to ${primitiveId} failed`,
+              error,
+            );
 
-        return {
-          feedback: `
+            return {
+              feedback: `
 The delegated branch failed.
 
 Recover using another useful evidence path.
 
 Do not abandon the parent objective.
 `,
-        };
+            };
+          },
       },
     },
-  },
 
-  memory:
-    pilotBrowserMemory,
+    memory:
+      pilotBrowserMemory,
 
-  signals: [
-    new TaskSignalProvider(),
-  ],
+    signals: [
+      new TaskSignalProvider(),
+    ],
 
-  agents: {
-    discoveryAgent,
-    verificationAgent,
-    technicalAgent,
-  },
+    agents: {
+      discoveryAgent,
+      verificationAgent,
+      technicalAgent,
+    },
 
-  inputProcessors: [
-    new UnicodeNormalizer({
-      stripControlChars: true,
-      collapseWhitespace: true,
-    }),
+    inputProcessors: [
+      new UnicodeNormalizer({
+        stripControlChars:
+          true,
 
-    currentContextProcessor,
-    staleObjectiveResetProcessor,
+        collapseWhitespace:
+          true,
+      }),
 
-    promptEnhancerProcessor,
-    researchPolicyProcessor,
+      currentContextProcessor,
+      staleObjectiveResetProcessor,
 
-    taskDependencyProcessor,
+      promptEnhancerProcessor,
 
-    sourceConfidenceProcessor,
-    entityResolutionProcessor,
-    recencyCheckProcessor,
-    contradictionCheckProcessor,
-    sourceDiversityProcessor,
-    challengeClaimProcessor,
+      researchPolicyProcessor,
+      researchBudgetProcessor,
 
-    failureRecoveryProcessor,
-    memoryHygieneProcessor,
+      taskDependencyProcessor,
 
-    toolSearchProcessor,
+      sourceConfidenceProcessor,
+      entityResolutionProcessor,
+      recencyCheckProcessor,
+      contradictionCheckProcessor,
+      sourceDiversityProcessor,
+      challengeClaimProcessor,
 
-    new TokenLimiterProcessor({
-      limit:
-        pilotConfig.agent.main
-          .tokenLimit,
+      failureRecoveryProcessor,
+      memoryHygieneProcessor,
 
-      strategy: 'truncate',
-    }),
+      toolSearchProcessor,
 
-    stepBudgetProcessor,
-  ],
+      new TokenLimiterProcessor({
+        limit:
+          pilotConfig.agent.main
+            .tokenLimit,
 
-  outputProcessors: [
-    qualityGateProcessor,
-  ],
+        strategy:
+          'truncate',
+      }),
 
-  tools: {
-    langSearch,
-    webFetchTool,
-    stagehandBrowser,
+      stepBudgetProcessor,
+    ],
 
-    researchScratchpad,
-    resultCollector,
+    outputProcessors: [
+      qualityGateProcessor,
+    ],
 
-    exportValidator,
-    exportResults,
+    tools: {
+      langSearch,
+      webFetchTool,
+      stagehandBrowser,
 
-    askUserTool,
-  },
-});
+      researchScratchpad,
+      resultCollector,
+
+      exportValidator,
+      exportResults,
+
+      askUserTool,
+    },
+  });
