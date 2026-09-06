@@ -13,6 +13,10 @@ import {
 } from './agents/pilot-browser';
 
 import {
+  pilotBrowserSmoke,
+} from './agents/pilot-browser-smoke';
+
+import {
   answerRelevancyScorer,
   completenessScorer,
   sourceCoverageScorer,
@@ -119,6 +123,7 @@ export const mastra =
   new Mastra({
     agents: {
       pilotBrowser,
+      pilotBrowserSmoke,
     },
 
     scorers: {
