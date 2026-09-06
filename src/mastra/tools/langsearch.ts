@@ -7,19 +7,27 @@ import {
   setCachedValue,
 } from '../cache';
 
+import { pilotConfig } from '../config';
+
 export const searchResultSchema =
   z.object({
     title: z.string(),
     url: z.string(),
-    snippet: z.string().optional(),
-    content: z.string().optional(),
+
+    snippet:
+      z.string().optional(),
+
+    content:
+      z.string().optional(),
+
     publishedAt:
       z.string().optional(),
   });
 
-export type SearchResult = z.infer<
-  typeof searchResultSchema
->;
+export type SearchResult =
+  z.infer<
+    typeof searchResultSchema
+  >;
 
 type LangSearchWebPage = {
   name?: unknown;
@@ -31,18 +39,18 @@ type LangSearchWebPage = {
 
 type LangSearchResponse = {
   webPages?: {
-    value?: LangSearchWebPage[];
+    value?:
+      LangSearchWebPage[];
   };
 };
-
-const CACHE_TTL_MS =
-  5 * 60 * 1000;
 
 function asString(
   value: unknown,
 ): string | undefined {
-  return typeof value === 'string' &&
+  return (
+    typeof value === 'string' &&
     value.trim().length > 0
+  )
     ? value.trim()
     : undefined;
 }
@@ -53,7 +61,8 @@ export async function performLangSearch(
   abortSignal?: AbortSignal,
 ): Promise<SearchResult[]> {
   const apiKey =
-    process.env.LANGSEARCH_API_KEY;
+    process.env
+      .LANGSEARCH_API_KEY;
 
   if (!apiKey) {
     throw new Error(
@@ -65,18 +74,24 @@ export async function performLangSearch(
     query.trim();
 
   const count = Math.min(
-    Math.max(maxResults, 1),
+    Math.max(
+      maxResults,
+      1,
+    ),
     10,
   );
 
-  const cacheKey = makeCacheKey(
-    'lang-search',
-    {
-      query:
-        normalizedQuery.toLowerCase(),
-      count,
-    },
-  );
+  const cacheKey =
+    makeCacheKey(
+      'lang-search',
+      {
+        query:
+          normalizedQuery
+            .toLowerCase(),
+
+        count,
+      },
+    );
 
   const cached =
     await getCachedValue<
@@ -90,10 +105,14 @@ export async function performLangSearch(
   const controller =
     new AbortController();
 
-  const timeout = setTimeout(
-    () => controller.abort(),
-    20_000,
-  );
+  const timeout =
+    setTimeout(
+      () =>
+        controller.abort(),
+
+      pilotConfig.network
+        .fetchTimeoutMs,
+    );
 
   const onAbort = () =>
     controller.abort();
@@ -107,32 +126,36 @@ export async function performLangSearch(
   );
 
   try {
-    const response = await fetch(
-      'https://api.langsearch.com/v1/web-search',
-      {
-        method: 'POST',
+    const response =
+      await fetch(
+        'https://api.langsearch.com/v1/web-search',
+        {
+          method: 'POST',
 
-        signal:
-          controller.signal,
+          signal:
+            controller.signal,
 
-        headers: {
-          authorization:
-            `Bearer ${apiKey}`,
+          headers: {
+            authorization:
+              `Bearer ${apiKey}`,
 
-          'content-type':
-            'application/json',
+            'content-type':
+              'application/json',
+          },
+
+          body: JSON.stringify({
+            query:
+              normalizedQuery,
+
+            freshness:
+              'noLimit',
+
+            summary: true,
+
+            count,
+          }),
         },
-
-        body: JSON.stringify({
-          query:
-            normalizedQuery,
-
-          freshness: 'noLimit',
-          summary: true,
-          count,
-        }),
-      },
-    );
+      );
 
     if (!response.ok) {
       throw new Error(
@@ -143,76 +166,85 @@ export async function performLangSearch(
     const data =
       (await response.json()) as LangSearchResponse;
 
-    const pages = Array.isArray(
-      data.webPages?.value,
-    )
-      ? data.webPages.value
-      : [];
-
-    const results = pages
-      .map(
-        (
-          page,
-        ): SearchResult | null => {
-          const url = asString(
-            page.url,
-          );
-
-          if (!url) {
-            return null;
-          }
-
-          return {
-            title:
-              asString(
-                page.name,
-              ) ?? url,
-
-            url,
-
-            snippet:
-              asString(
-                page.snippet,
-              ),
-
-            content:
-              asString(
-                page.summary,
-              ) ??
-              asString(
-                page.snippet,
-              ),
-
-            publishedAt:
-              asString(
-                page.datePublished,
-              ),
-          };
-        },
+    const pages =
+      Array.isArray(
+        data.webPages?.value,
       )
-      .filter(
-        (
-          result,
-        ): result is SearchResult =>
-          result !== null,
-      )
-      .slice(0, count);
+        ? data.webPages.value
+        : [];
+
+    const results =
+      pages
+        .map(
+          (
+            page,
+          ): SearchResult | null => {
+            const url =
+              asString(
+                page.url,
+              );
+
+            if (!url) {
+              return null;
+            }
+
+            return {
+              title:
+                asString(
+                  page.name,
+                ) ?? url,
+
+              url,
+
+              snippet:
+                asString(
+                  page.snippet,
+                ),
+
+              content:
+                asString(
+                  page.summary,
+                ) ??
+                asString(
+                  page.snippet,
+                ),
+
+              publishedAt:
+                asString(
+                  page.datePublished,
+                ),
+            };
+          },
+        )
+        .filter(
+          (
+            result,
+          ): result is SearchResult =>
+            result !== null,
+        )
+        .slice(
+          0,
+          count,
+        );
 
     await setCachedValue(
       cacheKey,
       'lang-search',
       results,
-      CACHE_TTL_MS,
+
+      pilotConfig.cache
+        .searchTtlMs,
     );
 
     return results;
   } finally {
     clearTimeout(timeout);
 
-    abortSignal?.removeEventListener(
-      'abort',
-      onAbort,
-    );
+    abortSignal
+      ?.removeEventListener(
+        'abort',
+        onAbort,
+      );
   }
 }
 
@@ -224,14 +256,16 @@ export const langSearch =
       'Search the public web using LangSearch.',
 
     inputSchema: z.object({
-      query: z.string().min(1),
+      query:
+        z.string().min(1),
 
-      maxResults: z
-        .number()
-        .int()
-        .min(1)
-        .max(10)
-        .default(5),
+      maxResults:
+        z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .default(5),
     }),
 
     outputSchema: z.object({
@@ -276,6 +310,7 @@ export const langSearch =
                     `${index + 1}. ${result.title}`,
                     result.url,
                     result.snippet,
+
                     result.publishedAt
                       ? `Published: ${result.publishedAt}`
                       : undefined,
@@ -283,6 +318,8 @@ export const langSearch =
                     .filter(Boolean)
                     .join('\n'),
               )
-              .join('\n\n'),
+              .join(
+                '\n\n',
+              ),
     }),
   });

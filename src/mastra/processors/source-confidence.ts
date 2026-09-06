@@ -4,14 +4,28 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-export class SourceConfidenceProcessor implements Processor {
-  readonly id = 'source-confidence';
-  readonly name = 'Source Confidence';
+import { pilotConfig } from '../config';
+
+export class SourceConfidenceProcessor
+  implements Processor
+{
+  readonly id =
+    'source-confidence';
+
+  readonly name =
+    'Source Confidence';
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 1) {
+    const every =
+      pilotConfig.research
+        .sourceConfidenceEvery;
+
+    if (
+      stepNumber < 1 ||
+      stepNumber % every !== 0
+    ) {
       return {};
     }
 
@@ -19,6 +33,7 @@ export class SourceConfidenceProcessor implements Processor {
       systemMessages: [
         {
           role: 'system',
+
           content: `
 SOURCE CONFIDENCE
 

@@ -4,14 +4,28 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-export class ContradictionCheckProcessor implements Processor {
-  readonly id = 'contradiction-check';
-  readonly name = 'Contradiction Check';
+import { pilotConfig } from '../config';
+
+export class ContradictionCheckProcessor
+  implements Processor
+{
+  readonly id =
+    'contradiction-check';
+
+  readonly name =
+    'Contradiction Check';
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 2 || stepNumber % 5 !== 0) {
+    const every =
+      pilotConfig.research
+        .contradictionCheckEvery;
+
+    if (
+      stepNumber < 2 ||
+      stepNumber % every !== 0
+    ) {
       return {};
     }
 
@@ -19,6 +33,7 @@ export class ContradictionCheckProcessor implements Processor {
       systemMessages: [
         {
           role: 'system',
+
           content: `
 CONTRADICTION CHECK
 

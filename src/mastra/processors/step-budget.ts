@@ -4,26 +4,75 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-export class StepBudgetProcessor implements Processor {
-  readonly id = 'step-budget';
-  readonly name = 'Step Budget';
+import { pilotConfig } from '../config';
+
+function resolveBudget() {
+  const {
+    maxSteps,
+    stepBudget,
+  } = pilotConfig.agent.main;
+
+  const finalAt = Math.min(
+    stepBudget.finalAt,
+    Math.max(
+      1,
+      maxSteps - 2,
+    ),
+  );
+
+  const warningAt = Math.min(
+    stepBudget.warningAt,
+    Math.max(
+      1,
+      finalAt - 5,
+    ),
+  );
+
+  return {
+    maxSteps,
+    warningAt,
+    finalAt,
+  };
+}
+
+export class StepBudgetProcessor
+  implements Processor
+{
+  readonly id =
+    'step-budget';
+
+  readonly name =
+    'Step Budget';
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 150) {
+    const {
+      maxSteps,
+      warningAt,
+      finalAt,
+    } = resolveBudget();
+
+    if (
+      stepNumber < warningAt
+    ) {
       return {};
     }
 
-    if (stepNumber < 170) {
+    if (
+      stepNumber < finalAt
+    ) {
       return {
         systemMessages: [
           {
             role: 'system',
+
             content: `
 STEP BUDGET
 
 The run is entering its final execution window.
+
+Configured maximum: ${maxSteps} steps.
 
 Do not stop immediately.
 
@@ -58,10 +107,11 @@ Use the remaining execution budget to finish the user's actual objective.
       systemMessages: [
         {
           role: 'system',
+
           content: `
 FINAL EXECUTION WINDOW
 
-The run is close to the 180-step limit.
+The run is close to the configured ${maxSteps}-step limit.
 
 Do not call additional tools.
 

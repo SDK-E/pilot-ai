@@ -10,6 +10,8 @@ import {
   webFetchTool,
 } from '@mastra/core/tools';
 
+import { pilotConfig } from '../config';
+
 import { coreInstructions } from '../instructions/pilot-browser/core';
 import { completionInstructions } from '../instructions/pilot-browser/completion';
 import { researchPlanningInstructions } from '../instructions/pilot-browser/research-planning';
@@ -92,13 +94,15 @@ export const pilotBrowser = new Agent({
 
   model: [
     {
-      model: 'kilo/kilo-auto/free',
-      maxRetries: 8,
+      model: pilotConfig.model.id,
+      maxRetries:
+        pilotConfig.model.maxRetries,
     },
   ],
 
   defaultOptions: {
-    maxSteps: 180,
+    maxSteps:
+      pilotConfig.agent.main.maxSteps,
 
     delegation: {
       messageFilter: ({
@@ -189,7 +193,10 @@ Do not abandon the parent objective.
     toolSearchProcessor,
 
     new TokenLimiterProcessor({
-      limit: 140_000,
+      limit:
+        pilotConfig.agent.main
+          .tokenLimit,
+
       strategy: 'truncate',
     }),
 

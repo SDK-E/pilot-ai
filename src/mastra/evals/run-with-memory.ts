@@ -4,11 +4,14 @@ import {
   runEvals,
   type ScorerEntry,
 } from '@mastra/core/evals';
+
 import type {
   MastraScorer,
 } from '@mastra/core/evals';
 
 import { pilotBrowser } from '../agents/pilot-browser';
+
+import { pilotConfig } from '../config';
 
 const EVAL_RESOURCE_ID =
   'pilot-browser-evals';
@@ -19,7 +22,8 @@ type PilotEvalDataItem = {
 };
 
 type PilotEvalOptions = {
-  data: PilotEvalDataItem[];
+  data:
+    PilotEvalDataItem[];
 
   gates?: MastraScorer<
     any,
@@ -28,18 +32,24 @@ type PilotEvalOptions = {
     any
   >[];
 
-  scorers?: ScorerEntry[];
+  scorers?:
+    ScorerEntry[];
 
-  concurrency?: number;
+  concurrency?:
+    number;
 
   onItemComplete?: (params: {
     item: unknown;
     targetResult: unknown;
-    scorerResults: Record<
-      string,
-      unknown
-    >;
-  }) => void | Promise<void>;
+
+    scorerResults:
+      Record<
+        string,
+        unknown
+      >;
+  }) =>
+    void |
+    Promise<void>;
 };
 
 export async function runPilotEvals(
@@ -49,7 +59,8 @@ export async function runPilotEvals(
     `pilot-eval-${randomUUID()}`;
 
   const memory =
-    await pilotBrowser.getMemory();
+    await pilotBrowser
+      .getMemory();
 
   if (!memory) {
     throw new Error(
@@ -59,35 +70,49 @@ export async function runPilotEvals(
 
   await memory.createThread({
     threadId,
-    resourceId: EVAL_RESOURCE_ID,
-    title: `Pilot eval ${threadId}`,
+
+    resourceId:
+      EVAL_RESOURCE_ID,
+
+    title:
+      `Pilot eval ${threadId}`,
   });
 
   const targetOptions = {
     memory: {
-      thread: threadId,
-      resource: EVAL_RESOURCE_ID,
+      thread:
+        threadId,
+
+      resource:
+        EVAL_RESOURCE_ID,
     },
   };
+
+  const concurrency =
+    options.concurrency ??
+    pilotConfig.eval
+      .concurrency;
 
   if (
     options.gates &&
     options.gates.length > 0
   ) {
     return runEvals({
-      data: options.data,
+      data:
+        options.data,
 
-      target: pilotBrowser,
+      target:
+        pilotBrowser,
 
       targetOptions,
 
-      gates: options.gates,
+      gates:
+        options.gates,
 
       scorers:
         options.scorers,
 
-      concurrency:
-        options.concurrency,
+      concurrency,
 
       onItemComplete:
         options.onItemComplete as any,
@@ -99,17 +124,18 @@ export async function runPilotEvals(
     options.scorers.length > 0
   ) {
     return runEvals({
-      data: options.data,
+      data:
+        options.data,
 
-      target: pilotBrowser,
+      target:
+        pilotBrowser,
 
       targetOptions,
 
       scorers:
         options.scorers,
 
-      concurrency:
-        options.concurrency,
+      concurrency,
 
       onItemComplete:
         options.onItemComplete as any,

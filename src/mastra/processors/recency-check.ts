@@ -4,14 +4,28 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-export class RecencyCheckProcessor implements Processor {
-  readonly id = 'recency-check';
-  readonly name = 'Recency Check';
+import { pilotConfig } from '../config';
+
+export class RecencyCheckProcessor
+  implements Processor
+{
+  readonly id =
+    'recency-check';
+
+  readonly name =
+    'Recency Check';
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 2 || stepNumber % 5 !== 0) {
+    const every =
+      pilotConfig.research
+        .recencyCheckEvery;
+
+    if (
+      stepNumber < 2 ||
+      stepNumber % every !== 0
+    ) {
       return {};
     }
 
@@ -19,6 +33,7 @@ export class RecencyCheckProcessor implements Processor {
       systemMessages: [
         {
           role: 'system',
+
           content: `
 RECENCY CHECK
 

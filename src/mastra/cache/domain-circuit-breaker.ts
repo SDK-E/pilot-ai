@@ -1,17 +1,18 @@
+import { pilotConfig } from '../config';
+
 type DomainState = {
   failures: number;
   blockedUntil?: number;
 };
 
-const states = new Map<string, DomainState>();
-
-const FAILURE_THRESHOLD = 3;
-const BLOCK_MS = 60_000;
+const states =
+  new Map<string, DomainState>();
 
 export function canRequestDomain(
   hostname: string,
 ): boolean {
-  const state = states.get(hostname);
+  const state =
+    states.get(hostname);
 
   if (!state) {
     return true;
@@ -19,14 +20,16 @@ export function canRequestDomain(
 
   if (
     state.blockedUntil &&
-    state.blockedUntil > Date.now()
+    state.blockedUntil >
+      Date.now()
   ) {
     return false;
   }
 
   if (
     state.blockedUntil &&
-    state.blockedUntil <= Date.now()
+    state.blockedUntil <=
+      Date.now()
   ) {
     states.delete(hostname);
   }
@@ -52,11 +55,19 @@ export function recordDomainFailure(
 
   if (
     current.failures >=
-    FAILURE_THRESHOLD
+    pilotConfig.network
+      .circuitBreaker
+      .failureThreshold
   ) {
     current.blockedUntil =
-      Date.now() + BLOCK_MS;
+      Date.now() +
+      pilotConfig.network
+        .circuitBreaker
+        .blockDurationMs;
   }
 
-  states.set(hostname, current);
+  states.set(
+    hostname,
+    current,
+  );
 }

@@ -1,6 +1,8 @@
 import { fastembed } from '@mastra/fastembed';
 import { Memory } from '@mastra/memory';
 
+import { pilotConfig } from '../config';
+
 import {
   memoryStorage,
   memoryVector,
@@ -8,45 +10,102 @@ import {
 
 import { memoryTemplate } from './templates/memory-template';
 
-export const pilotBrowserMemory = new Memory({
-  storage: memoryStorage,
-  vector: memoryVector,
-  embedder: fastembed,
+const semanticRecall =
+  pilotConfig.memory.semanticRecall;
 
-  options: {
-    lastMessages: 30,
+const workingMemory =
+  pilotConfig.memory.workingMemory;
 
-    semanticRecall: {
-      scope: 'thread',
-      topK: 8,
+const observationalMemory =
+  pilotConfig.memory.observational;
 
-      messageRange: {
-        before: 2,
-        after: 2,
-      },
+export const pilotBrowserMemory =
+  new Memory({
+    storage: memoryStorage,
+    vector: memoryVector,
+    embedder: fastembed,
+
+    options: {
+      lastMessages:
+        pilotConfig.memory.lastMessages,
+
+      ...(semanticRecall.enabled
+        ? {
+            semanticRecall: {
+              scope:
+                'thread' as const,
+
+              topK:
+                semanticRecall.topK,
+
+              messageRange: {
+                before:
+                  semanticRecall
+                    .messageRange.before,
+
+                after:
+                  semanticRecall
+                    .messageRange.after,
+              },
+            },
+          }
+        : {}),
+
+      ...(workingMemory.enabled
+        ? {
+            workingMemory: {
+              enabled: true,
+
+              scope:
+                'thread' as const,
+
+              template:
+                memoryTemplate,
+            },
+          }
+        : {}),
+
+      ...(observationalMemory.enabled
+        ? {
+            observationalMemory: {
+              model:
+                pilotConfig.model.id,
+
+              observation: {
+                messageTokens:
+                  observationalMemory
+                    .observation
+                    .messageTokens,
+
+                previousObserverTokens:
+                  observationalMemory
+                    .observation
+                    .previousObserverTokens,
+
+                bufferTokens:
+                  observationalMemory
+                    .observation
+                    .bufferTokens,
+
+                bufferActivation:
+                  observationalMemory
+                    .observation
+                    .bufferActivation,
+
+                bufferOnIdle:
+                  observationalMemory
+                    .observation
+                    .bufferOnIdle,
+              },
+
+              reflection: {
+                bufferActivation:
+                  observationalMemory
+                    .reflection
+                    .bufferActivation,
+              },
+            },
+          }
+        : {}),
     },
-
-    workingMemory: {
-      enabled: true,
-      scope: 'thread',
-      template: memoryTemplate,
-    },
-
-    observationalMemory: {
-      model: 'kilo/kilo-auto/free',
-
-      observation: {
-        messageTokens: 24_000,
-        previousObserverTokens: 4_000,
-
-        bufferTokens: 0.2,
-        bufferActivation: 0.8,
-        bufferOnIdle: true,
-      },
-
-      reflection: {
-        bufferActivation: 0.5,
-      },
-    },
-  },
-});
+  });

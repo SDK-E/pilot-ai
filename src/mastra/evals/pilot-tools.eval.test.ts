@@ -9,6 +9,8 @@ import {
   checks,
 } from '@mastra/evals/checks';
 
+import { pilotConfig } from '../config';
+
 import {
   runPilotEvals,
 } from './run-with-memory';
@@ -16,6 +18,9 @@ import {
 import {
   assertEvalEnvironment,
 } from './test-env';
+
+const timeout =
+  pilotConfig.eval.timeoutMs;
 
 describe(
   'Pilot Browser tool behavior',
@@ -51,7 +56,7 @@ describe(
           'failed',
         );
       },
-      15 * 60 * 1000,
+      timeout,
     );
 
     it(
@@ -84,7 +89,7 @@ Do not repeatedly retry the invalid URL.
           'failed',
         );
       },
-      15 * 60 * 1000,
+      timeout,
     );
   },
 );

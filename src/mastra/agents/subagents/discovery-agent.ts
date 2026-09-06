@@ -6,12 +6,15 @@ import {
 } from '@mastra/core/processors';
 import { webFetchTool } from '@mastra/core/tools';
 
+import { pilotConfig } from '../../config';
+
 import {
   currentContextProcessor,
   entityResolutionProcessor,
   failureRecoveryProcessor,
   recencyCheckProcessor,
   sourceDiversityProcessor,
+  subagentStepBudgetProcessor,
 } from '../../processors';
 
 import { bulkUrlFetch } from '../../tools/bulk-url-fetch';
@@ -19,27 +22,32 @@ import { langSearch } from '../../tools/langsearch';
 import { siteDiscovery } from '../../tools/site-discovery';
 import { structuredData } from '../../tools/structured-data';
 
-const discoveryToolSearch = new ToolSearchProcessor({
-  tools: {
-    bulkUrlFetch,
-    siteDiscovery,
-    structuredData,
-  },
-  search: {
-    topK: 3,
-    minScore: 0.1,
-  },
-  ttl: 3_600_000,
-});
+const discoveryToolSearch =
+  new ToolSearchProcessor({
+    tools: {
+      bulkUrlFetch,
+      siteDiscovery,
+      structuredData,
+    },
 
-export const discoveryAgent = new Agent({
-  id: 'pilot-browser-discovery',
-  name: 'Pilot Discovery',
+    search: {
+      topK: 3,
+      minScore: 0.1,
+    },
 
-  description:
-    'Fast general-purpose web discovery specialist for finding relevant public entities, sources, pages, documents, companies, people, products, jobs, technologies, repositories, events, and other candidate information.',
+    ttl: 3_600_000,
+  });
 
-  instructions: `
+export const discoveryAgent =
+  new Agent({
+    id: 'pilot-browser-discovery',
+
+    name: 'Pilot Discovery',
+
+    description:
+      'Fast general-purpose web discovery specialist for finding relevant public entities, sources, pages, documents, companies, people, products, jobs, technologies, repositories, events, and other candidate information.',
+
+    instructions: `
 IDENTITY
 
 You are Pilot Discovery.
@@ -200,39 +208,50 @@ Return concise findings and evidence to Pilot Browser.
 Stay within the delegated objective.
 `,
 
-  model: [
-    {
-      model: 'kilo/kilo-auto/free',
-      maxRetries: 8,
+    model: [
+      {
+        model:
+          pilotConfig.model.id,
+
+        maxRetries:
+          pilotConfig.model
+            .maxRetries,
+      },
+    ],
+
+    defaultOptions: {
+      maxSteps:
+        pilotConfig.agent.subagent
+          .maxSteps,
     },
-  ],
 
-  defaultOptions: {
-    maxSteps: 75,
-  },
+    inputProcessors: [
+      new UnicodeNormalizer({
+        stripControlChars: true,
+        collapseWhitespace: true,
+      }),
 
-  inputProcessors: [
-    new UnicodeNormalizer({
-      stripControlChars: true,
-      collapseWhitespace: true,
-    }),
+      currentContextProcessor,
+      recencyCheckProcessor,
+      entityResolutionProcessor,
+      sourceDiversityProcessor,
+      failureRecoveryProcessor,
 
-    currentContextProcessor,
-    recencyCheckProcessor,
-    entityResolutionProcessor,
-    sourceDiversityProcessor,
-    failureRecoveryProcessor,
+      discoveryToolSearch,
 
-    discoveryToolSearch,
+      new TokenLimiterProcessor({
+        limit:
+          pilotConfig.agent.subagent
+            .tokenLimit,
 
-    new TokenLimiterProcessor({
-        limit: 120_000,
         strategy: 'truncate',
-    }),
-  ],
+      }),
 
-  tools: {
-    langSearch,
-    webFetchTool,
-  },
-});
+      subagentStepBudgetProcessor,
+    ],
+
+    tools: {
+      langSearch,
+      webFetchTool,
+    },
+  });

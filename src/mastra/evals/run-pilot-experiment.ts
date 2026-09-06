@@ -1,5 +1,7 @@
 import { mastra } from '../index';
 
+import { pilotConfig } from '../config';
+
 import {
   seedPilotDataset,
 } from './seed-pilot-dataset';
@@ -9,16 +11,17 @@ export async function runPilotExperiment() {
     await seedPilotDataset();
 
   return dataset.startExperiment({
-    targetType: 'agent',
+    targetType:
+      'agent',
 
     targetId:
       'pilot-browser',
 
     name:
-      `pilot-browser-${new Date().toISOString()}`,
+      `pilot-browser-${pilotConfig.profile}-${new Date().toISOString()}`,
 
     description:
-      'Pilot Browser regression experiment.',
+      `Pilot Browser ${pilotConfig.profile} regression experiment.`,
 
     scorers: [
       'answer-relevancy-scorer',
@@ -27,11 +30,16 @@ export async function runPilotExperiment() {
       'pilot-task-completion',
     ],
 
-    maxConcurrency: 2,
+    maxConcurrency:
+      pilotConfig.eval
+        .concurrency,
 
     itemTimeout:
-      10 * 60 * 1000,
+      pilotConfig.eval
+        .timeoutMs,
 
-    maxRetries: 1,
+    maxRetries:
+      pilotConfig.eval
+        .maxRetries,
   });
 }

@@ -4,14 +4,28 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-export class EntityResolutionProcessor implements Processor {
-  readonly id = 'entity-resolution';
-  readonly name = 'Entity Resolution';
+import { pilotConfig } from '../config';
+
+export class EntityResolutionProcessor
+  implements Processor
+{
+  readonly id =
+    'entity-resolution';
+
+  readonly name =
+    'Entity Resolution';
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 2 || stepNumber % 4 !== 0) {
+    const every =
+      pilotConfig.research
+        .entityResolutionEvery;
+
+    if (
+      stepNumber < 2 ||
+      stepNumber % every !== 0
+    ) {
       return {};
     }
 
@@ -19,6 +33,7 @@ export class EntityResolutionProcessor implements Processor {
       systemMessages: [
         {
           role: 'system',
+
           content: `
 ENTITY RESOLUTION
 

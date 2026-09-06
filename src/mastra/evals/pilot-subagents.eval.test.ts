@@ -9,6 +9,8 @@ import {
   checks,
 } from '@mastra/evals/checks';
 
+import { pilotConfig } from '../config';
+
 import {
   runPilotEvals,
 } from './run-with-memory';
@@ -16,6 +18,9 @@ import {
 import {
   assertEvalEnvironment,
 } from './test-env';
+
+const timeout =
+  pilotConfig.eval.timeoutMs;
 
 describe(
   'Pilot Browser delegation',
@@ -54,7 +59,7 @@ Return current evidence and source URLs.
           'failed',
         );
       },
-      20 * 60 * 1000,
+      timeout,
     );
 
     it(
@@ -87,7 +92,7 @@ Return the final claim, evidence, contradiction status, and confidence.
           'failed',
         );
       },
-      20 * 60 * 1000,
+      timeout,
     );
   },
 );

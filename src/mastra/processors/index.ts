@@ -72,3 +72,8 @@ export {
   StepBudgetProcessor,
   stepBudgetProcessor,
 } from './step-budget';
+
+export {
+  SubagentStepBudgetProcessor,
+  subagentStepBudgetProcessor,
+} from './subagent-step-budget';

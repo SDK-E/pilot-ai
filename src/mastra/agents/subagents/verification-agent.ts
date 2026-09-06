@@ -6,6 +6,8 @@ import {
 } from '@mastra/core/processors';
 import { webFetchTool } from '@mastra/core/tools';
 
+import { pilotConfig } from '../../config';
+
 import {
   challengeClaimProcessor,
   contradictionCheckProcessor,
@@ -15,6 +17,7 @@ import {
   recencyCheckProcessor,
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
+  subagentStepBudgetProcessor,
 } from '../../processors';
 
 import { bulkUrlFetch } from '../../tools/bulk-url-fetch';
@@ -23,28 +26,33 @@ import { langSearch } from '../../tools/langsearch';
 import { siteDiscovery } from '../../tools/site-discovery';
 import { structuredData } from '../../tools/structured-data';
 
-const verificationToolSearch = new ToolSearchProcessor({
-  tools: {
-    bulkUrlFetch,
-    domainIntelligence,
-    siteDiscovery,
-    structuredData,
-  },
-  search: {
-    topK: 4,
-    minScore: 0.1,
-  },
-  ttl: 3_600_000,
-});
+const verificationToolSearch =
+  new ToolSearchProcessor({
+    tools: {
+      bulkUrlFetch,
+      domainIntelligence,
+      siteDiscovery,
+      structuredData,
+    },
 
-export const verificationAgent = new Agent({
-  id: 'pilot-browser-verification',
-  name: 'Pilot Verification',
+    search: {
+      topK: 4,
+      minScore: 0.1,
+    },
 
-  description:
-    'General-purpose evidence verification specialist for validating public claims, entities, identities, dates, current status, source quality, contradictions, recency, domains, and explicitly public professional information.',
+    ttl: 3_600_000,
+  });
 
-  instructions: `
+export const verificationAgent =
+  new Agent({
+    id: 'pilot-browser-verification',
+
+    name: 'Pilot Verification',
+
+    description:
+      'General-purpose evidence verification specialist for validating public claims, entities, identities, dates, current status, source quality, contradictions, recency, domains, and explicitly public professional information.',
+
+    instructions: `
 IDENTITY
 
 You are Pilot Verification.
@@ -201,43 +209,54 @@ Return a concise verification report with:
 - rejected claims when important
 `,
 
-  model: [
-    {
-      model: 'kilo/kilo-auto/free',
-      maxRetries: 8,
+    model: [
+      {
+        model:
+          pilotConfig.model.id,
+
+        maxRetries:
+          pilotConfig.model
+            .maxRetries,
+      },
+    ],
+
+    defaultOptions: {
+      maxSteps:
+        pilotConfig.agent.subagent
+          .maxSteps,
     },
-  ],
 
-  defaultOptions: {
-    maxSteps: 75,
-  },
+    inputProcessors: [
+      new UnicodeNormalizer({
+        stripControlChars: true,
+        collapseWhitespace: true,
+      }),
 
-  inputProcessors: [
-    new UnicodeNormalizer({
-      stripControlChars: true,
-      collapseWhitespace: true,
-    }),
+      currentContextProcessor,
 
-    currentContextProcessor,
+      sourceConfidenceProcessor,
+      recencyCheckProcessor,
+      contradictionCheckProcessor,
+      entityResolutionProcessor,
+      sourceDiversityProcessor,
+      challengeClaimProcessor,
+      failureRecoveryProcessor,
 
-    sourceConfidenceProcessor,
-    recencyCheckProcessor,
-    contradictionCheckProcessor,
-    entityResolutionProcessor,
-    sourceDiversityProcessor,
-    challengeClaimProcessor,
-    failureRecoveryProcessor,
+      verificationToolSearch,
 
-    verificationToolSearch,
+      new TokenLimiterProcessor({
+        limit:
+          pilotConfig.agent.subagent
+            .tokenLimit,
 
-    new TokenLimiterProcessor({
-        limit: 120_000,
         strategy: 'truncate',
-    }),
-  ],
+      }),
 
-  tools: {
-    langSearch,
-    webFetchTool,
-  },
-});
+      subagentStepBudgetProcessor,
+    ],
+
+    tools: {
+      langSearch,
+      webFetchTool,
+    },
+  });

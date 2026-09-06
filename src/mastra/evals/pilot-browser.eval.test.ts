@@ -9,6 +9,8 @@ import {
   checks,
 } from '@mastra/evals/checks';
 
+import { pilotConfig } from '../config';
+
 import {
   answerRelevancyScorer,
   completenessScorer,
@@ -36,6 +38,12 @@ const basicResearchData = [
   },
 ];
 
+const timeout =
+  pilotConfig.eval.timeoutMs;
+
+const thresholds =
+  pilotConfig.eval.thresholds;
+
 describe(
   'Pilot Browser regression gates',
   () => {
@@ -62,7 +70,7 @@ describe(
           'failed',
         );
       },
-      15 * 60 * 1000,
+      timeout,
     );
 
     it(
@@ -92,7 +100,7 @@ describe(
           'failed',
         );
       },
-      15 * 60 * 1000,
+      timeout,
     );
 
     it(
@@ -108,28 +116,36 @@ describe(
                 scorer:
                   answerRelevancyScorer,
 
-                threshold: 0.65,
+                threshold:
+                  thresholds
+                    .answerRelevancy,
               },
 
               {
                 scorer:
                   completenessScorer,
 
-                threshold: 0.65,
+                threshold:
+                  thresholds
+                    .completeness,
               },
 
               {
                 scorer:
                   sourceCoverageScorer,
 
-                threshold: 0.5,
+                threshold:
+                  thresholds
+                    .sourceCoverage,
               },
 
               {
                 scorer:
                   taskCompletionScorer,
 
-                threshold: 0.75,
+                threshold:
+                  thresholds
+                    .taskCompletion,
               },
             ],
           });
@@ -140,7 +156,7 @@ describe(
           'failed',
         );
       },
-      20 * 60 * 1000,
+      timeout,
     );
   },
 );

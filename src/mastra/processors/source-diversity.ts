@@ -4,14 +4,28 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-export class SourceDiversityProcessor implements Processor {
-  readonly id = 'source-diversity';
-  readonly name = 'Source Diversity';
+import { pilotConfig } from '../config';
+
+export class SourceDiversityProcessor
+  implements Processor
+{
+  readonly id =
+    'source-diversity';
+
+  readonly name =
+    'Source Diversity';
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 3 || stepNumber % 6 !== 0) {
+    const every =
+      pilotConfig.research
+        .sourceDiversityEvery;
+
+    if (
+      stepNumber < 3 ||
+      stepNumber % every !== 0
+    ) {
       return {};
     }
 
@@ -19,6 +33,7 @@ export class SourceDiversityProcessor implements Processor {
       systemMessages: [
         {
           role: 'system',
+
           content: `
 SOURCE DIVERSITY
 

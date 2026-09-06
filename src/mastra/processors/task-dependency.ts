@@ -4,6 +4,8 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
+import { pilotConfig } from '../config';
+
 export class TaskDependencyProcessor
   implements Processor
 {
@@ -16,9 +18,13 @@ export class TaskDependencyProcessor
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
+    const every =
+      pilotConfig.research
+        .taskDependencyEvery;
+
     if (
       stepNumber < 2 ||
-      stepNumber % 4 !== 0
+      stepNumber % every !== 0
     ) {
       return {};
     }

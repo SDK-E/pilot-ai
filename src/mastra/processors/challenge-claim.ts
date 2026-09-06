@@ -4,14 +4,28 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-export class ChallengeClaimProcessor implements Processor {
-  readonly id = 'challenge-claim';
-  readonly name = 'Challenge Important Claims';
+import { pilotConfig } from '../config';
+
+export class ChallengeClaimProcessor
+  implements Processor
+{
+  readonly id =
+    'challenge-claim';
+
+  readonly name =
+    'Challenge Important Claims';
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 5 || stepNumber % 8 !== 0) {
+    const every =
+      pilotConfig.research
+        .challengeClaimEvery;
+
+    if (
+      stepNumber < 5 ||
+      stepNumber % every !== 0
+    ) {
       return {};
     }
 
@@ -19,6 +33,7 @@ export class ChallengeClaimProcessor implements Processor {
       systemMessages: [
         {
           role: 'system',
+
           content: `
 CHALLENGE IMPORTANT CLAIMS
 
