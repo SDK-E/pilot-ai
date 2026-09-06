@@ -9,7 +9,31 @@
     "skipLibCheck": true,
     "types": ["node"],
     "noEmit": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "#runtime/*": ["src/runtime/*"],
+      "#runtime/cache": ["src/runtime/cache"],
+      "#runtime/cache/*": ["src/runtime/cache/*"],
+      "#runtime/config": ["src/research/runtime/config"],
+      "#runtime/config/*": ["src/research/runtime/config/*"],
+      "#runtime/scorers": ["src/runtime/scorers"],
+      "#runtime/scorers/*": ["src/runtime/scorers/*"],
+      "#runtime/schemas": ["src/runtime/schemas"],
+      "#runtime/schemas/*": ["src/runtime/schemas/*"],
+      "#runtime/storage": ["src/runtime/storage"],
+      "#runtime/storage/*": ["src/runtime/storage/*"],
+      "#runtime/tools": ["src/runtime/tools"],
+      "#runtime/tools/*": ["src/runtime/tools/*"],
+      "#runtime/tools/search/*": ["src/runtime/tools/search/*"],
+      "#runtime/skills": ["src/runtime/skills"],
+      "#runtime/skills/*": ["src/runtime/skills/*"],
+      "#runtime/workflows/*": ["src/research/runtime/workflows/*"],
+      "#research/*": ["src/research/*"],
+      "#research/runtime/tools/*": ["src/research/runtime/tools/*"],
+      "#conversation/*": ["src/conversation/*"]
+    }
   },
   "include": ["src/**/*"]
 }

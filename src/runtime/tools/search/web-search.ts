@@ -7,8 +7,22 @@ import {
   type SearchResult,
 } from './langsearch';
 import { performDorkSearch } from './search-dorks';
-import { performStagehandSearch } from './stagehand-browser';
-import { performUrlFetch } from './url-fetch';
+import { performStagehandSearch } from '#research/runtime/tools/stagehand-browser';
+import { performUrlFetch } from '#runtime/tools/url-fetch';
+
+export type WebSearchConfig = {
+  performStagehandSearch?: boolean;
+};
+
+let webSearchConfig: WebSearchConfig = {};
+
+export function setWebSearchConfig(config: WebSearchConfig): void {
+  webSearchConfig = { ...webSearchConfig, ...config };
+}
+
+export function getWebSearchConfig(): WebSearchConfig {
+  return { ...webSearchConfig };
+}
 
 const webSearchResultSchema = searchResultSchema.extend({
   markdown: z.string().optional(),
@@ -61,6 +75,7 @@ async function resilientSearch(
   results: SearchResult[];
   fallbackTrace: Array<z.infer<typeof fallbackSchema>>;
 }> {
+  const config = getWebSearchConfig();
   const fallbackTrace: Array<z.infer<typeof fallbackSchema>> = [];
 
   const primary = await performLangSearch(query, maxResults, abortSignal);
@@ -105,28 +120,32 @@ async function resilientSearch(
     };
   }
 
-  try {
-    const stagehandQuery = simplified || query;
-    const browserResults = await performStagehandSearch(stagehandQuery);
-    fallbackTrace.push({
-      stage: 'stagehand',
-      query: stagehandQuery,
-      resultCount: browserResults.length,
-    });
+  if (config.performStagehandSearch) {
+    try {
+      const stagehandQuery = simplified || query;
+      const browserResults = await performStagehandSearch(stagehandQuery);
+      fallbackTrace.push({
+        stage: 'stagehand',
+        query: stagehandQuery,
+        resultCount: browserResults.length,
+      });
 
-    return {
-      results: browserResults.slice(0, maxResults),
-      fallbackTrace,
-    };
-  } catch {
-    fallbackTrace.push({
-      stage: 'stagehand',
-      query: simplified || query,
-      resultCount: 0,
-    });
+      return {
+        results: browserResults.slice(0, maxResults),
+        fallbackTrace,
+      };
+    } catch {
+      fallbackTrace.push({
+        stage: 'stagehand',
+        query: simplified || query,
+        resultCount: 0,
+      });
 
-    return { results: [], fallbackTrace };
+      return { results: [], fallbackTrace };
+    }
   }
+
+  return { results: [], fallbackTrace };
 }
 
 export const webSearch = createTool({

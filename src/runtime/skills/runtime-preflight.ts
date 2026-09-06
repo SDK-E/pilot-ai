@@ -30,6 +30,22 @@ export type RuntimeSkillPreflightResult = {
   error?: string;
 };
 
+export type RuntimePreflightConfig = {
+  apiUrl?: string;
+  maxSkillContext?: number;
+  requestTimeoutMs?: number;
+};
+
+let runtimePreflightConfig: RuntimePreflightConfig = {};
+
+export function setRuntimePreflightConfig(config: RuntimePreflightConfig): void {
+  runtimePreflightConfig = { ...runtimePreflightConfig, ...config };
+}
+
+export function getRuntimePreflightConfig(): RuntimePreflightConfig {
+  return { ...runtimePreflightConfig };
+}
+
 const API = 'https://skills.sh/api/v1';
 const MAX_SKILL_CONTEXT = 24_000;
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -72,18 +88,19 @@ function authHeaders(): Record<string, string> {
     authorization: `Bearer ${token}`,
     'x-vercel-oidc-token': token,
     accept: 'application/json',
-    'user-agent': 'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)',
+    'user-agent': 'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; Pilot)',
     'x-agent-name': 'SDK Pilot',
     'x-agent-purpose': 'runtime-skill-preflight',
   };
 }
 
 async function requestJson<T>(path: string): Promise<T> {
+  const config = getRuntimePreflightConfig();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${API}${path}`, {
+    const response = await fetch(`${config.apiUrl ?? API}${path}`, {
       headers: authHeaders(),
       signal: controller.signal,
     });
@@ -95,7 +112,7 @@ async function requestJson<T>(path: string): Promise<T> {
     return await response.json() as T;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`skills.sh request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      throw new Error(`skills.sh request timed out after ${config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS}ms`);
     }
 
     throw error;
@@ -151,6 +168,9 @@ function auditIsUnsafe(value: unknown): boolean {
 function instructionContext(files: unknown): string | undefined {
   if (!Array.isArray(files)) return undefined;
 
+  const config = getRuntimePreflightConfig();
+  const maxContext = config.maxSkillContext ?? MAX_SKILL_CONTEXT;
+
   const accepted: string[] = [];
   let hasSkill = false;
 
@@ -170,7 +190,7 @@ function instructionContext(files: unknown): string | undefined {
   }
 
   if (!hasSkill) return undefined;
-  return accepted.join('\n').slice(0, MAX_SKILL_CONTEXT);
+  return accepted.join('\n').slice(0, maxContext);
 }
 
 export async function runRuntimeSkillPreflight(

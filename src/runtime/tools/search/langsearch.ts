@@ -5,9 +5,25 @@ import {
   getCachedValue,
   makeCacheKey,
   setCachedValue,
-} from '../cache';
+} from '#runtime/cache';
 
-import { pilotConfig } from '../config';
+import { pilotConfig } from '#runtime/config';
+
+export type LangSearchConfig = {
+  apiKey?: string;
+  fetchTimeoutMs?: number;
+  searchTtlMs?: number;
+};
+
+let langSearchConfig: LangSearchConfig = {};
+
+export function setLangSearchConfig(config: LangSearchConfig): void {
+  langSearchConfig = { ...langSearchConfig, ...config };
+}
+
+export function getLangSearchConfig(): LangSearchConfig {
+  return { ...langSearchConfig };
+}
 
 export const searchResultSchema =
   z.object({
@@ -73,9 +89,10 @@ export async function performLangSearch(
   maxResults = 5,
   abortSignal?: AbortSignal,
 ): Promise<SearchResult[]> {
+  const config = getLangSearchConfig();
   const apiKey =
-    process.env
-      .LANGSEARCH_API_KEY;
+    config.apiKey ??
+    process.env.LANGSEARCH_API_KEY;
 
   if (!apiKey) {
     throw new Error(
@@ -129,8 +146,9 @@ export async function performLangSearch(
       () =>
         controller.abort(),
 
-      pilotConfig.network
-        .fetchTimeoutMs,
+      config.fetchTimeoutMs ??
+        pilotConfig.network
+          .fetchTimeoutMs,
     );
 
   const onAbort = () =>
@@ -287,8 +305,9 @@ export async function performLangSearch(
       'lang-search',
       results,
 
-      pilotConfig.cache
-        .searchTtlMs,
+      config.searchTtlMs ??
+        pilotConfig.cache
+          .searchTtlMs,
     );
 
     return results;
@@ -298,7 +317,7 @@ export async function performLangSearch(
       error.name === 'AbortError'
     ) {
       throw new Error(
-        `LangSearch timed out after ${pilotConfig.network.fetchTimeoutMs}ms`,
+        `LangSearch timed out after ${config.fetchTimeoutMs ?? pilotConfig.network.fetchTimeoutMs}ms`,
       );
     }
 

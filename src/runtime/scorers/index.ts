@@ -1,5 +1,5 @@
 export {
-  answerRelevancyScorer,
+  buildAnswerRelevancyScorer,
 } from './answer-relevancy';
 
 export {

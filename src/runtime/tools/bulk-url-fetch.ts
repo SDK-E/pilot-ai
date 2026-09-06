@@ -1,7 +1,7 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
-import { performUrlFetch } from './url-fetch';
+import { performUrlFetch } from '#runtime/tools/url-fetch';
 
 const fetchedPageSchema = z.object({
   url: z.string(),
