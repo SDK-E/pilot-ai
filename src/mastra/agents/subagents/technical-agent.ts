@@ -13,6 +13,7 @@ import {
   currentContextProcessor,
   failureRecoveryProcessor,
   recencyCheckProcessor,
+  runtimeSkillResolverProcessor,
   sourceConfidenceProcessor,
   subagentStepBudgetProcessor,
 } from '../../processors';
@@ -24,6 +25,7 @@ import { exportResults } from '../../tools/export-results';
 import { exportValidator } from '../../tools/export-validator';
 import { githubPublic } from '../../tools/github-public';
 import { markdownFile } from '../../tools/markdown-file';
+import { queryPlanner } from '../../tools/query-planner';
 import { researchScratchpad } from '../../tools/research-scratchpad';
 import { resultCollector } from '../../tools/result-collector';
 import { searchDorks } from '../../tools/search-dorks';
@@ -33,101 +35,56 @@ import { stagehandBrowser } from '../../tools/stagehand-browser';
 import { structuredData } from '../../tools/structured-data';
 import { webSearch } from '../../tools/web-search';
 
-const technicalToolSearch =
-  new ToolSearchProcessor({
-    tools: {
-      bulkUrlFetch,
-      siteDiscovery,
-      structuredData,
-      domainIntelligence,
-      githubPublic,
-      exportValidator,
-      exportResults,
-      csvFile,
-      markdownFile,
-    },
+const technicalToolSearch = new ToolSearchProcessor({
+  tools: {
+    bulkUrlFetch,
+    siteDiscovery,
+    structuredData,
+    domainIntelligence,
+    githubPublic,
+    exportValidator,
+    exportResults,
+    csvFile,
+    markdownFile,
+  },
+  search: { topK: 5, minScore: 0.1 },
+  ttl: 3_600_000,
+});
 
-    search: {
-      topK: 5,
-      minScore: 0.1,
-    },
+export const technicalAgent = new Agent({
+  id: 'pilot-browser-technical',
+  name: 'Pilot Technical Research',
+  description:
+    'Technical research specialist for current software documentation, APIs, frameworks, libraries, repositories, packages, releases, source code, issues, dependencies, architecture, implementation details, and technical claims.',
 
-    ttl: 3_600_000,
-  });
-
-export const technicalAgent =
-  new Agent({
-    id: 'pilot-browser-technical',
-
-    name: 'Pilot Technical Research',
-
-    description:
-      'Technical research specialist for current software documentation, APIs, frameworks, libraries, repositories, packages, releases, source code, issues, dependencies, architecture, implementation details, and technical claims.',
-
-    instructions: `
+  instructions: `
 IDENTITY
 
-You are Pilot Technical Research.
-
-You are a specialist subagent of Pilot Browser.
-
+You are Pilot Technical Research, a specialist subagent of Pilot Browser.
 Handle delegated technical investigation.
 
 TOOL SEMANTICS
 
 Use webSearch or searchDorks for public internet search.
-
 search_tools is NOT web search. It searches Pilot's internal deferred tool registry only.
+Use search_tools only when a specialized capability is not directly available.
+Never use search_tools to find public internet information.
 
-Use search_tools only when you need a specialized capability that is not already directly available. After finding one, use load_tool with the exact returned tool name.
+QUERY PLANNING
 
-Never use search_tools to look for websites, people, companies, jobs, news, documents, products, or public information.
-
-Direct tools already available include webSearch, searchDorks, stagehandBrowser, skillsMarketplace, researchScratchpad, and resultCollector.
+For broad or difficult technical research, call queryPlanner before searching.
+Use separate query strategies for docs, source, releases/changelog, issues, and exact errors when appropriate.
+Adapt from observed result/useful counts rather than repeating failed query shapes.
 
 CURRENT DATE
 
 The runtime current-context system message is authoritative.
-
-For current versions, releases, docs, issues, and package behavior, anchor research to that date. Do not use stale years from memory unless historical comparison is actually needed.
-
-QUERY QUALITY
-
-Search for implementation evidence, not generic topic pages. Combine package/framework/repository identifiers with version, release, issue, API, changelog, migration, source-code, or exact error terms as appropriate.
-
-Use searchDorks for precise site:, intitle:, inurl:, filetype:, exact-phrase, exclusion, OR, and date-bounded technical searches.
-
-CACHE
-
-Search and fetch tools may return cached observations.
-
-Reuse them when useful.
-
-For version-sensitive or rapidly changing technical facts:
-- verify freshness
-- prefer current official docs and repository evidence
-- do not assume cached results are current
-
-DOMAIN FAILURES
-
-Repeated failures against the same domain may be temporarily blocked.
-
-When that happens:
-- use another primary source
-- inspect repository evidence
-- inspect release evidence
-- continue another useful branch
+For current versions, releases, docs, issues, and package behavior, anchor research to that date.
+Do not use stale years from memory unless historical comparison is needed.
 
 SOURCE PRIORITY
 
-Prefer:
-1. current official documentation
-2. source repository
-3. releases and changelog
-4. package registry
-5. maintainers
-6. issues and discussions
-7. reputable secondary sources
+Prefer current official documentation, source repository, releases/changelog, package registry, maintainers, issues/discussions, then reputable secondary sources.
 
 CURRENT STATE
 
@@ -135,61 +92,24 @@ Do not answer from remembered APIs when current primary documentation can be che
 
 VERSIONING
 
-When behavior is version-sensitive:
-- determine the relevant version
-- distinguish old from current behavior
-- identify deprecated approaches
-- preserve release/version evidence
+When behavior is version-sensitive, determine the relevant version, distinguish old from current behavior, identify deprecated approaches, and preserve release/version evidence.
 
 REPOSITORY RESEARCH
 
-Inspect when useful:
-- repository metadata
-- source files
-- configuration
-- releases
-- issues
-- examples
-- package files
-- implementation details
-
+Inspect repository metadata, source files, configuration, releases, issues, examples, package files, and implementation details when useful.
 Do not infer implementation from marketing text when source evidence exists.
 
 CLAIMS
 
-For important technical claims evaluate:
-- source authority
-- version
-- recency
-- direct implementation evidence
-- corroboration
+For important technical claims evaluate source authority, version, recency, direct implementation evidence, and corroboration.
 
 CONTRADICTIONS
 
-When docs, code, changelog, issues, or secondary sources disagree:
-- determine whether docs are stale
-- determine whether behavior changed by version
-- determine whether implementation differs from documented intent
-- preserve unresolved contradictions
-
-CLAIM CHALLENGE
-
-For high-impact technical conclusions:
-- seek disconfirming evidence
-- check current code/release behavior
-- check whether the conclusion is version-specific
-- lower confidence if evidence conflicts
-
-Do not challenge trivial facts.
+When docs, code, changelog, issues, or secondary sources disagree, determine whether docs are stale or behavior changed and preserve unresolved contradictions.
 
 FAILURE RECOVERY
 
-If one technical source fails:
-- inspect another primary source
-- use repository evidence
-- use release evidence
-- continue another useful branch
-
+If one technical source fails, inspect another primary source, repository evidence, or release evidence.
 Do not repeatedly retry identical failures.
 
 READ ONLY
@@ -201,56 +121,44 @@ OUTPUT
 Return concise technical findings with direct answer, relevant versions, implementation facts, evidence URLs, deprecated approaches, contradictions, uncertainty, and confidence.
 `,
 
-    model: [
-      {
-        model:
-          pilotConfig.model.id,
-
-        maxRetries:
-          pilotConfig.model
-            .maxRetries,
-      },
-    ],
-
-    defaultOptions: {
-      maxSteps:
-        pilotConfig.agent.subagent
-          .maxSteps,
+  model: [
+    {
+      model: pilotConfig.model.id,
+      maxRetries: pilotConfig.model.maxRetries,
     },
+  ],
 
-    inputProcessors: [
-      new UnicodeNormalizer({
-        stripControlChars: true,
-        collapseWhitespace: true,
-      }),
+  defaultOptions: {
+    maxSteps: pilotConfig.agent.subagent.maxSteps,
+  },
 
-      currentContextProcessor,
+  inputProcessors: [
+    new UnicodeNormalizer({
+      stripControlChars: true,
+      collapseWhitespace: true,
+    }),
+    currentContextProcessor,
+    runtimeSkillResolverProcessor,
+    sourceConfidenceProcessor,
+    recencyCheckProcessor,
+    contradictionCheckProcessor,
+    challengeClaimProcessor,
+    failureRecoveryProcessor,
+    technicalToolSearch,
+    new TokenLimiterProcessor({
+      limit: pilotConfig.agent.subagent.tokenLimit,
+      strategy: 'truncate',
+    }),
+    subagentStepBudgetProcessor,
+  ],
 
-      sourceConfidenceProcessor,
-      recencyCheckProcessor,
-      contradictionCheckProcessor,
-      challengeClaimProcessor,
-      failureRecoveryProcessor,
-
-      technicalToolSearch,
-
-      new TokenLimiterProcessor({
-        limit:
-          pilotConfig.agent.subagent
-            .tokenLimit,
-
-        strategy: 'truncate',
-      }),
-
-      subagentStepBudgetProcessor,
-    ],
-
-    tools: {
-      webSearch,
-      searchDorks,
-      stagehandBrowser,
-      skillsMarketplace,
-      researchScratchpad,
-      resultCollector,
-    },
-  });
+  tools: {
+    queryPlanner,
+    webSearch,
+    searchDorks,
+    stagehandBrowser,
+    skillsMarketplace,
+    researchScratchpad,
+    resultCollector,
+  },
+});
