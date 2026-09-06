@@ -54,6 +54,7 @@ import { exportResults } from '../tools/export-results';
 import { exportValidator } from '../tools/export-validator';
 import { githubPublic } from '../tools/github-public';
 import { markdownFile } from '../tools/markdown-file';
+import { queryPlanner } from '../tools/query-planner';
 import { researchScratchpad } from '../tools/research-scratchpad';
 import { resultCollector } from '../tools/result-collector';
 import { searchDorks } from '../tools/search-dorks';
@@ -105,78 +106,51 @@ export const pilotBrowser =
 
     model: [
       {
-        model:
-          pilotConfig.model.id,
-
-        maxRetries:
-          pilotConfig.model
-            .maxRetries,
+        model: pilotConfig.model.id,
+        maxRetries: pilotConfig.model.maxRetries,
       },
     ],
 
     defaultOptions: {
-      maxSteps:
-        pilotConfig.agent.main
-          .maxSteps,
+      maxSteps: pilotConfig.agent.main.maxSteps,
 
       delegation: {
-        messageFilter: ({
-          messages,
-        }) =>
-          messages.slice(-12),
+        messageFilter: ({ messages }) => messages.slice(-12),
 
-        onDelegationStart:
-          async ({
-            prompt,
-          }) => ({
-            proceed: true,
-
-            modifiedPrompt: `
+        onDelegationStart: async ({ prompt }) => ({
+          proceed: true,
+          modifiedPrompt: `
 ${prompt}
 
 Stay strictly within the delegated objective.
-
 Return concise findings and evidence.
-
 Do not broaden into unrelated research.
-
 Current time: ${new Date().toISOString()}
 `,
-          }),
+        }),
 
-        onDelegationComplete:
-          async ({
-            primitiveId,
+        onDelegationComplete: async ({ primitiveId, error }) => {
+          if (!error) return;
+
+          console.warn(
+            `[pilot-browser] delegation to ${primitiveId} failed`,
             error,
-          }) => {
-            if (!error) {
-              return;
-            }
+          );
 
-            console.warn(
-              `[pilot-browser] delegation to ${primitiveId} failed`,
-              error,
-            );
-
-            return {
-              feedback: `
+          return {
+            feedback: `
 The delegated branch failed.
-
 Recover using another useful evidence path.
-
 Do not abandon the parent objective.
 `,
-            };
-          },
+          };
+        },
       },
     },
 
-    memory:
-      pilotBrowserMemory,
+    memory: pilotBrowserMemory,
 
-    signals: [
-      new TaskSignalProvider(),
-    ],
+    signals: [new TaskSignalProvider()],
 
     agents: {
       discoveryAgent,
@@ -186,48 +160,34 @@ Do not abandon the parent objective.
 
     inputProcessors: [
       new UnicodeNormalizer({
-        stripControlChars:
-          true,
-
-        collapseWhitespace:
-          true,
+        stripControlChars: true,
+        collapseWhitespace: true,
       }),
 
       currentContextProcessor,
       staleObjectiveResetProcessor,
-
       promptEnhancerProcessor,
-
       researchPolicyProcessor,
       researchBudgetProcessor,
       responseVerbosityProcessor,
       runtimeSkillResolverProcessor,
-
       processNarrationGateProcessor,
       negativeClaimVerificationProcessor,
       qualityGateProcessor,
-
       taskDependencyProcessor,
-
       sourceConfidenceProcessor,
       entityResolutionProcessor,
       recencyCheckProcessor,
       contradictionCheckProcessor,
       sourceDiversityProcessor,
       challengeClaimProcessor,
-
       failureRecoveryProcessor,
       memoryHygieneProcessor,
-
       toolSearchProcessor,
 
       new TokenLimiterProcessor({
-        limit:
-          pilotConfig.agent.main
-            .tokenLimit,
-
-        strategy:
-          'truncate',
+        limit: pilotConfig.agent.main.tokenLimit,
+        strategy: 'truncate',
       }),
 
       stepBudgetProcessor,
@@ -236,14 +196,13 @@ Do not abandon the parent objective.
     outputProcessors: [],
 
     tools: {
+      queryPlanner,
       webSearch,
       searchDorks,
       stagehandBrowser,
       skillsMarketplace,
-
       researchScratchpad,
       resultCollector,
-
       askUserTool,
     },
   });
