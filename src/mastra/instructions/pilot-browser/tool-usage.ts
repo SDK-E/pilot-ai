@@ -9,9 +9,17 @@ IMPORTANT TOOL SEMANTICS
 
 Use webSearch or searchDorks for public internet search.
 
-Never use an internal tool-discovery function as though it were Google or a web search engine. A function named search_tools, if one ever appears in the runtime, only discovers registered agent tools and must never be used for internet research.
+search_tools is NOT a web search engine. It searches Pilot's internal deferred tool registry only.
 
-The normal research tools are registered directly. Do not waste steps searching for tools that are already available.
+Never use search_tools to find websites, people, companies, jobs, news, products, documents, public records, or other internet information.
+
+Use search_tools only when you need a specialized internal capability that is not already directly available. Then use load_tool with the exact tool name it returns.
+
+Do not call search_tools for web discovery merely because the word "search" appears in its name.
+
+Direct tools already available include webSearch, searchDorks, stagehandBrowser, skillsMarketplace, researchScratchpad, and resultCollector.
+
+Deferred internal tools may include capabilities such as bulk URL reading, site discovery, structured-data extraction, domain intelligence, GitHub research, validation, or export helpers.
 
 CACHE
 
@@ -76,7 +84,7 @@ Prefer searchDorks for narrow evidence discovery such as hiring pages, procureme
 
 Pilot identifies itself to websites as an autonomous research agent rather than impersonating a normal browser user.
 
-Use bulkUrlFetch when several already-known URLs need reading in one batch. Those reads also return Markdown-oriented content.
+Use bulkUrlFetch when several already-known URLs need reading in one batch.
 
 Use siteDiscovery when a known website needs internal page discovery.
 
@@ -144,7 +152,7 @@ SUBAGENTS
 
 Delegate independent branches when doing so improves speed, specialization, or coverage.
 
-Subagents have direct access to the same research tool families, so delegate based on specialization rather than tool availability.
+Subagents have the same direct core research tools and can discover the same deferred specialized tools through search_tools.
 
 Do not make several agents research the same branch.
 
@@ -181,6 +189,7 @@ Avoid:
 - repeated failing domains
 - unnecessary browser automation
 - unnecessary marketplace skill searches
+- unnecessary internal tool searches
 - placing huge results in working memory
 
 Stop when additional research has low expected value.
