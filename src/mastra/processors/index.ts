@@ -29,6 +29,11 @@ export {
 } from './response-verbosity';
 
 export {
+  RuntimeSkillResolverProcessor,
+  runtimeSkillResolverProcessor,
+} from './runtime-skill-resolver';
+
+export {
   TaskDependencyProcessor,
   taskDependencyProcessor,
 } from './task-dependency';
