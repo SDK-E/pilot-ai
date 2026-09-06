@@ -82,3 +82,8 @@ export {
   SubagentStepBudgetProcessor,
   subagentStepBudgetProcessor,
 } from './subagent-step-budget';
+
+export {
+  NegativeClaimVerificationProcessor,
+  negativeClaimVerificationProcessor,
+} from './negative-claim-verification';
