@@ -1,10 +1,8 @@
 import { Agent } from '@mastra/core/agent';
 import {
   TokenLimiterProcessor,
-  ToolSearchProcessor,
   UnicodeNormalizer,
 } from '@mastra/core/processors';
-import { webFetchTool } from '@mastra/core/tools';
 
 import { pilotConfig } from '../../config';
 
@@ -19,25 +17,20 @@ import {
 } from '../../processors';
 
 import { bulkUrlFetch } from '../../tools/bulk-url-fetch';
+import { csvFile } from '../../tools/csv-file';
+import { domainIntelligence } from '../../tools/domain-intelligence';
+import { exportResults } from '../../tools/export-results';
+import { exportValidator } from '../../tools/export-validator';
 import { githubPublic } from '../../tools/github-public';
-import { langSearch } from '../../tools/langsearch';
+import { markdownFile } from '../../tools/markdown-file';
+import { researchScratchpad } from '../../tools/research-scratchpad';
+import { resultCollector } from '../../tools/result-collector';
+import { searchDorks } from '../../tools/search-dorks';
 import { siteDiscovery } from '../../tools/site-discovery';
-
-const technicalToolSearch =
-  new ToolSearchProcessor({
-    tools: {
-      bulkUrlFetch,
-      githubPublic,
-      siteDiscovery,
-    },
-
-    search: {
-      topK: 3,
-      minScore: 0.1,
-    },
-
-    ttl: 3_600_000,
-  });
+import { skillsMarketplace } from '../../tools/skills-marketplace';
+import { stagehandBrowser } from '../../tools/stagehand-browser';
+import { structuredData } from '../../tools/structured-data';
+import { webSearch } from '../../tools/web-search';
 
 export const technicalAgent =
   new Agent({
@@ -56,6 +49,26 @@ You are Pilot Technical Research.
 You are a specialist subagent of Pilot Browser.
 
 Handle delegated technical investigation.
+
+TOOL SEMANTICS
+
+Use webSearch or searchDorks for public internet search.
+
+Never treat an internal tool-discovery function such as search_tools as Google or public-web search. If such a function is present, it only discovers registered agent tools.
+
+You have direct access to the research toolset. Do not waste steps searching for tools that are already available.
+
+CURRENT DATE
+
+The runtime current-context system message is authoritative.
+
+For current versions, releases, docs, issues, and package behavior, anchor research to that date. Do not use stale years from memory unless historical comparison is actually needed.
+
+QUERY QUALITY
+
+Search for implementation evidence, not generic topic pages. Combine package/framework/repository identifiers with version, release, issue, API, changelog, migration, source-code, or exact error terms as appropriate.
+
+Use searchDorks for precise site:, intitle:, inurl:, filetype:, exact-phrase, exclusion, OR, and date-bounded technical searches.
 
 CACHE
 
@@ -81,7 +94,6 @@ When that happens:
 SOURCE PRIORITY
 
 Prefer:
-
 1. current official documentation
 2. source repository
 3. releases and changelog
@@ -153,44 +165,13 @@ If one technical source fails:
 
 Do not repeatedly retry identical failures.
 
-EFFICIENCY
-
-Prefer:
-- primary evidence
-- targeted repository inspection
-- bulk fetching known relevant pages
-- avoiding weak tutorials when primary evidence is sufficient
-
-COMPLETION
-
-Continue until:
-- the delegated technical question is answered
-- relevant current versions are established
-- implementation evidence is sufficient
-- important contradictions are resolved or preserved
-- deprecated behavior is separated from current behavior
-- additional investigation has low expected value
-
-When the run becomes large:
-- stop exploratory side branches
-- finish the highest-value technical questions
-- produce a complete evidence-backed report
-
 READ ONLY
 
 Do not modify repositories or external systems.
 
 OUTPUT
 
-Return concise technical findings with:
-- direct answer
-- relevant versions
-- implementation facts
-- evidence URLs
-- deprecated/outdated approaches
-- contradictions
-- uncertainty
-- confidence
+Return concise technical findings with direct answer, relevant versions, implementation facts, evidence URLs, deprecated approaches, contradictions, uncertainty, and confidence.
 `,
 
     model: [
@@ -224,8 +205,6 @@ Return concise technical findings with:
       challengeClaimProcessor,
       failureRecoveryProcessor,
 
-      technicalToolSearch,
-
       new TokenLimiterProcessor({
         limit:
           pilotConfig.agent.subagent
@@ -238,7 +217,20 @@ Return concise technical findings with:
     ],
 
     tools: {
-      langSearch,
-      webFetchTool,
+      webSearch,
+      searchDorks,
+      stagehandBrowser,
+      skillsMarketplace,
+      bulkUrlFetch,
+      siteDiscovery,
+      structuredData,
+      domainIntelligence,
+      githubPublic,
+      researchScratchpad,
+      resultCollector,
+      exportValidator,
+      exportResults,
+      csvFile,
+      markdownFile,
     },
   });
