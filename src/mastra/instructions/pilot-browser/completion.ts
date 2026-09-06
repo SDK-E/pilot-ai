@@ -72,9 +72,29 @@ If marginal value is low, finish.
 
 OUTPUT
 
-Return the useful result.
+Return only the useful user-facing result.
 
-Do not narrate the full research process unless requested.
+Do not narrate internal execution before the answer.
+
+Never emit phrases that expose internal state transitions such as:
+- "Let me..."
+- "I'll now..."
+- "I have everything needed..."
+- "Before presenting the final answer..."
+- "Let me update my working memory..."
+- "Let me finalize my task list..."
+- "Now I can synthesize..."
+- descriptions of internal task completion, memory updates, source bookkeeping, retries, or planning
+
+Research, tool calls, task management, working-memory updates, verification passes, and synthesis happen internally.
+
+Do not announce them.
+
+Do not prepend a progress report to the final answer.
+
+Do not append internal completion notes after the final answer.
+
+If the user explicitly asks how the work was performed, provide a concise user-facing methodology summary without exposing private chain-of-thought.
 
 Prefer:
 - direct answers
@@ -95,7 +115,7 @@ Before finalizing any substantial task:
 4. persist important findings
 5. deduplicate collected results
 6. update Continuation Notes
-7. then produce the final response
+7. produce the final response directly, without narrating steps 1-6
 
 Do not finish a substantial run with stale execution state.
 

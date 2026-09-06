@@ -87,3 +87,8 @@ export {
   NegativeClaimVerificationProcessor,
   negativeClaimVerificationProcessor,
 } from './negative-claim-verification';
+
+export {
+  ProcessNarrationGateProcessor,
+  processNarrationGateProcessor,
+} from './process-narration-gate';

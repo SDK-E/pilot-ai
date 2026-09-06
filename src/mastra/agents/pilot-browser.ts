@@ -29,6 +29,7 @@ import {
   failureRecoveryProcessor,
   memoryHygieneProcessor,
   negativeClaimVerificationProcessor,
+  processNarrationGateProcessor,
   promptEnhancerProcessor,
   qualityGateProcessor,
   recencyCheckProcessor,
@@ -190,7 +191,6 @@ Do not abandon the parent objective.
 
       promptEnhancerProcessor,
 
-      
       researchPolicyProcessor,
       researchBudgetProcessor,
       negativeClaimVerificationProcessor,
@@ -222,6 +222,7 @@ Do not abandon the parent objective.
     ],
 
     outputProcessors: [
+      processNarrationGateProcessor,
       negativeClaimVerificationProcessor,
       qualityGateProcessor,
     ],
