@@ -35,6 +35,7 @@ import {
   recencyCheckProcessor,
   researchBudgetProcessor,
   researchPolicyProcessor,
+  responseVerbosityProcessor,
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
   staleObjectiveResetProcessor,
@@ -193,6 +194,7 @@ Do not abandon the parent objective.
 
       researchPolicyProcessor,
       researchBudgetProcessor,
+      responseVerbosityProcessor,
       negativeClaimVerificationProcessor,
 
       taskDependencyProcessor,
