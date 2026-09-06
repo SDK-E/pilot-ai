@@ -69,8 +69,11 @@ local research data from being copied into a deployment.
 
 `pnpm dev` and `pnpm build` run the normal Pilot configuration. `pnpm
 dev:research` and `pnpm build:research` set `PILOT_ENABLE_RESEARCH=true` and
-register Pilot Research through the same entrypoint. This keeps browser and
-research dependencies outside the normal deployable artifact.
+register Pilot Research through the same entrypoint. Research is not activated
+for a normal runtime request. The current Mastra build still follows the
+optional registration import and packages research dependencies, so it must not
+be deployed to Vercel until the deploy artifact is split or the bundler's
+supported exclusion mechanism is verified.
 
 Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package
 documentation. Production runtime storage uses the environment-specific Neon

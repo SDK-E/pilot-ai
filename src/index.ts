@@ -2,8 +2,6 @@ import { Mastra } from '@mastra/core/mastra';
 import { PostgresStore } from '@mastra/pg';
 
 import { conversationApiRoutes } from './conversation/api';
-import { researchApiRoutes } from './research/api';
-import { MastraEditor } from '@mastra/editor';
 
 const researchEnabled = process.env.PILOT_ENABLE_RESEARCH === 'true';
 
@@ -28,9 +26,7 @@ export const mastra = new Mastra({
   server: {
     apiRoutes: [
       ...conversationApiRoutes,
-      ...researchApiRoutes,
     ],
     cors: false,
   },
-  editor: new MastraEditor(),
 });
