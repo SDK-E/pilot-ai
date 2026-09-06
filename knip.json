@@ -1,13 +1,14 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/mastra/index.ts!"
+    "src/index.ts!"
   ],
   "project": [
-    "src/mastra/**/*.ts!",
-    "src/pilot-runtime/**/*.ts!",
-    "!src/mastra/evals/**!",
-    "!src/mastra/conversation/verify-memory.ts!"
+    "src/conversation/**/*.ts!",
+    "src/research/**/*.ts!",
+    "src/runtime/**/*.ts!",
+    "!src/research/evals/**!",
+    "!src/conversation/verify-memory.ts!"
   ],
   "ignoreExportsUsedInFile": true
 }

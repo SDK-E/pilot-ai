@@ -1,24 +1,26 @@
 # Pilot AI
 
-Mastra runtime and intelligence boundary for [Pilot](https://github.com/SDK-E/pilot).
+The runtime boundary for [Pilot](https://github.com/SDK-E/pilot) and Pilot Research.
 
-`pilot-research` is an experimental research runtime developed independently of
-the Pilot product. It remains unavailable to Pilot users: it has no
-tenant-scoped service adapter, no Pilot authorization context, and no approved
-deployment path. Do not treat a Mastra agent registered for local development
-as a Pilot Worker capability.
+Pilot Research is an experimental agent in the same runtime service. It remains
+unavailable to Pilot users: it has no tenant-scoped service adapter, no Pilot
+authorization context, and no approved deployment path. Do not treat a Mastra
+agent registered for local development as a Pilot Worker capability.
 
 Pilot owns authentication, organization authorization, workers, conversations,
 execution records, and approvals. Mastra supplies agent, memory, workflow, and
 durable-execution capabilities; it does not own Pilot domain records or make
 authorization decisions.
 
-The Conversation source path depends only on the Mastra server, core, memory,
-PostgreSQL storage, and Zod. Browser, local LibSQL, DuckDB, embeddings, evals,
-editor, observability, and Stagehand remain development dependencies of the
-Research Agent.
+`src/index.ts` is the only service entrypoint. It holds the Pilot route
+and conditionally registers both agents. `src/conversation` and
+`src/research` contain only their agent-specific declarations,
+instructions, memory behavior, subagents, and evals. `src/runtime` contains
+shared processors, configuration, schemas, scorers, tools, storage, workflows,
+skills, and caches. Browser, local LibSQL, DuckDB, embeddings, evals, editor,
+observability, and Stagehand remain development dependencies of Pilot Research.
 
-The `pilot-conversation` adapter is the beginning of the product runtime. It
+The `pilot` adapter is the beginning of the product runtime. It
 accepts only a server-generated, validated command; maps the organization and
 Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
 to the Mastra thread; and uses `@mastra/pg` with the matching Neon database.
@@ -61,10 +63,10 @@ The Research Agent is local-development only. If enabled, it requires explicit
 `MASTRA_MEMORY_DATABASE_URL` values that point outside `src/`; this prevents
 local research data from being copied into a deployment.
 
-The two runtime entrypoints are intentionally separate: `pnpm dev` and
-`pnpm build` target Pilot Conversation; `pnpm dev:research` and
-`pnpm build:research` target the local Research Agent. This keeps browser and
-research dependencies outside the deployable Conversation artifact.
+`pnpm dev` and `pnpm build` run the normal Pilot configuration. `pnpm
+dev:research` and `pnpm build:research` set `PILOT_ENABLE_RESEARCH=true` and
+register Pilot Research through the same entrypoint. This keeps browser and
+research dependencies outside the normal deployable artifact.
 
 Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package
 documentation. Production runtime storage uses the environment-specific Neon

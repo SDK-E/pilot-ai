@@ -58,7 +58,7 @@ Use `@mastra/pg` with the matching Neon environment for Mastra storage. Do not u
 1. Replace deployed storage with `@mastra/pg` and prove restart-safe message history. **Verified locally against development Neon on 2026-09-06; preview and production still need runtime configuration.**
 2. Add `pilot-conversation` with direct chat behavior and no enabled capabilities by default. **Implemented and covered by deterministic command-validation tests.**
 3. Add the typed internal endpoint and protected Pilot-to-runtime transport. **The runtime endpoint is implemented; Pilot still needs to become the authenticated caller and Vercel Trusted Sources must be configured before deployment.**
-4. Split the local Research Agent into its own Mastra project before deployment. **Implemented with the `src/research-mastra` entrypoint; the Conversation build now excludes its browser and research dependencies.**
+4. Keep the local Research Agent in the shared Pilot runtime before deployment. **Implemented with `src/index.ts` registering both agents and `src/research` holding research-specific code. The normal Pilot build does not load research dependencies.**
 5. Add Pilot-side message persistence and the authenticated server-to-server call, then prove one complete user message/reply flow.
 6. Add dynamic, capability-filtered read-only tools and prove denied tools cannot be discovered, loaded or called.
 7. Add durable approval/suspension for mutation tools, then browser control and integrations.

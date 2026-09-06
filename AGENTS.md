@@ -9,9 +9,11 @@ change between versions.
 
 ## Rules
 
-- Register agents, tools, workflows, and scorers exposed by the Mastra service
-  in `src/mastra/index.ts`. Request-scoped Pilot runtime adapters may be
-  exported there without registering a general-purpose agent endpoint.
+- Register agents in `src/index.ts`; keep each agent's declarations and
+  instructions in `src/<agent>`. Put shared processors, configuration,
+  schemas, scorers, tools, storage, workflows, skills, and caches in
+  `src/runtime`. Request-scoped Pilot runtime adapters may be exported from the
+  entrypoint without registering a general-purpose agent endpoint.
 - Use the `dev` and `build` scripts from `package.json` instead of running `mastra dev` / `mastra build` directly
 
 ## Resources
