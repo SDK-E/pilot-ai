@@ -18,6 +18,9 @@ export type UrlFetchResult = {
   content: string;
 };
 
+const AGENT_USER_AGENT =
+  'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)';
+
 function extractTitle(
   html: string,
 ): string | undefined {
@@ -28,55 +31,196 @@ function extractTitle(
 
   return match?.[1]
     ?.replace(
+      /<[^>]+>/g,
+      ' ',
+    )
+    .replace(
       /\s+/g,
       ' ',
     )
     .trim();
 }
 
-function htmlToText(
-  html: string,
+function decodeHtmlEntities(
+  value: string,
 ): string {
-  return html
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
     .replace(
-      /<script[\s\S]*?<\/script>/gi,
-      ' ',
+      /&#(\d+);/g,
+      (_, code: string) =>
+        String.fromCodePoint(
+          Number(code),
+        ),
     )
     .replace(
-      /<style[\s\S]*?<\/style>/gi,
-      ' ',
+      /&#x([0-9a-f]+);/gi,
+      (_, code: string) =>
+        String.fromCodePoint(
+          Number.parseInt(
+            code,
+            16,
+          ),
+        ),
+    );
+}
+
+function resolveHref(
+  href: string,
+  baseUrl: string,
+): string {
+  const value =
+    decodeHtmlEntities(
+      href,
+    ).trim();
+
+  if (
+    !value ||
+    value.startsWith('#') ||
+    value.startsWith('mailto:') ||
+    value.startsWith('tel:')
+  ) {
+    return value;
+  }
+
+  try {
+    return new URL(
+      value,
+      baseUrl,
+    ).toString();
+  } catch {
+    return value;
+  }
+}
+
+function htmlToMarkdown(
+  html: string,
+  baseUrl: string,
+): string {
+  let markdown = html
+    .replace(
+      /<!--([\s\S]*?)-->/g,
+      '',
+    )
+    .replace(
+      /<(script|style|noscript|svg|canvas|iframe|template)[^>]*>[\s\S]*?<\/\1>/gi,
+      '',
+    )
+    .replace(
+      /<br\s*\/?\s*>/gi,
+      '\n',
+    )
+    .replace(
+      /<hr\s*\/?\s*>/gi,
+      '\n\n---\n\n',
+    );
+
+  for (
+    let level = 6;
+    level >= 1;
+    level -= 1
+  ) {
+    const headingPattern =
+      new RegExp(
+        `<h${level}[^>]*>([\\s\\S]*?)<\\/h${level}>`,
+        'gi',
+      );
+
+    markdown =
+      markdown.replace(
+        headingPattern,
+        (_, body: string) =>
+          `\n\n${'#'.repeat(level)} ${body}\n\n`,
+      );
+  }
+
+  markdown = markdown
+    .replace(
+      /<(strong|b)[^>]*>([\s\S]*?)<\/\1>/gi,
+      '**$2**',
+    )
+    .replace(
+      /<(em|i)[^>]*>([\s\S]*?)<\/\1>/gi,
+      '*$2*',
+    )
+    .replace(
+      /<code[^>]*>([\s\S]*?)<\/code>/gi,
+      '`$1`',
+    )
+    .replace(
+      /<pre[^>]*>([\s\S]*?)<\/pre>/gi,
+      (_, body: string) =>
+        `\n\n\`\`\`\n${body.replace(/<[^>]+>/g, '')}\n\`\`\`\n\n`,
+    )
+    .replace(
+      /<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+      (_, href: string, body: string) => {
+        const label =
+          body
+            .replace(
+              /<[^>]+>/g,
+              ' ',
+            )
+            .replace(
+              /\s+/g,
+              ' ',
+            )
+            .trim();
+
+        const url =
+          resolveHref(
+            href,
+            baseUrl,
+          );
+
+        if (!label) {
+          return url;
+        }
+
+        if (!url) {
+          return label;
+        }
+
+        return `[${label}](${url})`;
+      },
+    )
+    .replace(
+      /<li[^>]*>([\s\S]*?)<\/li>/gi,
+      '\n- $1',
+    )
+    .replace(
+      /<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi,
+      (_, body: string) =>
+        `\n\n> ${body}\n\n`,
+    )
+    .replace(
+      /<(p|article|section|main|header|footer|nav|div|ul|ol|table|tr)[^>]*>/gi,
+      '\n',
+    )
+    .replace(
+      /<\/(p|article|section|main|header|footer|nav|div|ul|ol|table|tr)>/gi,
+      '\n',
     )
     .replace(
       /<[^>]+>/g,
-      ' ',
-    )
+      ' ');
+
+  return decodeHtmlEntities(
+    markdown,
+  )
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .replace(
-      /&nbsp;/gi,
-      ' ',
-    )
-    .replace(
-      /&amp;/gi,
-      '&',
-    )
-    .replace(
-      /&lt;/gi,
-      '<',
-    )
-    .replace(
-      /&gt;/gi,
-      '>',
-    )
-    .replace(
-      /&quot;/gi,
-      '"',
-    )
-    .replace(
-      /&#39;/gi,
-      "'",
-    )
-    .replace(
-      /\s+/g,
-      ' ',
+      /(^|\n)-\s*\n/g,
+      '$1',
     )
     .trim();
 }
@@ -114,7 +258,7 @@ export async function performUrlFetch(
 
   const cacheKey =
     makeCacheKey(
-      'url-fetch',
+      'url-fetch-markdown-v2',
       {
         url:
           url.toString(),
@@ -172,7 +316,13 @@ export async function performUrlFetch(
 
           headers: {
             'user-agent':
-              'Mozilla/5.0 (compatible; PilotResearch/1.0)',
+              AGENT_USER_AGENT,
+            accept:
+              'text/html, text/markdown, application/xhtml+xml, application/json, text/plain;q=0.9, */*;q=0.5',
+            'x-agent-name':
+              'SDK Pilot',
+            'x-agent-purpose':
+              'public-web-research',
           },
         },
       );
@@ -211,21 +361,32 @@ export async function performUrlFetch(
     ) {
       try {
         content =
-          JSON.stringify(
+          `\`\`\`json\n${JSON.stringify(
             JSON.parse(raw),
             null,
             2,
-          );
+          )}\n\`\`\``;
       } catch {
         content = raw;
       }
     } else if (
       contentType.includes(
-        'html',
+        'text/markdown',
       )
     ) {
+      content = raw;
+    } else if (
+      contentType.includes(
+        'html',
+      ) ||
+      /<html[\s>]/i.test(raw)
+    ) {
       content =
-        htmlToText(raw);
+        htmlToMarkdown(
+          raw,
+          response.url ||
+            url.toString(),
+        );
     } else {
       content = raw;
     }
@@ -287,7 +448,7 @@ export const urlFetch =
     id: 'url-fetch',
 
     description:
-      'Fetch and extract readable content from a public HTTP(S) URL.',
+      'Read a public HTTP(S) URL as Markdown using an explicit SDK Pilot agent identity.',
 
     inputSchema: z.object({
       url:
