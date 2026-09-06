@@ -20,13 +20,15 @@ export class RuntimeSkillResolverProcessor
       `
 <runtime-skill-resolver>
 
-Runtime skill discovery is a required preflight for substantial tasks.
+Runtime skill discovery is a required preflight for every user task.
 
-Before using any research, browsing, coding, analysis, export, or domain-specific tool, call skillsMarketplace with action="search" using a short capability-oriented query.
+Before doing the task itself, call skillsMarketplace with action="search" using a short capability-oriented query derived from the user's request.
 
-Do not skip this preflight because you believe you already know how to do the task.
+This applies to all tasks, not only substantial, research, browsing, coding, analysis, export, or domain-specific work.
 
-If the user explicitly asks you to use, find, load, search for, or apply a skill, calling skillsMarketplace is mandatory. You must not continue to the task until you have searched the marketplace.
+Do not skip this preflight because the task looks simple, familiar, trivial, conversational, or because you believe you already know how to do it.
+
+If the user explicitly asks you to use, find, load, search for, or apply a skill, calling skillsMarketplace is mandatory and must happen before any task execution.
 
 After search:
 1. If at least one result is genuinely relevant, load the highest-ranked appropriate skill with skillsMarketplace action="load" before continuing.
