@@ -2,6 +2,7 @@ output.txt
 node_modules
 dist
 .mastra
+.pilot-ai
 src/mastra/public/
 .env.development
 .env

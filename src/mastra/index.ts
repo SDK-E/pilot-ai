@@ -1,163 +1,75 @@
 import { Mastra } from '@mastra/core/mastra';
-import { MastraCompositeStore } from '@mastra/core/storage';
-import { DuckDBStore } from '@mastra/duckdb';
-import { MastraEditor } from '@mastra/editor';
-import { LibSQLStore } from '@mastra/libsql';
-import {
-  MastraStorageExporter,
-  Observability,
-} from '@mastra/observability';
+import { registerApiRoute } from '@mastra/core/server';
+import { PostgresStore } from '@mastra/pg';
+import { ZodError } from 'zod';
 
 import {
-  pilotBrowser,
-} from './agents/pilot-browser';
+  createConversationResourceId,
+  createPilotConversationRuntime,
+  generateConversationReplySchema,
+  type GenerateConversationReply,
+} from './conversation/pilot-conversation';
 
-import {
-  pilotBrowserSmoke,
-} from './agents/pilot-browser-smoke';
+export {
+  createConversationResourceId,
+  createPilotConversationRuntime,
+  generateConversationReplySchema,
+  type GenerateConversationReply,
+} from './conversation/pilot-conversation';
 
-import {
-  answerRelevancyScorer,
-  completenessScorer,
-  sourceCoverageScorer,
-  taskCompletionScorer,
-} from './scorers';
+const runtimeDatabaseUrl = process.env.PILOT_MASTRA_DATABASE_URL;
 
-import {
-  seedPilotDatasets,
-} from './evals/seed-pilot-dataset';
+const apiRoutes = [
+  registerApiRoute('/pilot/conversations/generate', {
+    method: 'POST',
+    // Vercel Deployment Protection and Trusted Sources authenticate Pilot before
+    // this handler. This route must never be exposed through a public domain.
+    requiresAuth: false,
+    handler: async (context) => {
+      if (!runtimeDatabaseUrl) {
+        return context.json(
+          { error: 'Pilot Conversation runtime is not configured.' },
+          503,
+        );
+      }
 
-const defaultStorage =
-  new LibSQLStore({
-    id: 'mastra-storage',
+      let command: GenerateConversationReply;
 
-    url:
-      process.env.MASTRA_DATABASE_URL ??
-      'file:./mastra.db',
-  });
+      try {
+        command = generateConversationReplySchema.parse(
+          await context.req.json(),
+        );
+      } catch (error) {
+        if (error instanceof ZodError) {
+          return context.json({ error: 'Invalid runtime command.' }, 400);
+        }
 
-const editorStorage =
-  new LibSQLStore({
-    id: 'mastra-editor-storage',
+        return context.json({ error: 'Invalid JSON request body.' }, 400);
+      }
 
-    url:
-      process.env.MASTRA_EDITOR_DATABASE_URL ??
-      'file:./mastra-editor.db',
-  });
+      const runtime = createPilotConversationRuntime(runtimeDatabaseUrl);
 
-const observabilityStorage =
-  new DuckDBStore({
-    id: 'mastra-observability',
-  });
-
-const datasetsStorage =
-  await defaultStorage.getStore(
-    'datasets',
-  );
-
-const experimentsStorage =
-  await defaultStorage.getStore(
-    'experiments',
-  );
-
-const scoresStorage =
-  await defaultStorage.getStore(
-    'scores',
-  );
-
-const observabilityDomain =
-  await observabilityStorage.getStore(
-    'observability',
-  );
-
-if (!datasetsStorage) {
-  throw new Error(
-    'Datasets storage is unavailable.',
-  );
-}
-
-if (!experimentsStorage) {
-  throw new Error(
-    'Experiments storage is unavailable.',
-  );
-}
-
-if (!scoresStorage) {
-  throw new Error(
-    'Scores storage is unavailable.',
-  );
-}
-
-if (!observabilityDomain) {
-  throw new Error(
-    'Observability storage is unavailable.',
-  );
-}
-
-const storage =
-  new MastraCompositeStore({
-    id: 'mastra-composite-storage',
-
-    default:
-      defaultStorage,
-
-    editor:
-      editorStorage,
-
-    domains: {
-      datasets:
-        datasetsStorage,
-
-      experiments:
-        experimentsStorage,
-
-      scores:
-        scoresStorage,
-
-      observability:
-        observabilityDomain,
+      try {
+        return context.json(await runtime.generate(command));
+      } finally {
+        await runtime.close();
+      }
     },
-  });
+  }),
+];
 
-export const mastra =
-  new Mastra({
-    agents: {
-      pilotBrowser,
-      pilotBrowserSmoke,
-    },
+const storage = runtimeDatabaseUrl
+  ? new PostgresStore({
+      id: 'pilot-runtime-storage',
+      connectionString: runtimeDatabaseUrl,
+      schemaName: 'pilot_ai',
+    })
+  : undefined;
 
-    scorers: {
-      answerRelevancyScorer,
-      completenessScorer,
-      sourceCoverageScorer,
-      taskCompletionScorer,
-    },
-
-    storage,
-
-    observability:
-      new Observability({
-        configs: {
-          default: {
-            serviceName:
-              'pilot-ai',
-
-            logging: {
-              enabled: true,
-              level: 'info',
-            },
-
-            exporters: [
-              new MastraStorageExporter(),
-            ],
-          },
-        },
-      }),
-
-    editor:
-      new MastraEditor(),
-  });
-
-await seedPilotDatasets(
-  mastra,
-);
+export const mastra = new Mastra({
+  storage,
+  server: {
+    apiRoutes,
+    cors: false,
+  },
+});

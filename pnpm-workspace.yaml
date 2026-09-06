@@ -1,5 +1,5 @@
 packages:
-  - '.'
+  - "."
 minimumReleaseAgeExclude:
   - mastra
   - "@mastra/*"
@@ -9,3 +9,5 @@ allowBuilds:
   protobufjs: true
   sharp: true
   utf-8-validate: true
+overrides:
+  adm-zip: ^0.6.0
