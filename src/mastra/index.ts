@@ -9,6 +9,10 @@ import {
 } from '@mastra/observability';
 
 import {
+  pilotBrowser,
+} from './agents/pilot-browser';
+
+import {
   answerRelevancyScorer,
   completenessScorer,
   sourceCoverageScorer,
@@ -16,19 +20,25 @@ import {
 } from './scorers';
 
 import {
-  pilotBrowser,
-} from './agents/pilot-browser';
+  seedPilotDatasets,
+} from './evals/seed-pilot-dataset';
 
 const defaultStorage =
   new LibSQLStore({
     id: 'mastra-storage',
-    url: 'file:./mastra.db',
+
+    url:
+      process.env.MASTRA_DATABASE_URL ??
+      'file:./mastra.db',
   });
 
 const editorStorage =
   new LibSQLStore({
     id: 'mastra-editor-storage',
-    url: 'file:./mastra-editor.db',
+
+    url:
+      process.env.MASTRA_EDITOR_DATABASE_URL ??
+      'file:./mastra-editor.db',
   });
 
 const observabilityStorage =
@@ -36,55 +46,113 @@ const observabilityStorage =
     id: 'mastra-observability',
   });
 
-export const mastra = new Mastra({
-  agents: {
-    pilotBrowser,
-  },
+const datasetsStorage =
+  await defaultStorage.getStore(
+    'datasets',
+  );
 
-  scorers: {
-    answerRelevancyScorer,
-    completenessScorer,
-    sourceCoverageScorer,
-    taskCompletionScorer,
-  },
+const experimentsStorage =
+  await defaultStorage.getStore(
+    'experiments',
+  );
 
-  storage:
-    new MastraCompositeStore({
-      id: 'mastra-composite-storage',
+const scoresStorage =
+  await defaultStorage.getStore(
+    'scores',
+  );
 
-      default:
-        defaultStorage,
+const observabilityDomain =
+  await observabilityStorage.getStore(
+    'observability',
+  );
 
-      editor:
-        editorStorage,
+if (!datasetsStorage) {
+  throw new Error(
+    'Datasets storage is unavailable.',
+  );
+}
 
-      domains: {
-        observability:
-          await observabilityStorage.getStore(
-            'observability',
-          ),
-      },
-    }),
+if (!experimentsStorage) {
+  throw new Error(
+    'Experiments storage is unavailable.',
+  );
+}
 
-  observability:
-    new Observability({
-      configs: {
-        default: {
-          serviceName:
-            'pilot-ai',
+if (!scoresStorage) {
+  throw new Error(
+    'Scores storage is unavailable.',
+  );
+}
 
-          logging: {
-            enabled: true,
-            level: 'info',
+if (!observabilityDomain) {
+  throw new Error(
+    'Observability storage is unavailable.',
+  );
+}
+
+const storage =
+  new MastraCompositeStore({
+    id: 'mastra-composite-storage',
+
+    default:
+      defaultStorage,
+
+    editor:
+      editorStorage,
+
+    domains: {
+      datasets:
+        datasetsStorage,
+
+      experiments:
+        experimentsStorage,
+
+      scores:
+        scoresStorage,
+
+      observability:
+        observabilityDomain,
+    },
+  });
+
+export const mastra =
+  new Mastra({
+    agents: {
+      pilotBrowser,
+    },
+
+    scorers: {
+      answerRelevancyScorer,
+      completenessScorer,
+      sourceCoverageScorer,
+      taskCompletionScorer,
+    },
+
+    storage,
+
+    observability:
+      new Observability({
+        configs: {
+          default: {
+            serviceName:
+              'pilot-ai',
+
+            logging: {
+              enabled: true,
+              level: 'info',
+            },
+
+            exporters: [
+              new MastraStorageExporter(),
+            ],
           },
-
-          exporters: [
-            new MastraStorageExporter(),
-          ],
         },
-      },
-    }),
+      }),
 
-  editor:
-    new MastraEditor(),
-});
+    editor:
+      new MastraEditor(),
+  });
+
+await seedPilotDatasets(
+  mastra,
+);

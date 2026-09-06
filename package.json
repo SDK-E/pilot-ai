@@ -8,7 +8,11 @@
     "dev": "mastra dev",
     "build": "mastra build",
     "start": "mastra start",
-    "eval:seed": "tsx src/mastra/evals/seed.ts"
+    "eval:seed": "tsx src/mastra/evals/seed.ts",
+    "eval": "tsx src/mastra/evals/run.ts",
+    "eval:smoke": "PILOT_EVAL_MODE=smoke tsx src/mastra/evals/run.ts",
+    "eval:regression": "PILOT_EVAL_MODE=regression tsx src/mastra/evals/run.ts",
+    "eval:deep": "PILOT_EVAL_MODE=deep tsx src/mastra/evals/run.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,10 +1,45 @@
-export const pilotDatasetName =
-  'pilot-browser-regression';
+export const pilotEvalModes = [
+  'smoke',
+  'regression',
+  'deep',
+] as const;
 
-export const pilotDatasetDescription =
-  'Regression dataset for Pilot Browser covering research quality, current technical research, source use, delegation, memory-aware continuation, and failure recovery.';
+export type PilotEvalMode =
+  (typeof pilotEvalModes)[number];
 
-export const pilotDatasetItems = [
+export type PilotDatasetItem = {
+  input: string;
+
+  groundTruth: {
+    expectations: readonly string[];
+  };
+};
+
+export type PilotDatasetDefinition = {
+  name: string;
+  description: string;
+  items: readonly PilotDatasetItem[];
+};
+
+const smokeItems = [
+  {
+    input:
+      'Using current public sources, identify the current Mastra documentation page for Observational Memory and briefly state what it does. Return the source URL.',
+
+    groundTruth: {
+      expectations: [
+        'Uses a current public source.',
+        'Identifies Observational Memory.',
+        'Returns a source URL.',
+        'Keeps the answer concise.',
+      ],
+    },
+  },
+] as const;
+
+const regressionItems = [
+  ...smokeItems,
+
   {
     input:
       'What is the current recommended way to register child agents in Mastra and configure delegation? Use current official sources and keep the answer concise.',
@@ -18,6 +53,24 @@ export const pilotDatasetItems = [
       ],
     },
   },
+
+  {
+    input:
+      'Research whether Mastra Experiments execute agent tools live or replay recorded tool outputs by default. Verify carefully and keep the answer concise.',
+
+    groundTruth: {
+      expectations: [
+        'Checks current experiment behavior.',
+        'Distinguishes live execution from replay or mocking.',
+        'Uses current evidence.',
+        'Reports limitations accurately.',
+      ],
+    },
+  },
+] as const;
+
+const deepItems = [
+  ...regressionItems,
 
   {
     input:
@@ -131,18 +184,54 @@ export const pilotDatasetItems = [
       ],
     },
   },
-
-  {
-    input:
-      'Research whether Mastra Experiments execute agent tools live or replay recorded tool outputs by default. Verify carefully and mention uncertainty or limitations.',
-
-    groundTruth: {
-      expectations: [
-        'Checks current experiment behavior.',
-        'Distinguishes live execution from replay or mocking.',
-        'Uses current evidence.',
-        'Reports limitations accurately.',
-      ],
-    },
-  },
 ] as const;
+
+export const pilotDatasets: Record<
+  PilotEvalMode,
+  PilotDatasetDefinition
+> = {
+  smoke: {
+    name: 'pilot-browser-smoke',
+
+    description:
+      'Single-case fast Pilot Browser smoke test intended to complete in under one minute.',
+
+    items: smokeItems,
+  },
+
+  regression: {
+    name: 'pilot-browser-regression',
+
+    description:
+      'Small Pilot Browser regression dataset for routine validation before merging changes.',
+
+    items: regressionItems,
+  },
+
+  deep: {
+    name: 'pilot-browser-deep',
+
+    description:
+      'Full Pilot Browser research and reliability regression dataset for occasional deep validation.',
+
+    items: deepItems,
+  },
+};
+
+export function resolvePilotEvalMode(): PilotEvalMode {
+  const value =
+    process.env.PILOT_EVAL_MODE ??
+    'smoke';
+
+  if (
+    pilotEvalModes.includes(
+      value as PilotEvalMode,
+    )
+  ) {
+    return value as PilotEvalMode;
+  }
+
+  throw new Error(
+    `Invalid PILOT_EVAL_MODE "${value}". Expected one of: ${pilotEvalModes.join(', ')}`,
+  );
+}
