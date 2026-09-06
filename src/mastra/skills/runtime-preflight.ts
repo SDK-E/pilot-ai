@@ -32,6 +32,7 @@ export type RuntimeSkillPreflightResult = {
 
 const API = 'https://skills.sh/api/v1';
 const MAX_SKILL_CONTEXT = 24_000;
+const REQUEST_TIMEOUT_MS = 8_000;
 
 const STOP_WORDS = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'can', 'could',
@@ -78,11 +79,29 @@ function authHeaders(): Record<string, string> {
 }
 
 async function requestJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, { headers: authHeaders() });
-  if (!response.ok) {
-    throw new Error(`skills.sh ${response.status}: ${await response.text()}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API}${path}`, {
+      headers: authHeaders(),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`skills.sh ${response.status}: ${await response.text()}`);
+    }
+
+    return await response.json() as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`skills.sh request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return await response.json() as T;
 }
 
 function candidateScore(candidate: SkillSummary, query: string, index: number): number {
