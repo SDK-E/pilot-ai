@@ -1,6 +1,7 @@
 import { Agent } from '@mastra/core/agent';
 import {
   TokenLimiterProcessor,
+  ToolSearchProcessor,
   UnicodeNormalizer,
 } from '@mastra/core/processors';
 
@@ -34,6 +35,28 @@ import { stagehandBrowser } from '../../tools/stagehand-browser';
 import { structuredData } from '../../tools/structured-data';
 import { webSearch } from '../../tools/web-search';
 
+const verificationToolSearch =
+  new ToolSearchProcessor({
+    tools: {
+      bulkUrlFetch,
+      siteDiscovery,
+      structuredData,
+      domainIntelligence,
+      githubPublic,
+      exportValidator,
+      exportResults,
+      csvFile,
+      markdownFile,
+    },
+
+    search: {
+      topK: 5,
+      minScore: 0.1,
+    },
+
+    ttl: 3_600_000,
+  });
+
 export const verificationAgent =
   new Agent({
     id: 'pilot-browser-verification',
@@ -56,9 +79,13 @@ TOOL SEMANTICS
 
 Use webSearch or searchDorks for public internet search.
 
-Never treat an internal tool-discovery function such as search_tools as Google or public-web search. If such a function is present, it only discovers registered agent tools.
+search_tools is NOT web search. It searches Pilot's internal deferred tool registry only.
 
-You have direct access to the research toolset. Do not waste steps searching for tools that are already available.
+Use search_tools only when you need a specialized capability that is not already directly available. After finding one, use load_tool with the exact returned tool name.
+
+Never use search_tools to look for websites, people, companies, jobs, news, documents, products, or public information.
+
+Direct tools already available include webSearch, searchDorks, stagehandBrowser, skillsMarketplace, researchScratchpad, and resultCollector.
 
 CURRENT DATE
 
@@ -221,6 +248,8 @@ Return a concise verification report with verified facts, evidence URLs, confide
       challengeClaimProcessor,
       failureRecoveryProcessor,
 
+      verificationToolSearch,
+
       new TokenLimiterProcessor({
         limit:
           pilotConfig.agent.subagent
@@ -237,16 +266,7 @@ Return a concise verification report with verified facts, evidence URLs, confide
       searchDorks,
       stagehandBrowser,
       skillsMarketplace,
-      bulkUrlFetch,
-      siteDiscovery,
-      structuredData,
-      domainIntelligence,
-      githubPublic,
       researchScratchpad,
       resultCollector,
-      exportValidator,
-      exportResults,
-      csvFile,
-      markdownFile,
     },
   });
