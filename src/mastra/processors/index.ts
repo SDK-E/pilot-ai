@@ -24,6 +24,11 @@ export {
 } from './research-budget';
 
 export {
+  ResponseVerbosityProcessor,
+  responseVerbosityProcessor,
+} from './response-verbosity';
+
+export {
   TaskDependencyProcessor,
   taskDependencyProcessor,
 } from './task-dependency';
