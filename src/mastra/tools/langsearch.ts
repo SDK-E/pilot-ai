@@ -37,11 +37,16 @@ type LangSearchWebPage = {
   datePublished?: unknown;
 };
 
-type LangSearchResponse = {
+type LangSearchSearchData = {
   webPages?: {
-    value?:
-      LangSearchWebPage[];
+    value?: LangSearchWebPage[];
   };
+};
+
+type LangSearchResponse = {
+  code?: unknown;
+  msg?: unknown;
+  data?: LangSearchSearchData;
 };
 
 function asString(
@@ -52,6 +57,14 @@ function asString(
     value.trim().length > 0
   )
     ? value.trim()
+    : undefined;
+}
+
+function asNumber(
+  value: unknown,
+): number | undefined {
+  return typeof value === 'number'
+    ? value
     : undefined;
 }
 
@@ -72,6 +85,12 @@ export async function performLangSearch(
 
   const normalizedQuery =
     query.trim();
+
+  if (!normalizedQuery) {
+    throw new Error(
+      'Web search query cannot be empty',
+    );
+  }
 
   const count = Math.min(
     Math.max(
@@ -141,6 +160,9 @@ export async function performLangSearch(
 
             'content-type':
               'application/json',
+
+            'user-agent':
+              'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)',
           },
 
           body: JSON.stringify({
@@ -157,20 +179,44 @@ export async function performLangSearch(
         },
       );
 
+    const rawText =
+      await response.text();
+
     if (!response.ok) {
       throw new Error(
-        `LangSearch ${response.status}: ${await response.text()}`,
+        `LangSearch HTTP ${response.status}: ${rawText || response.statusText}`,
       );
     }
 
-    const data =
-      (await response.json()) as LangSearchResponse;
+    let data: LangSearchResponse;
+
+    try {
+      data = JSON.parse(
+        rawText,
+      ) as LangSearchResponse;
+    } catch {
+      throw new Error(
+        'LangSearch returned invalid JSON',
+      );
+    }
+
+    const code =
+      asNumber(data.code);
+
+    if (
+      code !== undefined &&
+      code !== 200
+    ) {
+      throw new Error(
+        `LangSearch API ${code}: ${asString(data.msg) ?? 'Unknown error'}`,
+      );
+    }
 
     const pages =
       Array.isArray(
-        data.webPages?.value,
+        data.data?.webPages?.value,
       )
-        ? data.webPages.value
+        ? data.data.webPages.value
         : [];
 
     const results =
@@ -227,6 +273,15 @@ export async function performLangSearch(
           count,
         );
 
+    if (
+      pages.length > 0 &&
+      results.length === 0
+    ) {
+      throw new Error(
+        'LangSearch returned pages but Pilot could not parse any valid URLs',
+      );
+    }
+
     await setCachedValue(
       cacheKey,
       'lang-search',
@@ -237,6 +292,17 @@ export async function performLangSearch(
     );
 
     return results;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.name === 'AbortError'
+    ) {
+      throw new Error(
+        `LangSearch timed out after ${pilotConfig.network.fetchTimeoutMs}ms`,
+      );
+    }
+
+    throw error;
   } finally {
     clearTimeout(timeout);
 
@@ -253,7 +319,7 @@ export const langSearch =
     id: 'lang-search',
 
     description:
-      'Search the public web using LangSearch.',
+      'Search the public web using LangSearch. Throws explicit API/configuration errors instead of silently returning empty results when the upstream response is invalid.',
 
     inputSchema: z.object({
       query:
@@ -299,7 +365,7 @@ export const langSearch =
       value:
         output.results.length ===
         0
-          ? 'No web search results were returned.'
+          ? 'No relevant web search results were returned for this query.'
           : output.results
               .map(
                 (
