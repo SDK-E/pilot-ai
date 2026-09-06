@@ -3,8 +3,12 @@ import { z } from 'zod';
 
 import {
   getCachedValue,
+  getSkillFeedbackMap,
   makeCacheKey,
+  recordSkillFeedback,
+  recordSkillUse,
   setCachedValue,
+  type SkillFeedbackStats,
 } from '../cache';
 
 const SKILLS_API =
@@ -43,6 +47,10 @@ const rankedSkillSchema =
   skillSummarySchema.extend({
     official: z.boolean(),
     score: z.number(),
+    learnedScore: z.number(),
+    uses: z.number().int(),
+    helpful: z.number().int(),
+    unhelpful: z.number().int(),
   });
 
 const auditSchema = z.object({
@@ -62,6 +70,14 @@ const auditSchema = z.object({
 const loadedFileSchema = z.object({
   path: z.string(),
   contents: z.string(),
+});
+
+const feedbackStatsSchema = z.object({
+  skillId: z.string(),
+  uses: z.number().int(),
+  helpful: z.number().int(),
+  unhelpful: z.number().int(),
+  learnedScore: z.number(),
 });
 
 type SkillSummary =
@@ -91,41 +107,35 @@ type SkillAuditResponse = {
   audits?: unknown;
 };
 
-function getOidcToken(): string {
-  const token =
-    process.env.VERCEL_OIDC_TOKEN;
-
-  if (!token) {
-    throw new Error(
-      'VERCEL_OIDC_TOKEN is not configured. Enable Vercel OIDC Federation for this project so Pilot can access the skills.sh API at runtime.',
-    );
-  }
-
-  return token;
-}
-
 async function skillsRequest<T>(
   path: string,
   abortSignal?: AbortSignal,
 ): Promise<T> {
+  const token =
+    process.env.VERCEL_OIDC_TOKEN;
+
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    'user-agent':
+      'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)',
+    'x-agent-name':
+      'SDK Pilot',
+    'x-agent-purpose':
+      'runtime-skill-discovery',
+  };
+
+  if (token) {
+    headers.authorization =
+      `Bearer ${token}`;
+  }
+
   const response =
     await fetch(
       `${SKILLS_API}${path}`,
       {
         signal:
           abortSignal,
-        headers: {
-          authorization:
-            `Bearer ${getOidcToken()}`,
-          accept:
-            'application/json',
-          'user-agent':
-            'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)',
-          'x-agent-name':
-            'SDK Pilot',
-          'x-agent-purpose':
-            'runtime-skill-discovery',
-        },
+        headers,
       },
     );
 
@@ -231,10 +241,22 @@ function parseCuratedIds(
   return ids;
 }
 
-function rankSkills(
+function emptyFeedback(
+  skillId: string,
+): SkillFeedbackStats {
+  return {
+    skillId,
+    uses: 0,
+    helpful: 0,
+    unhelpful: 0,
+    learnedScore: 0,
+  };
+}
+
+async function rankSkills(
   skills: SkillSummary[],
   officialIds: Set<string>,
-): RankedSkill[] {
+): Promise<RankedSkill[]> {
   const maxInstalls =
     Math.max(
       ...skills.map(
@@ -242,6 +264,13 @@ function rankSkills(
           skill.installs,
       ),
       1,
+    );
+
+  const feedback =
+    await getSkillFeedbackMap(
+      skills.map(
+        (skill) => skill.id,
+      ),
     );
 
   return skills
@@ -267,10 +296,15 @@ function rankSkills(
           skill.id,
         );
 
+      const history =
+        feedback.get(skill.id) ??
+        emptyFeedback(skill.id);
+
       const score =
-        relevance * 0.7 +
+        relevance * 0.65 +
         popularity * 0.15 +
-        (official ? 0.15 : 0);
+        (official ? 0.1 : 0) +
+        history.learnedScore * 0.25;
 
       return {
         ...skill,
@@ -279,6 +313,16 @@ function rankSkills(
           Number(
             score.toFixed(4),
           ),
+        learnedScore:
+          Number(
+            history.learnedScore.toFixed(4),
+          ),
+        uses:
+          history.uses,
+        helpful:
+          history.helpful,
+        unhelpful:
+          history.unhelpful,
       };
     })
     .sort(
@@ -441,7 +485,7 @@ export const skillsMarketplace =
     id: 'skills-marketplace',
 
     description:
-      'Search skills.sh and load relevant agent skills directly into the current run without installing them. Search results are persistently cached and reranked by marketplace relevance, official curated status, and adoption. Only instruction/reference files are loaded; executable files are never installed or executed.',
+      'Search skills.sh, load instruction-only runtime skills, and record whether a loaded skill helped. Search results are cached and reranked using marketplace relevance, official curated status, adoption, and Pilot\'s persistent skill feedback. Executable files are never installed or executed.',
 
     inputSchema: z.discriminatedUnion(
       'action',
@@ -465,6 +509,27 @@ export const skillsMarketplace =
             z.literal('load'),
           id:
             z.string().min(3),
+          query:
+            z.string()
+              .min(2)
+              .optional(),
+        }),
+
+        z.object({
+          action:
+            z.literal('feedback'),
+          id:
+            z.string().min(3),
+          helpful:
+            z.boolean(),
+          query:
+            z.string()
+              .min(2)
+              .optional(),
+          reason:
+            z.string()
+              .max(500)
+              .optional(),
         }),
       ],
     ),
@@ -498,6 +563,13 @@ export const skillsMarketplace =
         skippedFiles:
           z.array(z.string()),
       }),
+
+      z.object({
+        action:
+          z.literal('feedback'),
+        stats:
+          feedbackStatsSchema,
+      }),
     ]),
 
     execute: async (
@@ -506,6 +578,24 @@ export const skillsMarketplace =
         abortSignal,
       },
     ) => {
+      if (
+        input.action === 'feedback'
+      ) {
+        const stats =
+          await recordSkillFeedback(
+            input.id,
+            input.helpful,
+            input.query,
+            input.reason,
+          );
+
+        return {
+          action:
+            'feedback' as const,
+          stats,
+        };
+      }
+
       if (
         input.action === 'search'
       ) {
@@ -553,14 +643,16 @@ export const skillsMarketplace =
           ]);
 
         const skills =
-          rankSkills(
-            parseSearchResults(
-              response.data,
-            ).filter(
-              (skill) =>
-                !skill.isDuplicate,
-            ),
-            officialIds,
+          (
+            await rankSkills(
+              parseSearchResults(
+                response.data,
+              ).filter(
+                (skill) =>
+                  !skill.isDuplicate,
+              ),
+              officialIds,
+            )
           ).slice(
             0,
             input.limit,
@@ -644,6 +736,11 @@ export const skillsMarketplace =
           ? detail.id
           : input.id;
 
+      await recordSkillUse(
+        id,
+        input.query,
+      );
+
       return {
         action:
           'load' as const,
@@ -673,6 +770,16 @@ export const skillsMarketplace =
 
     toModelOutput: (output) => {
       if (
+        output.action === 'feedback'
+      ) {
+        return {
+          type: 'text',
+          value:
+            `Recorded runtime skill feedback for ${output.stats.skillId}. Learned score: ${output.stats.learnedScore.toFixed(4)}.`,
+        };
+      }
+
+      if (
         output.action === 'search'
       ) {
         return {
@@ -691,8 +798,12 @@ export const skillsMarketplace =
                         `${index + 1}. ${skill.name}`,
                         `ID: ${skill.id}`,
                         `Score: ${skill.score}`,
+                        `Learned: ${skill.learnedScore}`,
                         `Official: ${skill.official ? 'yes' : 'no'}`,
                         `Installs: ${skill.installs}`,
+                        `Uses: ${skill.uses}`,
+                        `Helpful: ${skill.helpful}`,
+                        `Unhelpful: ${skill.unhelpful}`,
                       ].join(' — '),
                   )
                   .join('\n'),
