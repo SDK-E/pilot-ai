@@ -195,7 +195,10 @@ Do not abandon the parent objective.
       researchPolicyProcessor,
       researchBudgetProcessor,
       responseVerbosityProcessor,
+
+      processNarrationGateProcessor,
       negativeClaimVerificationProcessor,
+      qualityGateProcessor,
 
       taskDependencyProcessor,
 
@@ -223,11 +226,7 @@ Do not abandon the parent objective.
       stepBudgetProcessor,
     ],
 
-    outputProcessors: [
-      processNarrationGateProcessor,
-      negativeClaimVerificationProcessor,
-      qualityGateProcessor,
-    ],
+    outputProcessors: [],
 
     tools: {
       langSearch,
