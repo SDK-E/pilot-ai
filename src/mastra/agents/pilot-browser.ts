@@ -5,7 +5,6 @@ import {
   UnicodeNormalizer,
 } from '@mastra/core/processors';
 import { TaskSignalProvider } from '@mastra/core/signals';
-import { askUserTool } from '@mastra/core/tools';
 
 import { pilotConfig } from '../config';
 
@@ -203,6 +202,5 @@ Do not abandon the parent objective.
       skillsMarketplace,
       researchScratchpad,
       resultCollector,
-      askUserTool,
     },
   });
