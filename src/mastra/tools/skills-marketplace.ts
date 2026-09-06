@@ -107,27 +107,24 @@ type SkillAuditResponse = {
   audits?: unknown;
 };
 
+function getOidcToken(): string {
+  const token =
+    process.env.VERCEL_OIDC_TOKEN;
+
+  if (!token) {
+    throw new Error(
+      'skills.sh requires Vercel OIDC authentication. VERCEL_OIDC_TOKEN is missing. Enable OIDC Federation for the Vercel project, or for local development run `vercel link` and `vercel env pull` before starting Pilot.',
+    );
+  }
+
+  return token;
+}
+
 async function skillsRequest<T>(
   path: string,
   abortSignal?: AbortSignal,
 ): Promise<T> {
-  const token =
-    process.env.VERCEL_OIDC_TOKEN;
-
-  const headers: Record<string, string> = {
-    accept: 'application/json',
-    'user-agent':
-      'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)',
-    'x-agent-name':
-      'SDK Pilot',
-    'x-agent-purpose':
-      'runtime-skill-discovery',
-  };
-
-  if (token) {
-    headers.authorization =
-      `Bearer ${token}`;
-  }
+  const token = getOidcToken();
 
   const response =
     await fetch(
@@ -135,13 +132,35 @@ async function skillsRequest<T>(
       {
         signal:
           abortSignal,
-        headers,
+        headers: {
+          authorization:
+            `Bearer ${token}`,
+          'x-vercel-oidc-token':
+            token,
+          accept:
+            'application/json',
+          'user-agent':
+            'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)',
+          'x-agent-name':
+            'SDK Pilot',
+          'x-agent-purpose':
+            'runtime-skill-discovery',
+        },
       },
     );
 
   if (!response.ok) {
+    const body =
+      await response.text();
+
+    if (response.status === 401) {
+      throw new Error(
+        `skills.sh authentication failed (401). The VERCEL_OIDC_TOKEN is missing, invalid, or expired. Refresh the local Vercel environment or verify OIDC Federation is enabled for the deployed project. ${body}`,
+      );
+    }
+
     throw new Error(
-      `skills.sh ${response.status}: ${await response.text()}`,
+      `skills.sh ${response.status}: ${body}`,
     );
   }
 
@@ -485,7 +504,7 @@ export const skillsMarketplace =
     id: 'skills-marketplace',
 
     description:
-      'Search skills.sh, load instruction-only runtime skills, and record whether a loaded skill helped. Search results are cached and reranked using marketplace relevance, official curated status, adoption, and Pilot\'s persistent skill feedback. Executable files are never installed or executed.',
+      'Search skills.sh, load instruction-only runtime skills, and record whether a loaded skill helped. skills.sh requires Vercel OIDC authentication. Search results are cached and reranked using marketplace relevance, official curated status, adoption, and Pilot\'s persistent skill feedback. Executable files are never installed or executed.',
 
     inputSchema: z.discriminatedUnion(
       'action',
@@ -775,7 +794,7 @@ export const skillsMarketplace =
         return {
           type: 'text',
           value:
-            `Recorded runtime skill feedback for ${output.stats.skillId}. Learned score: ${output.stats.learnedScore.toFixed(4)}.`,
+            `Recorded skill feedback for ${output.stats.skillId}. Learned score: ${output.stats.learnedScore.toFixed(3)}.`,
         };
       }
 
@@ -798,12 +817,10 @@ export const skillsMarketplace =
                         `${index + 1}. ${skill.name}`,
                         `ID: ${skill.id}`,
                         `Score: ${skill.score}`,
-                        `Learned: ${skill.learnedScore}`,
                         `Official: ${skill.official ? 'yes' : 'no'}`,
                         `Installs: ${skill.installs}`,
+                        `Learned: ${skill.learnedScore}`,
                         `Uses: ${skill.uses}`,
-                        `Helpful: ${skill.helpful}`,
-                        `Unhelpful: ${skill.unhelpful}`,
                       ].join(' — '),
                   )
                   .join('\n'),
