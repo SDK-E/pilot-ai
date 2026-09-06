@@ -1,6 +1,7 @@
 import { Agent } from '@mastra/core/agent';
 import {
   TokenLimiterProcessor,
+  ToolSearchProcessor,
   UnicodeNormalizer,
 } from '@mastra/core/processors';
 import { TaskSignalProvider } from '@mastra/core/signals';
@@ -61,6 +62,28 @@ import { skillsMarketplace } from '../tools/skills-marketplace';
 import { stagehandBrowser } from '../tools/stagehand-browser';
 import { structuredData } from '../tools/structured-data';
 import { webSearch } from '../tools/web-search';
+
+const toolSearchProcessor =
+  new ToolSearchProcessor({
+    tools: {
+      bulkUrlFetch,
+      siteDiscovery,
+      structuredData,
+      domainIntelligence,
+      githubPublic,
+      exportValidator,
+      exportResults,
+      csvFile,
+      markdownFile,
+    },
+
+    search: {
+      topK: 5,
+      minScore: 0.1,
+    },
+
+    ttl: 3_600_000,
+  });
 
 export const pilotBrowser =
   new Agent({
@@ -196,6 +219,8 @@ Do not abandon the parent objective.
       failureRecoveryProcessor,
       memoryHygieneProcessor,
 
+      toolSearchProcessor,
+
       new TokenLimiterProcessor({
         limit:
           pilotConfig.agent.main
@@ -216,19 +241,8 @@ Do not abandon the parent objective.
       stagehandBrowser,
       skillsMarketplace,
 
-      bulkUrlFetch,
-      siteDiscovery,
-      structuredData,
-      domainIntelligence,
-      githubPublic,
-
       researchScratchpad,
       resultCollector,
-
-      exportValidator,
-      exportResults,
-      csvFile,
-      markdownFile,
 
       askUserTool,
     },
