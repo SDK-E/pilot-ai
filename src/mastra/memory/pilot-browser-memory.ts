@@ -19,6 +19,10 @@ const workingMemory =
 const observationalMemory =
   pilotConfig.memory.observational;
 
+const observationalMemoryEnabled =
+  observationalMemory.enabled &&
+  process.env.PILOT_OBSERVATIONAL_MEMORY === 'true';
+
 export const pilotBrowserMemory =
   new Memory({
     storage: memoryStorage,
@@ -65,7 +69,7 @@ export const pilotBrowserMemory =
           }
         : {}),
 
-      ...(observationalMemory.enabled
+      ...(observationalMemoryEnabled
         ? {
             observationalMemory: {
               model:
