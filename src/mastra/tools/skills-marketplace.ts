@@ -1,8 +1,26 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
+import {
+  getCachedValue,
+  makeCacheKey,
+  setCachedValue,
+} from '../cache';
+
 const SKILLS_API =
   'https://skills.sh/api/v1';
+
+const SEARCH_TTL_MS =
+  15 * 60_000;
+
+const CURATED_TTL_MS =
+  60 * 60_000;
+
+const DETAIL_TTL_MS =
+  60 * 60_000;
+
+const AUDIT_TTL_MS =
+  30 * 60_000;
 
 const skillSummarySchema = z.object({
   id: z.string(),
@@ -20,6 +38,12 @@ const skillSummarySchema = z.object({
     .boolean()
     .optional(),
 });
+
+const rankedSkillSchema =
+  skillSummarySchema.extend({
+    official: z.boolean(),
+    score: z.number(),
+  });
 
 const auditSchema = z.object({
   provider: z.string(),
@@ -43,7 +67,14 @@ const loadedFileSchema = z.object({
 type SkillSummary =
   z.infer<typeof skillSummarySchema>;
 
+type RankedSkill =
+  z.infer<typeof rankedSkillSchema>;
+
 type SkillsSearchResponse = {
+  data?: unknown;
+};
+
+type SkillsCuratedResponse = {
   data?: unknown;
 };
 
@@ -109,6 +140,42 @@ async function skillsRequest<T>(
   ) as T;
 }
 
+async function cachedSkillsRequest<T>(
+  cacheType: string,
+  cacheInput: unknown,
+  path: string,
+  ttlMs: number,
+  abortSignal?: AbortSignal,
+): Promise<T> {
+  const key =
+    makeCacheKey(
+      cacheType,
+      cacheInput,
+    );
+
+  const cached =
+    await getCachedValue<T>(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  const value =
+    await skillsRequest<T>(
+      path,
+      abortSignal,
+    );
+
+  await setCachedValue(
+    key,
+    cacheType,
+    value,
+    ttlMs,
+  );
+
+  return value;
+}
+
 function parseSearchResults(
   value: unknown,
 ): SkillSummary[] {
@@ -122,6 +189,103 @@ function parseSearchResults(
   }
 
   return parsed.data;
+}
+
+function parseCuratedIds(
+  value: unknown,
+): Set<string> {
+  if (!Array.isArray(value)) {
+    return new Set();
+  }
+
+  const ids = new Set<string>();
+
+  for (const entry of value) {
+    if (
+      !entry ||
+      typeof entry !== 'object'
+    ) {
+      continue;
+    }
+
+    const skills =
+      (entry as Record<string, unknown>)
+        .skills;
+
+    if (!Array.isArray(skills)) {
+      continue;
+    }
+
+    for (const skill of skills) {
+      const parsed =
+        skillSummarySchema.safeParse(
+          skill,
+        );
+
+      if (parsed.success) {
+        ids.add(parsed.data.id);
+      }
+    }
+  }
+
+  return ids;
+}
+
+function rankSkills(
+  skills: SkillSummary[],
+  officialIds: Set<string>,
+): RankedSkill[] {
+  const maxInstalls =
+    Math.max(
+      ...skills.map(
+        (skill) =>
+          skill.installs,
+      ),
+      1,
+    );
+
+  return skills
+    .map((skill, index) => {
+      const relevance =
+        1 -
+        index /
+          Math.max(
+            skills.length,
+            1,
+          );
+
+      const popularity =
+        Math.log1p(
+          skill.installs,
+        ) /
+        Math.log1p(
+          maxInstalls,
+        );
+
+      const official =
+        officialIds.has(
+          skill.id,
+        );
+
+      const score =
+        relevance * 0.7 +
+        popularity * 0.15 +
+        (official ? 0.15 : 0);
+
+      return {
+        ...skill,
+        official,
+        score:
+          Number(
+            score.toFixed(4),
+          ),
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.score -
+        left.score,
+    );
 }
 
 function isInstructionFile(
@@ -188,9 +352,7 @@ function parseLoadedFiles(
       continue;
     }
 
-    if (
-      !isInstructionFile(path)
-    ) {
+    if (!isInstructionFile(path)) {
       skippedFiles.push(path);
       continue;
     }
@@ -253,12 +415,33 @@ function unsafeAudit(
   );
 }
 
+async function getCuratedIds(
+  abortSignal?: AbortSignal,
+): Promise<Set<string>> {
+  try {
+    const response =
+      await cachedSkillsRequest<SkillsCuratedResponse>(
+        'skills-curated',
+        'official',
+        '/skills/curated',
+        CURATED_TTL_MS,
+        abortSignal,
+      );
+
+    return parseCuratedIds(
+      response.data,
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 export const skillsMarketplace =
   createTool({
     id: 'skills-marketplace',
 
     description:
-      'Search skills.sh and load relevant agent skills directly into the current run without installing them. Use when specialized procedural knowledge would materially improve the task. Only instruction/reference files are loaded; executable files are never installed or executed.',
+      'Search skills.sh and load relevant agent skills directly into the current run without installing them. Search results are persistently cached and reranked by marketplace relevance, official curated status, and adoption. Only instruction/reference files are loaded; executable files are never installed or executed.',
 
     inputSchema: z.discriminatedUnion(
       'action',
@@ -291,7 +474,7 @@ export const skillsMarketplace =
         action:
           z.literal('search'),
         skills: z.array(
-          skillSummarySchema,
+          rankedSkillSchema,
         ),
       }),
 
@@ -305,6 +488,7 @@ export const skillsMarketplace =
           z.string().optional(),
         hash:
           z.string().optional(),
+        official: z.boolean(),
         audits: z.array(
           auditSchema,
         ),
@@ -325,31 +509,62 @@ export const skillsMarketplace =
       if (
         input.action === 'search'
       ) {
-        const params =
-          new URLSearchParams({
-            q: input.query,
-            limit:
-              String(input.limit),
-          });
+        const normalizedQuery =
+          input.query
+            .trim()
+            .toLowerCase();
 
-        const response =
-          await skillsRequest<SkillsSearchResponse>(
-            `/skills/search?${params.toString()}`,
-            abortSignal,
+        const candidateLimit =
+          Math.min(
+            Math.max(
+              input.limit * 3,
+              10,
+            ),
+            50,
           );
 
+        const params =
+          new URLSearchParams({
+            q: input.query.trim(),
+            limit:
+              String(candidateLimit),
+          });
+
+        const [
+          response,
+          officialIds,
+        ] =
+          await Promise.all([
+            cachedSkillsRequest<SkillsSearchResponse>(
+              'skills-search',
+              {
+                query:
+                  normalizedQuery,
+                limit:
+                  candidateLimit,
+              },
+              `/skills/search?${params.toString()}`,
+              SEARCH_TTL_MS,
+              abortSignal,
+            ),
+            getCuratedIds(
+              abortSignal,
+            ),
+          ]);
+
         const skills =
-          parseSearchResults(
-            response.data,
-          )
-            .filter(
+          rankSkills(
+            parseSearchResults(
+              response.data,
+            ).filter(
               (skill) =>
                 !skill.isDuplicate,
-            )
-            .slice(
-              0,
-              input.limit,
-            );
+            ),
+            officialIds,
+          ).slice(
+            0,
+            input.limit,
+          );
 
         return {
           action:
@@ -367,18 +582,28 @@ export const skillsMarketplace =
       const [
         detail,
         auditResponse,
+        officialIds,
       ] =
         await Promise.all([
-          skillsRequest<SkillDetailResponse>(
+          cachedSkillsRequest<SkillDetailResponse>(
+            'skill-detail',
+            input.id,
             `/skills/${encodedId}`,
+            DETAIL_TTL_MS,
             abortSignal,
           ),
-          skillsRequest<SkillAuditResponse>(
+          cachedSkillsRequest<SkillAuditResponse>(
+            'skill-audit',
+            input.id,
             `/skills/audit/${encodedId}`,
+            AUDIT_TTL_MS,
             abortSignal,
           ).catch(() => ({
             audits: [],
           })),
+          getCuratedIds(
+            abortSignal,
+          ),
         ]);
 
       const audits =
@@ -413,14 +638,16 @@ export const skillsMarketplace =
         );
       }
 
+      const id =
+        typeof detail.id ===
+        'string'
+          ? detail.id
+          : input.id;
+
       return {
         action:
           'load' as const,
-        id:
-          typeof detail.id ===
-          'string'
-            ? detail.id
-            : input.id,
+        id,
         source:
           typeof detail.source ===
           'string'
@@ -436,6 +663,8 @@ export const skillsMarketplace =
           'string'
             ? detail.hash
             : undefined,
+        official:
+          officialIds.has(id),
         audits,
         loadedFiles,
         skippedFiles,
@@ -458,7 +687,13 @@ export const skillsMarketplace =
                       skill,
                       index,
                     ) =>
-                      `${index + 1}. ${skill.name} — ${skill.id} — ${skill.installs} installs`,
+                      [
+                        `${index + 1}. ${skill.name}`,
+                        `ID: ${skill.id}`,
+                        `Score: ${skill.score}`,
+                        `Official: ${skill.official ? 'yes' : 'no'}`,
+                        `Installs: ${skill.installs}`,
+                      ].join(' — '),
                   )
                   .join('\n'),
         };
@@ -468,6 +703,7 @@ export const skillsMarketplace =
         type: 'text',
         value: [
           `Loaded runtime skill ${output.id}.`,
+          `Official curated skill: ${output.official ? 'yes' : 'no'}.`,
           output.loadedFiles
             .map(
               (file) =>
