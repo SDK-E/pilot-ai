@@ -19,7 +19,8 @@ import handler from '../../../api/pilot/conversations/generate';
 
 describe('Pilot Conversation Vercel function', () => {
   beforeEach(() => {
-    vi.stubEnv('PILOT_MASTRA_DATABASE_URL', 'postgres://runtime');
+    vi.stubEnv('PILOT_MASTRA_DATABASE_URL', 'libsql://runtime.turso.io');
+    vi.stubEnv('TURSO_AUTH_TOKEN', 'runtime-token');
     mocks.generate.mockReset();
     mocks.close.mockReset();
     mocks.createRuntime.mockClear();
@@ -40,7 +41,10 @@ describe('Pilot Conversation Vercel function', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ text: 'Hello.' });
-    expect(mocks.createRuntime).toHaveBeenCalledWith('postgres://runtime');
+    expect(mocks.createRuntime).toHaveBeenCalledWith({
+      url: 'libsql://runtime.turso.io',
+      authToken: 'runtime-token',
+    });
     expect(mocks.generate).toHaveBeenCalledWith({ message: 'Hello.' });
     expect(mocks.close).toHaveBeenCalledOnce();
   });
@@ -57,6 +61,7 @@ describe('Pilot Conversation Vercel function', () => {
 
   it('does not initialize without configured storage', async () => {
     vi.stubEnv('PILOT_MASTRA_DATABASE_URL', '');
+    vi.stubEnv('TURSO_AUTH_TOKEN', '');
 
     const response = await handler.fetch(
       new Request('https://pilot.example/pilot/conversations/generate', {

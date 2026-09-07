@@ -1,6 +1,7 @@
 import { ZodError } from 'zod';
 
 import { createPilotConversationRuntime } from '../../../src/conversation/pilot-conversation';
+import { getPilotRuntimeStorageConfig } from '../../../src/runtime/storage/pilot-runtime';
 
 export const config = {
   runtime: 'nodejs',
@@ -19,9 +20,9 @@ export default {
       });
     }
 
-    const databaseUrl = process.env.PILOT_MASTRA_DATABASE_URL?.trim();
+    const storageConfig = getPilotRuntimeStorageConfig();
 
-    if (!databaseUrl) {
+    if (!storageConfig) {
       return json(
         { error: 'Pilot Conversation is not configured.' },
         503,
@@ -36,7 +37,7 @@ export default {
       return json({ error: 'Request body must be valid JSON.' }, 400);
     }
 
-    const runtime = createPilotConversationRuntime(databaseUrl);
+    const runtime = createPilotConversationRuntime(storageConfig);
 
     try {
       return json(await runtime.generate(command));

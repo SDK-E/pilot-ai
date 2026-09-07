@@ -52,11 +52,11 @@ Pilot sends a typed, server-generated command containing organization ID, Worker
 - resource: immutable organization plus Worker pair;
 - thread: Pilot Conversation UUID.
 
-Use `@mastra/pg` with the matching Neon environment for Mastra storage. Do not use in-memory loaded-tool state, process globals or filesystem state for any behavior that must survive a restart.
+Use `@mastra/libsql` with the matching Turso environment for Mastra storage. Do not use in-memory loaded-tool state, process globals or filesystem state for any behavior that must survive a restart.
 
 ## Delivery order
 
-1. Replace deployed storage with `@mastra/pg` and prove restart-safe message history. **Verified locally against development Neon on 2026-09-06; preview and production still need runtime configuration.**
+1. Use deployed storage with `@mastra/libsql` and prove restart-safe message history. Preview and production runtime configuration is required before accepting this slice.
 2. Add `pilot-conversation` with direct chat behavior and no enabled capabilities by default. **Implemented and covered by deterministic command-validation tests.**
 3. Add the typed internal endpoint and protected Pilot-to-runtime transport. **The runtime endpoint is implemented; Pilot still needs to become the authenticated caller and Vercel Trusted Sources must be configured before deployment.**
 4. Keep the local Research Agent in the shared Pilot runtime before deployment. **Implemented with `src/index.ts` registering both agents, `src/runtime/agent/base-agent.ts` providing their shared behavior, and `src/research` holding research-specific code. The normal Pilot build does not load research dependencies.**
@@ -80,4 +80,4 @@ Use `@mastra/pg` with the matching Neon environment for Mastra storage. Do not u
 - Installed `@mastra/core` `1.64.0` types: `tools` can resolve dynamically from request context; `ToolSearchProcessor` supports request-aware filters and restart-safe `storage: 'context'` state.
 - [Mastra tools documentation](https://mastra.ai/docs/agents/mcp-guide): tools are typed functions registered on agents.
 - [Mastra approval guidance](https://mastra.ai/blog/human-in-the-loop-when-to-use-agent-approval): use tool-level approval for risky actions and suspension for needed clarification.
-- npm metadata for `@mastra/pg` `1.22.3`: compatible with the installed core release and Node requirement.
+- npm metadata for `@mastra/libsql` `1.22.3`: compatible with the installed core release and Node requirement.

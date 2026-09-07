@@ -28,10 +28,10 @@ dependencies of Pilot Research.
 The `pilot` adapter is the beginning of the product runtime. It
 accepts only a server-generated, validated command; maps the organization and
 Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
-to the Mastra thread; and uses `@mastra/pg` with the matching Neon database.
+to the Mastra thread; and uses `@mastra/libsql` with the matching Turso database.
 It allows only the Kilo Gateway development model `kilo/kilo-auto/free` and
 has no enabled tools. Its only endpoint is `POST /pilot/conversations/generate`, which
-is disabled unless `PILOT_MASTRA_DATABASE_URL` is configured. Deploy it only
+is disabled unless both `PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` are configured. Deploy it only
 behind Vercel Deployment Protection with Pilot configured as a Trusted Source;
 it relies on that server-to-server boundary and must never be attached to a
 public custom domain. Tool access will be added as a narrow, request-scoped
@@ -39,12 +39,9 @@ capability after Pilot enforces its capability and approval policy. It must use
 Mastra's restart-safe `ToolSearchProcessor` context storage and capability
 filter, never browser-provided tool identifiers.
 
-On 2026-09-06, `pnpm verify:memory` proved the development path with the
-matching Neon database and Kilo Gateway: a first runtime wrote a message, a
-separate runtime process recalled it, and the verifier deleted its randomized
-thread afterward. The production and preview runtime environments still need
-their own `PILOT_MASTRA_DATABASE_URL` configuration before this adapter can be
-deployed.
+The runtime requires `PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
+the matching environment. `pnpm verify:memory` performs a real two-process
+memory check and deletes its randomized thread afterward.
 
 ## Development
 
@@ -62,8 +59,9 @@ pnpm build
 Kilo/browser evaluation work and are deliberately opt-in.
 
 `pnpm verify:memory` is an opt-in live persistence check. Set
-`PILOT_MASTRA_DATABASE_URL` to an isolated, matching-environment Neon URL; it
-performs two Kilo Gateway generations and deletes its randomized Mastra thread.
+`PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` for an isolated,
+matching-environment Turso database; it performs two Kilo Gateway generations
+and deletes its randomized Mastra thread.
 
 The Research Agent is local-development only. If enabled, it requires explicit
 `MASTRA_DATABASE_URL`, `MASTRA_EDITOR_DATABASE_URL`, and
@@ -80,8 +78,8 @@ it is reachable only through the protected
 `POST /pilot/conversations/generate` rewrite.
 
 Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package
-documentation. Production runtime storage uses the environment-specific Neon
-PostgreSQL database through `PILOT_MASTRA_DATABASE_URL`; never add a file-backed
+documentation. Production runtime storage uses the environment-specific Turso
+LibSQL database through `PILOT_MASTRA_DATABASE_URL`; never add a file-backed
 database to the Pilot Conversation path or expose a tool before Pilot enforces
 its capability and approval policy.
 

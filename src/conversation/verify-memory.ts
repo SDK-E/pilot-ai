@@ -6,11 +6,14 @@ import {
   createPilotConversationRuntime,
 } from './pilot-conversation';
 import { conversationRuntimeConfig } from './config';
+import { getPilotRuntimeStorageConfig } from '#runtime/storage/pilot-runtime';
 
-const databaseUrl = process.env.PILOT_MASTRA_DATABASE_URL;
+const storageConfig = getPilotRuntimeStorageConfig();
 
-if (!databaseUrl) {
-  throw new Error('PILOT_MASTRA_DATABASE_URL is required.');
+if (!storageConfig) {
+  throw new Error(
+    'PILOT_MASTRA_DATABASE_URL and TURSO_AUTH_TOKEN are required.',
+  );
 }
 
 const memoryCode = `pilot-memory-${randomUUID()}`;
@@ -26,7 +29,7 @@ const command = {
   message: `Remember this exact verification code for this conversation: ${memoryCode}.`,
 };
 
-const firstRuntime = createPilotConversationRuntime(databaseUrl);
+const firstRuntime = createPilotConversationRuntime(storageConfig);
 
 try {
   await firstRuntime.generate(command);
@@ -34,7 +37,7 @@ try {
   await firstRuntime.close();
 }
 
-const secondRuntime = createPilotConversationRuntime(databaseUrl);
+const secondRuntime = createPilotConversationRuntime(storageConfig);
 
 try {
   const response = await secondRuntime.generate({

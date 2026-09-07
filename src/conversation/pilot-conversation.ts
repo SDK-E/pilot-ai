@@ -1,6 +1,6 @@
 import type { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
-import { PostgresStore } from '@mastra/pg';
+import type { LibSQLStore } from '@mastra/libsql';
 
 import {
   createConversationResourceId,
@@ -12,6 +12,10 @@ import { conversationAgentIdentity } from './identity';
 import { conversationCoreInstructions } from './instructions/core';
 import { createBaseAgent } from '#runtime/agent/base-agent';
 import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
+import {
+  createPilotRuntimeStorage,
+  type PilotRuntimeStorageConfig,
+} from '#runtime/storage/pilot-runtime';
 
 export {
   generateConversationReplySchema,
@@ -51,18 +55,10 @@ function createConversationAgent(
   });
 }
 
-export function createPilotConversationRuntime(databaseUrl: string) {
-  if (!databaseUrl.trim()) {
-    throw new Error(
-      'PILOT_MASTRA_DATABASE_URL is required for Pilot Conversation runtime.',
-    );
-  }
-
-  const storage = new PostgresStore({
-    id: 'pilot-conversation-storage',
-    connectionString: databaseUrl,
-    schemaName: 'pilot_ai',
-  });
+export function createPilotConversationRuntime(
+  storageConfig: PilotRuntimeStorageConfig,
+) {
+  const storage: LibSQLStore = createPilotRuntimeStorage(storageConfig);
 
   const memory = new Memory({
     storage,

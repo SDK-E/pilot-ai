@@ -1,7 +1,10 @@
 import { Mastra } from '@mastra/core/mastra';
-import { PostgresStore } from '@mastra/pg';
 
 import { conversationApiRoutes } from './conversation/api';
+import {
+  createPilotRuntimeStorage,
+  getPilotRuntimeStorageConfig,
+} from '#runtime/storage/pilot-runtime';
 
 const researchEnabled = process.env.PILOT_ENABLE_RESEARCH === 'true';
 
@@ -9,14 +12,10 @@ const researchRuntime = researchEnabled
   ? await import('./research/registration')
   : undefined;
 
-const runtimeDatabaseUrl = process.env.PILOT_MASTRA_DATABASE_URL;
+const runtimeStorageConfig = getPilotRuntimeStorageConfig();
 
-const storage = runtimeDatabaseUrl
-  ? new PostgresStore({
-      id: 'pilot-runtime-storage',
-      connectionString: runtimeDatabaseUrl,
-      schemaName: 'pilot_ai',
-    })
+const storage = runtimeStorageConfig
+  ? createPilotRuntimeStorage(runtimeStorageConfig)
   : undefined;
 
 const runtimeRegistration = researchRuntime?.registration ?? { storage };

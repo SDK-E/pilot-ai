@@ -15,7 +15,7 @@ Do not add another broad autonomous agent now. The first required runtime profil
 
 This is a runtime profile, not a second product Worker type. Pilot Workers remain organization entities whose model and instructions configure runtime behavior.
 
-Before this profile can be connected to Pilot, replace every deployed file-backed LibSQL or DuckDB store with the maintained `@mastra/pg` package and the matching environment's Neon PostgreSQL database. Prove memory survives a fresh process restart. The cross-repository contract is in `pilot/docs/decisions/0004-mastra-conversation-runtime-contract.md`. The detailed design is in [PILOT_CONVERSATION_PLAN.md](PILOT_CONVERSATION_PLAN.md).
+Before this profile can be connected to Pilot, configure the maintained `@mastra/libsql` package with a dedicated matching-environment Turso database. Do not use any file-backed LibSQL or DuckDB store in the deployed path. Prove memory survives a fresh process restart. The cross-repository contract is in `pilot/docs/decisions/0004-mastra-conversation-runtime-contract.md`. The detailed design is in [PILOT_CONVERSATION_PLAN.md](PILOT_CONVERSATION_PLAN.md).
 
 ## Current integration gate
 
@@ -26,7 +26,7 @@ The separate `pilot-ai` Vercel project already exists. Its deployed `/api/agents
 `pilot-browser` is useful as the research capability once the one-Worker conversation and durable execution slices are complete. Keep it isolated for now. It must not receive requests directly from a browser or from unverified Pilot data, and it must not be registered as a general Pilot capability until these conditions are met:
 
 1. Pilot authorizes the organization, Worker, Conversation and allowed capability server-side.
-2. Runtime storage is Neon-backed and restart-safe.
+2. Runtime storage is Turso-backed and restart-safe.
 3. Browser and any external action are represented as a Pilot permission and require explicit, durable human approval where appropriate.
 4. A suspended execution can resume idempotently after a request, deployment or process failure.
 5. Tool calls, approvals, results, failures, latency, token usage and cost are visible in Pilot.
@@ -35,7 +35,7 @@ The separate `pilot-ai` Vercel project already exists. Its deployed `/api/agents
 
 | Profile | When to add it | Required guardrails |
 | --- | --- | --- |
-| Pilot Conversation | Now, for the first persistent two-turn memory slice | No tools; Neon storage; authenticated service call from Pilot |
+| Pilot Conversation | Now, for the first persistent two-turn memory slice | No tools; Turso storage; authenticated service call from Pilot |
 | Pilot Execution | After conversations are durable | Mastra durable workflow, persisted execution state, approval suspension/resume and idempotency |
 | Pilot Research | After Pilot Execution | Reuse the existing `pilot-browser`; read-only public research permission; tenant-scoped storage and activity records |
 | Pilot Coding | Only when an ACP-compatible coding integration is selected | Isolated workspace, repository permission, explicit approval for writes, durable execution history |
