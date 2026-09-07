@@ -5,6 +5,7 @@ import {
   createChatCompletionResponse,
   createConversationCommandFromChatCompletion,
 } from '../../../src/conversation/openai-compatible.js';
+import { verifyPilotRuntimeRequest } from '../../../src/runtime/auth/vercel-oidc.js';
 import { getPilotRuntimeStorageConfig } from '../../../src/runtime/storage/pilot-runtime.js';
 
 export const config = { runtime: 'nodejs' };
@@ -17,6 +18,10 @@ export default {
   async fetch(request: Request): Promise<Response> {
     if (request.method !== 'POST') {
       return error('Method not allowed.', 'invalid_request_error', 405);
+    }
+
+    if (!(await verifyPilotRuntimeRequest(request))) {
+      return error('Unauthorized.', 'authentication_error', 401);
     }
 
     const storageConfig = getPilotRuntimeStorageConfig();

@@ -14,8 +14,8 @@ authorization decisions.
 
 `src/index.ts` is the Mastra service entrypoint. It holds the Pilot route and
 conditionally registers both agents for local Mastra development. The Vercel
-function at `api/pilot/conversations/generate.ts` is the production adapter: it
-imports only the tenant-scoped Conversation runtime and has no Research import.
+function at `api/v1/chat/completions.ts` is the production adapter: it imports
+only the tenant-scoped Conversation runtime and has no Research import.
 `src/runtime/agent/base-agent.ts` is the
 shared BaseAgent factory: every agent receives the same input normalization,
 current-context, objective-continuity, response-quality, failure-recovery,
@@ -30,11 +30,7 @@ accepts only a server-generated, validated command; maps the organization and
 Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
 to the Mastra thread; and uses `@mastra/libsql` with the matching Turso database.
 It allows only the Kilo Gateway development model `kilo/kilo-auto/free` and
-has no enabled tools. Its internal endpoint is `POST /pilot/conversations/generate`, which
-is disabled unless both `PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` are configured. Deploy it only
-behind Vercel Deployment Protection with Pilot configured as a Trusted Source;
-it relies on that server-to-server boundary and must never be attached to a
-public custom domain. Tool access will be added as a narrow, request-scoped
+has no enabled tools. Tool access will be added as a narrow, request-scoped
 capability after Pilot enforces its capability and approval policy. It must use
 Mastra's restart-safe `ToolSearchProcessor` context storage and capability
 filter, never browser-provided tool identifiers.
@@ -45,21 +41,23 @@ memory check and deletes its randomized thread afterward.
 
 On 2026-09-07, Preview was deployed through a remote Linux Vercel build and
 verified through its protected endpoint. Two separate function invocations
-wrote and then recalled a randomized conversation value through Turso. This
-does not authorize Pilot traffic: configure Pilot as the Trusted Source before
-setting its runtime URL. Production is now also deployed with its own sensitive
-`TURSO_AUTH_TOKEN`.
+wrote and then recalled a randomized conversation value through Turso.
+Production is now also deployed with its own sensitive `TURSO_AUTH_TOKEN`.
 
 ## Runtime API
 
-The protected production runtime is `https://ai.pilot.sdk.enterprises`.
+The production runtime is `https://ai.pilot.sdk.enterprises`.
 `POST /v1/chat/completions` accepts OpenAI Chat Completions `model`,
 `messages`, and `stream: false`, then returns a `chat.completion` object with
-`choices` and token `usage`. Pilot sends its verified organization, Worker,
-and Conversation IDs only in server-to-server headers. `vercel.json` deploys
-the isolated Node function and rewrites `/v1/*` to its Vercel Function entry.
-Mastra's generic agent routes remain private because they would expose
-development-only Research capabilities.
+`choices` and token `usage`. Pilot first checks the user's WorkOS session and
+tenant authorization, then forwards a short-lived Vercel OIDC token. The
+runtime validates its issuer, audience, and exact Pilot project and environment
+subject before it reads the request body, initializes Mastra, or accepts the
+tenant headers. This protects the custom domain even where Vercel Deployment
+Protection does not apply to it. `vercel.json` deploys only this isolated Node
+function and rewrites `/v1/*` to its Vercel Function entry. Mastra's generic
+agent routes remain private because they would expose development-only Research
+capabilities.
 
 ## Development
 
@@ -91,9 +89,8 @@ dev:research` and `pnpm build:research` set `PILOT_ENABLE_RESEARCH=true` and
 register Pilot Research through the same entrypoint. Research is not activated
 for a normal runtime request. Mastra's build still follows the optional
 registration import and packages research dependencies, so it is a local
-development artifact. Vercel deploys the isolated Conversation function instead;
-it is reachable only through the protected
-`POST /pilot/conversations/generate` rewrite.
+development artifact. Vercel deploys only the isolated OpenAI-compatible
+Conversation function.
 
 Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package
 documentation. Production runtime storage uses the environment-specific Turso

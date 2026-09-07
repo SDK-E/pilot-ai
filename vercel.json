@@ -6,17 +6,10 @@
     {
       "source": "/v1/:path*",
       "destination": "/api/v1/:path*"
-    },
-    {
-      "source": "/pilot/conversations/generate",
-      "destination": "/api/pilot/conversations/generate"
     }
   ],
   "functions": {
     "api/v1/chat/completions.ts": {
-      "maxDuration": 90
-    },
-    "api/pilot/conversations/generate.ts": {
       "maxDuration": 90
     }
   }

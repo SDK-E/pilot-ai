@@ -3,16 +3,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const generate = vi.fn();
   const close = vi.fn();
+  const verifyRequest = vi.fn();
 
   return {
     generate,
     close,
+    verifyRequest,
     createRuntime: vi.fn(() => ({ generate, close })),
   };
 });
 
 vi.mock('./pilot-conversation.js', () => ({
   createPilotConversationRuntime: mocks.createRuntime,
+}));
+
+vi.mock('../runtime/auth/vercel-oidc.js', () => ({
+  verifyPilotRuntimeRequest: mocks.verifyRequest,
 }));
 
 import handler from '../../api/v1/chat/completions';
@@ -31,6 +37,8 @@ describe('OpenAI-compatible Pilot Conversation function', () => {
     mocks.generate.mockReset();
     mocks.close.mockReset();
     mocks.createRuntime.mockClear();
+    mocks.verifyRequest.mockReset();
+    mocks.verifyRequest.mockResolvedValue(true);
   });
 
   afterEach(() => vi.unstubAllEnvs());
@@ -82,17 +90,22 @@ describe('OpenAI-compatible Pilot Conversation function', () => {
     });
   });
 
-  it('rejects requests without a verified Pilot context', async () => {
+  it('rejects requests without a valid Vercel OIDC token before initialization', async () => {
+    mocks.verifyRequest.mockResolvedValue(false);
+
     const response = await handler.fetch(new Request('https://ai.pilot.test/v1/chat/completions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model: 'kilo/kilo-auto/free',
         messages: [{ role: 'user', content: 'Hello.' }],
       }),
     }));
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: { message: 'Unauthorized.', type: 'authentication_error' },
+    });
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 });

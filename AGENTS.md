@@ -20,6 +20,10 @@ change between versions.
   runtime adapters may be exported from the entrypoint without registering a
   general-purpose agent endpoint.
 - Use the `dev` and `build` scripts from `package.json` instead of running `mastra dev` / `mastra build` directly
+- A deployed Pilot runtime route must validate Pilot's Vercel OIDC token before
+  parsing tenant headers or initializing Mastra. WorkOS session and organization
+  authorization stay in the Pilot application; Pilot AI does not create or
+  accept a separate user session.
 
 ## Resources
 
