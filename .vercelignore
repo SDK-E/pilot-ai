@@ -4,3 +4,6 @@ node_modules
 !.env.example
 .mastra
 coverage
+.pilot-ai
+*.db
+*.db-*
