@@ -1,16 +1,6 @@
-import { Agent } from '@mastra/core/agent';
-import {
-  TokenLimiterProcessor,
-  ToolSearchProcessor,
-  UnicodeNormalizer,
-} from '@mastra/core/processors';
-
 import { pilotConfig } from '#runtime/research/config';
-
-import {
-  currentContextProcessor,
-  failureRecoveryProcessor,
-} from '#runtime/processors';
+import { createBaseAgent } from '#runtime/agent/base-agent';
+import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
 
 import {
   challengeClaimProcessor,
@@ -20,49 +10,33 @@ import {
   runtimeSkillResolverProcessor,
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
-  subagentStepBudgetProcessor,
 } from '#runtime/research/processors';
-
-import { bulkUrlFetch } from '#runtime/tools/bulk-url-fetch';
-import { csvFile } from '#runtime/tools/csv-file';
-import { domainIntelligence } from '#runtime/tools/domain-intelligence';
-import { exportResults } from '#runtime/tools/export-results';
-import { exportValidator } from '#runtime/tools/export-validator';
-import { githubPublic } from '#runtime/research/tools/github-public';
-import { markdownFile } from '#runtime/tools/markdown-file';
 import { queryPlanner } from '#runtime/tools/query-planner';
 import { researchScratchpad } from '#runtime/tools/research-scratchpad';
 import { resultCollector } from '#runtime/tools/result-collector';
 import { searchDorks } from '#runtime/tools/search/search-dorks';
-import { siteDiscovery } from '#runtime/tools/site-discovery';
 import { skillsMarketplace } from '#runtime/research/tools/skills-marketplace';
 import { stagehandBrowser } from '#runtime/research/tools/stagehand-browser';
-import { structuredData } from '#runtime/tools/structured-data';
 import { webSearch } from '#runtime/tools/search/web-search';
+import { createResearchToolSearchProcessor } from '../tool-search';
+import { verificationAgentIdentity } from './identity';
 
-const verificationToolSearch = new ToolSearchProcessor({
-  tools: {
-    bulkUrlFetch,
-    siteDiscovery,
-    structuredData,
-    domainIntelligence,
-    githubPublic,
-    exportValidator,
-    exportResults,
-    csvFile,
-    markdownFile,
+const verificationToolSearch = createResearchToolSearchProcessor();
+
+export const verificationAgent = createBaseAgent({
+  base: {
+    maxSteps: pilotConfig.agent.subagent.maxSteps,
+    tokenLimit: pilotConfig.agent.subagent.tokenLimit,
+    warningAt: pilotConfig.agent.subagent.stepBudget.warningAt,
+    finalAt: pilotConfig.agent.subagent.stepBudget.finalAt,
   },
-  search: { topK: 5, minScore: 0.1 },
-  ttl: 3_600_000,
-});
-
-export const verificationAgent = new Agent({
   id: 'pilot-research-verification',
-  name: 'Pilot Verification',
-  description:
-    'General-purpose evidence verification specialist for validating public claims, entities, identities, dates, current status, source quality, contradictions, recency, domains, and explicitly public professional information.',
+  name: verificationAgentIdentity.name,
+  description: verificationAgentIdentity.jobDescription,
 
-  instructions: `
+  instructions: [
+    buildBaseAgentInstructions(verificationAgentIdentity),
+    `
 IDENTITY
 
 You are Pilot Verification, a specialist subagent of Pilot Research Agent.
@@ -132,7 +106,8 @@ Do not modify external systems.
 OUTPUT
 
 Return a concise verification report with verified facts, evidence URLs, confidence, contradictions, unresolved gaps, and rejected claims when important.
-`,
+`.trim(),
+  ].join('\n\n'),
 
   model: [
     {
@@ -141,16 +116,7 @@ Return a concise verification report with verified facts, evidence URLs, confide
     },
   ],
 
-  defaultOptions: {
-    maxSteps: pilotConfig.agent.subagent.maxSteps,
-  },
-
   inputProcessors: [
-    new UnicodeNormalizer({
-      stripControlChars: true,
-      collapseWhitespace: true,
-    }),
-    currentContextProcessor,
     runtimeSkillResolverProcessor,
     sourceConfidenceProcessor,
     recencyCheckProcessor,
@@ -158,13 +124,7 @@ Return a concise verification report with verified facts, evidence URLs, confide
     entityResolutionProcessor,
     sourceDiversityProcessor,
     challengeClaimProcessor,
-    failureRecoveryProcessor,
     verificationToolSearch,
-    new TokenLimiterProcessor({
-      limit: pilotConfig.agent.subagent.tokenLimit,
-      strategy: 'truncate',
-    }),
-    subagentStepBudgetProcessor,
   ],
 
   tools: {

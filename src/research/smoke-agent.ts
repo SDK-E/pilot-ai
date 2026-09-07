@@ -1,4 +1,3 @@
-import { Agent } from '@mastra/core/agent';
 import {
   webFetchTool,
 } from '@mastra/core/tools';
@@ -8,9 +7,17 @@ import {
 } from '#runtime/research/config';
 
 import { researchAgentIdentity } from './identity';
+import { createBaseAgent } from '#runtime/agent/base-agent';
+import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
 
 export const pilotResearchSmokeAgent =
-  new Agent({
+  createBaseAgent({
+    base: {
+      maxSteps: 4,
+      tokenLimit: 12_000,
+      warningAt: 2,
+      finalAt: 3,
+    },
     id: 'pilot-research-smoke',
 
     name: `${researchAgentIdentity.name} Smoke`,
@@ -18,7 +25,9 @@ export const pilotResearchSmokeAgent =
     description:
       'Minimal Pilot Research Agent used only for fast persisted smoke experiments.',
 
-    instructions: `
+    instructions: [
+      buildBaseAgentInstructions(researchAgentIdentity),
+      `
 You are the fast smoke-test version of ${researchAgentIdentity.name}.
 
 Your job is only to verify that:
@@ -43,6 +52,7 @@ Rules:
 - include the source URL
 - finish immediately after answering
 `.trim(),
+    ].join('\n\n'),
 
     model: [
       {
@@ -52,10 +62,6 @@ Rules:
         maxRetries: 8,
       },
     ],
-
-    defaultOptions: {
-      maxSteps: 4,
-    },
 
     tools: {
       webFetchTool,

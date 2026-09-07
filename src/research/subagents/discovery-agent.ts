@@ -1,66 +1,39 @@
-import { Agent } from '@mastra/core/agent';
-import {
-  TokenLimiterProcessor,
-  ToolSearchProcessor,
-  UnicodeNormalizer,
-} from '@mastra/core/processors';
-
 import { pilotConfig } from '#runtime/research/config';
-
-import {
-  currentContextProcessor,
-  failureRecoveryProcessor,
-} from '#runtime/processors';
+import { createBaseAgent } from '#runtime/agent/base-agent';
+import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
 
 import {
   entityResolutionProcessor,
   recencyCheckProcessor,
   runtimeSkillResolverProcessor,
   sourceDiversityProcessor,
-  subagentStepBudgetProcessor,
 } from '#runtime/research/processors';
-
-import { bulkUrlFetch } from '#runtime/tools/bulk-url-fetch';
-import { csvFile } from '#runtime/tools/csv-file';
-import { domainIntelligence } from '#runtime/tools/domain-intelligence';
-import { exportResults } from '#runtime/tools/export-results';
-import { exportValidator } from '#runtime/tools/export-validator';
-import { githubPublic } from '#runtime/research/tools/github-public';
-import { markdownFile } from '#runtime/tools/markdown-file';
 import { queryPlanner } from '#runtime/tools/query-planner';
 import { researchScratchpad } from '#runtime/tools/research-scratchpad';
 import { resultCollector } from '#runtime/tools/result-collector';
 import { searchDorks } from '#runtime/tools/search/search-dorks';
-import { siteDiscovery } from '#runtime/tools/site-discovery';
 import { skillsMarketplace } from '#runtime/research/tools/skills-marketplace';
 import { stagehandBrowser } from '#runtime/research/tools/stagehand-browser';
-import { structuredData } from '#runtime/tools/structured-data';
 import { webSearch } from '#runtime/tools/search/web-search';
+import { createResearchToolSearchProcessor } from '../tool-search';
+import { discoveryAgentIdentity } from './identity';
 
-const discoveryToolSearch =
-  new ToolSearchProcessor({
-    tools: {
-      bulkUrlFetch,
-      siteDiscovery,
-      structuredData,
-      domainIntelligence,
-      githubPublic,
-      exportValidator,
-      exportResults,
-      csvFile,
-      markdownFile,
-    },
-    search: { topK: 5, minScore: 0.1 },
-    ttl: 3_600_000,
-  });
+const discoveryToolSearch = createResearchToolSearchProcessor();
 
-export const discoveryAgent = new Agent({
+export const discoveryAgent = createBaseAgent({
+  base: {
+    maxSteps: pilotConfig.agent.subagent.maxSteps,
+    tokenLimit: pilotConfig.agent.subagent.tokenLimit,
+    warningAt: pilotConfig.agent.subagent.stepBudget.warningAt,
+    finalAt: pilotConfig.agent.subagent.stepBudget.finalAt,
+  },
   id: 'pilot-research-discovery',
-  name: 'Pilot Discovery',
-  description:
-    'Fast general-purpose web discovery specialist for finding relevant public entities, sources, pages, documents, companies, people, products, jobs, technologies, repositories, events, and other candidate information.',
+  name: discoveryAgentIdentity.name,
+  description: discoveryAgentIdentity.jobDescription,
 
-  instructions: `
+  instructions: [
+    buildBaseAgentInstructions(discoveryAgentIdentity),
+    `
 IDENTITY
 
 You are Pilot Discovery, a specialist subagent of Pilot Research Agent.
@@ -122,7 +95,8 @@ OUTPUT
 
 Return concise findings and evidence to Pilot Research Agent.
 Stay within the delegated objective.
-`,
+`.trim(),
+  ].join('\n\n'),
 
   model: [
     {
@@ -131,27 +105,12 @@ Stay within the delegated objective.
     },
   ],
 
-  defaultOptions: {
-    maxSteps: pilotConfig.agent.subagent.maxSteps,
-  },
-
   inputProcessors: [
-    new UnicodeNormalizer({
-      stripControlChars: true,
-      collapseWhitespace: true,
-    }),
-    currentContextProcessor,
     runtimeSkillResolverProcessor,
     recencyCheckProcessor,
     entityResolutionProcessor,
     sourceDiversityProcessor,
-    failureRecoveryProcessor,
     discoveryToolSearch,
-    new TokenLimiterProcessor({
-      limit: pilotConfig.agent.subagent.tokenLimit,
-      strategy: 'truncate',
-    }),
-    subagentStepBudgetProcessor,
   ],
 
   tools: {

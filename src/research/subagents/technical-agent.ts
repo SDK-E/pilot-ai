@@ -1,16 +1,6 @@
-import { Agent } from '@mastra/core/agent';
-import {
-  TokenLimiterProcessor,
-  ToolSearchProcessor,
-  UnicodeNormalizer,
-} from '@mastra/core/processors';
-
 import { pilotConfig } from '#runtime/research/config';
-
-import {
-  currentContextProcessor,
-  failureRecoveryProcessor,
-} from '#runtime/processors';
+import { createBaseAgent } from '#runtime/agent/base-agent';
+import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
 
 import {
   challengeClaimProcessor,
@@ -18,49 +8,33 @@ import {
   recencyCheckProcessor,
   runtimeSkillResolverProcessor,
   sourceConfidenceProcessor,
-  subagentStepBudgetProcessor,
 } from '#runtime/research/processors';
-
-import { bulkUrlFetch } from '#runtime/tools/bulk-url-fetch';
-import { csvFile } from '#runtime/tools/csv-file';
-import { domainIntelligence } from '#runtime/tools/domain-intelligence';
-import { exportResults } from '#runtime/tools/export-results';
-import { exportValidator } from '#runtime/tools/export-validator';
-import { githubPublic } from '#runtime/research/tools/github-public';
-import { markdownFile } from '#runtime/tools/markdown-file';
 import { queryPlanner } from '#runtime/tools/query-planner';
 import { researchScratchpad } from '#runtime/tools/research-scratchpad';
 import { resultCollector } from '#runtime/tools/result-collector';
 import { searchDorks } from '#runtime/tools/search/search-dorks';
-import { siteDiscovery } from '#runtime/tools/site-discovery';
 import { skillsMarketplace } from '#runtime/research/tools/skills-marketplace';
 import { stagehandBrowser } from '#runtime/research/tools/stagehand-browser';
-import { structuredData } from '#runtime/tools/structured-data';
 import { webSearch } from '#runtime/tools/search/web-search';
+import { createResearchToolSearchProcessor } from '../tool-search';
+import { technicalAgentIdentity } from './identity';
 
-const technicalToolSearch = new ToolSearchProcessor({
-  tools: {
-    bulkUrlFetch,
-    siteDiscovery,
-    structuredData,
-    domainIntelligence,
-    githubPublic,
-    exportValidator,
-    exportResults,
-    csvFile,
-    markdownFile,
+const technicalToolSearch = createResearchToolSearchProcessor();
+
+export const technicalAgent = createBaseAgent({
+  base: {
+    maxSteps: pilotConfig.agent.subagent.maxSteps,
+    tokenLimit: pilotConfig.agent.subagent.tokenLimit,
+    warningAt: pilotConfig.agent.subagent.stepBudget.warningAt,
+    finalAt: pilotConfig.agent.subagent.stepBudget.finalAt,
   },
-  search: { topK: 5, minScore: 0.1 },
-  ttl: 3_600_000,
-});
-
-export const technicalAgent = new Agent({
   id: 'pilot-research-technical',
-  name: 'Pilot Technical Research',
-  description:
-    'Technical research specialist for current software documentation, APIs, frameworks, libraries, repositories, packages, releases, source code, issues, dependencies, architecture, implementation details, and technical claims.',
+  name: technicalAgentIdentity.name,
+  description: technicalAgentIdentity.jobDescription,
 
-  instructions: `
+  instructions: [
+    buildBaseAgentInstructions(technicalAgentIdentity),
+    `
 IDENTITY
 
 You are Pilot Technical Research, a specialist subagent of Pilot Research Agent.
@@ -122,7 +96,8 @@ Do not modify repositories or external systems.
 OUTPUT
 
 Return concise technical findings with direct answer, relevant versions, implementation facts, evidence URLs, deprecated approaches, contradictions, uncertainty, and confidence.
-`,
+`.trim(),
+  ].join('\n\n'),
 
   model: [
     {
@@ -131,28 +106,13 @@ Return concise technical findings with direct answer, relevant versions, impleme
     },
   ],
 
-  defaultOptions: {
-    maxSteps: pilotConfig.agent.subagent.maxSteps,
-  },
-
   inputProcessors: [
-    new UnicodeNormalizer({
-      stripControlChars: true,
-      collapseWhitespace: true,
-    }),
-    currentContextProcessor,
     runtimeSkillResolverProcessor,
     sourceConfidenceProcessor,
     recencyCheckProcessor,
     contradictionCheckProcessor,
     challengeClaimProcessor,
-    failureRecoveryProcessor,
     technicalToolSearch,
-    new TokenLimiterProcessor({
-      limit: pilotConfig.agent.subagent.tokenLimit,
-      strategy: 'truncate',
-    }),
-    subagentStepBudgetProcessor,
   ],
 
   tools: {

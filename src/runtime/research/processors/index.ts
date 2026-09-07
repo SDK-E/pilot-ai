@@ -22,6 +22,5 @@ export { challengeClaimProcessor } from './challenge-claim';
 
 export { memoryHygieneProcessor } from './memory-hygiene';
 
-export { subagentStepBudgetProcessor } from './subagent-step-budget';
 
 export { negativeClaimVerificationProcessor } from './negative-claim-verification';
