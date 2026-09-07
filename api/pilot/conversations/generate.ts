@@ -37,9 +37,10 @@ export default {
       return json({ error: 'Request body must be valid JSON.' }, 400);
     }
 
-    const runtime = createPilotConversationRuntime(storageConfig);
+    let runtime: ReturnType<typeof createPilotConversationRuntime> | undefined;
 
     try {
+      runtime = createPilotConversationRuntime(storageConfig);
       return json(await runtime.generate(command));
     } catch (error) {
       if (error instanceof ZodError) {
@@ -53,7 +54,7 @@ export default {
 
       return json({ error: 'Pilot Conversation could not complete.' }, 502);
     } finally {
-      await runtime.close();
+      await runtime?.close();
     }
   },
 };
