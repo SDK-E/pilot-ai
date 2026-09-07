@@ -81,6 +81,10 @@ and deletes its randomized Mastra thread.
 
 The Research Agent is local-development only. If enabled, it requires explicit
 `MASTRA_DATABASE_URL`, `MASTRA_EDITOR_DATABASE_URL`, and
+All model-controlled public URL fetches are protected by a DNS and redirect
+boundary. The runtime rejects loopback, private, link-local, local-name, mixed
+DNS, and credential-bearing targets before issuing a network request.
+
 `MASTRA_MEMORY_DATABASE_URL` values that point outside `src/`; this prevents
 local research data from being copied into a deployment.
 

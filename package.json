@@ -30,6 +30,7 @@
     "@mastra/core": "1.64.0",
     "@mastra/libsql": "^1.22.3",
     "@mastra/memory": "^1.28.2",
+    "ipaddr.js": "2.5.0",
     "jose": "6.2.12",
     "mastra": "1.27.3",
     "zod": "^4.5.4"

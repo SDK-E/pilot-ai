@@ -20,6 +20,9 @@ importers:
       '@mastra/memory':
         specifier: ^1.28.2
         version: 1.28.2(@mastra/core@1.64.0(zod@4.5.4))
+      ipaddr.js:
+        specifier: 2.5.0
+        version: 2.5.0
       jose:
         specifier: 6.2.12
         version: 6.2.12
@@ -2043,6 +2046,10 @@ packages:
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
 
+  ipaddr.js@2.5.0:
+    resolution: {integrity: sha512-aq+t5NAc+cS6rZQQVWC2x98CPqGtKKTMDd4Gaodv0wShnItdKg/51djkGJ1hqH+Oy0ivDftCbSLCQob8zso01w==}
+    engines: {node: '>= 10'}
+
   is-core-module@2.16.2:
     resolution: {integrity: sha512-evOr8xfXKxE6qSR0hSXL2r3sd7ALj8+7jQEUvPYcm5sgZFdJ+AYzT6yNmJenvIYQBgIGwfwz08sL8zoL7yq2BA==}
     engines: {node: '>= 0.4'}
@@ -2107,9 +2114,6 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
-
-  jose@6.2.11:
-    resolution: {integrity: sha512-A5NPn7g8EAzGU3IzRs+Yiq8K5n3ypYS75M5+KKiVHdUexfpWK1kP4ZMq7QnTGDoMj6TJ1dtcEJjW60yZDXS4hg==}
 
   jose@6.2.12:
     resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
@@ -3168,7 +3172,7 @@ snapshots:
 
   '@a2a-js/sdk@1.0.1':
     dependencies:
-      jose: 6.2.11
+      jose: 6.2.12
       uuid: 11.1.1
 
   '@ai-sdk/provider-utils@4.0.40(zod@4.5.4)':
@@ -4924,6 +4928,8 @@ snapshots:
 
   inherits@2.0.4: {}
 
+  ipaddr.js@2.5.0: {}
+
   is-core-module@2.16.2:
     dependencies:
       hasown: 2.0.4
@@ -4966,8 +4972,6 @@ snapshots:
   isexe@2.0.0: {}
 
   jiti@2.7.0: {}
-
-  jose@6.2.11: {}
 
   jose@6.2.12: {}
 

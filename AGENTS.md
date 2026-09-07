@@ -24,6 +24,7 @@ change between versions.
   parsing tenant headers or initializing Mastra. WorkOS session and organization
   authorization stay in the Pilot application; Pilot AI does not create or
   accept a separate user session.
+- Any tool that fetches a model-controlled URL must validate the initial URL and every redirect against a public-network boundary before sending a request. Reject loopback, private, link-local, mixed DNS answers, local hostnames, and credential-bearing URLs; do not treat a read-only tool as safe without this check.
 
 ## Resources
 

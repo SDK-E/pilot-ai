@@ -1,5 +1,7 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
+
+import { assertPublicHttpUrl } from "../security-public-url.js";
 
 export type UrlFetchResult = {
   url: string;
@@ -25,16 +27,14 @@ export type UrlFetchConfig = {
 
 let urlFetchConfig: UrlFetchConfig | undefined;
 
-export function setUrlFetchConfig(
-  config: UrlFetchConfig,
-): void {
+export function setUrlFetchConfig(config: UrlFetchConfig): void {
   urlFetchConfig = config;
 }
 
 function requireConfig(): UrlFetchConfig {
   if (!urlFetchConfig) {
     throw new Error(
-      'UrlFetch config is not set. Call setUrlFetchConfig() before using performUrlFetch.',
+      "UrlFetch config is not set. Call setUrlFetchConfig() before using performUrlFetch.",
     );
   }
 
@@ -42,61 +42,50 @@ function requireConfig(): UrlFetchConfig {
 }
 
 const AGENT_USER_AGENT =
-  'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)';
+  "SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)";
 
-function extractTitle(
-  html: string,
-): string | undefined {
-  const match =
-    html.match(
-      /<title[^>]*>([\s\S]*?)<\/title>/i,
-    );
+function extractTitle(html: string): string | undefined {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
 
   if (!match) {
     return undefined;
   }
 
   return match[1]
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
-function toMarkdown(
-  html: string,
-  maxCharacters: number,
-): string {
+function toMarkdown(html: string, maxCharacters: number): string {
   const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
-    .replace(/<header[\s\S]*?<\/header>/gi, '')
-    .replace(/<aside[\s\S]*?<\/aside>/gi, '')
-    .replace(/<form[\s\S]*?<\/form>/gi, '')
-    .replace(/<button[\s\S]*?<\/button>/gi, '')
-    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
-    .replace(/<img[^>]*>/gi, '[image]')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<\/tr>/gi, '\n')
-    .replace(/<\/td>/gi, ' | ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/<header[\s\S]*?<\/header>/gi, "")
+    .replace(/<aside[\s\S]*?<\/aside>/gi, "")
+    .replace(/<form[\s\S]*?<\/form>/gi, "")
+    .replace(/<button[\s\S]*?<\/button>/gi, "")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, "")
+    .replace(/<img[^>]*>/gi, "[image]")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/td>/gi, " | ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(
-      /(^|\n)-\s*\n/g,
-      '$1',
-    )
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/(^|\n)-\s*\n/g, "$1")
     .trim();
 
   if (text.length <= maxCharacters) {
@@ -113,116 +102,84 @@ export async function performUrlFetch(
 ): Promise<UrlFetchResult> {
   const config = requireConfig();
 
-  const url = new URL(value);
+  let url = await assertPublicHttpUrl(value);
 
-  if (
-    ![
-      'http:',
-      'https:',
-    ].includes(
-      url.protocol,
-    )
-  ) {
-    throw new Error(
-      'Only HTTP(S) URLs are supported',
-    );
+  if (!config.canRequestDomain(url.hostname)) {
+    throw new Error(`Domain temporarily circuit-broken: ${url.hostname}`);
   }
 
-  if (
-    !config.canRequestDomain(
-      url.hostname,
-    )
-  ) {
-    throw new Error(
-      `Domain temporarily circuit-broken: ${url.hostname}`,
-    );
-  }
+  const cacheKey = config.makeCacheKey("url-fetch-markdown-v2", {
+    url: url.toString(),
+    maxCharacters,
+  });
 
-  const cacheKey =
-    config.makeCacheKey(
-      'url-fetch-markdown-v2',
-      {
-        url: url.toString(),
-        maxCharacters,
-      },
-    );
-
-  const cached =
-    await config.getCachedValue<
-      UrlFetchResult
-    >(cacheKey);
+  const cached = await config.getCachedValue<UrlFetchResult>(cacheKey);
 
   if (cached) {
     return cached;
   }
 
-  const timeoutController =
-    new AbortController();
+  const timeoutController = new AbortController();
 
   const timeout = setTimeout(
-    () =>
-      timeoutController.abort(),
+    () => timeoutController.abort(),
     config.fetchTimeoutMs,
   );
 
-  const onAbort = () =>
-    clearTimeout(timeout);
+  const onAbort = () => timeoutController.abort();
 
-  abortSignal?.addEventListener(
-    'abort',
-    onAbort,
-    {
-      once: true,
-    },
-  );
+  abortSignal?.addEventListener("abort", onAbort, {
+    once: true,
+  });
 
   let failureRecorded = false;
 
   try {
-    const response = await fetch(
-      url.toString(),
-      {
-        signal:
-          timeoutController.signal,
+    let response: Response | undefined;
+    for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
+      if (!config.canRequestDomain(url.hostname)) {
+        throw new Error(`Domain temporarily circuit-broken: ${url.hostname}`);
+      }
+      response = await fetch(url.toString(), {
+        signal: timeoutController.signal,
+        redirect: "manual",
         headers: {
-          'User-Agent':
-            AGENT_USER_AGENT,
+          "User-Agent": AGENT_USER_AGENT,
           Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language':
-            'en-US,en;q=0.9',
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
         },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        `HTTP ${response.status}: ${response.statusText}`,
-      );
+      });
+      if (response.status < 300 || response.status >= 400) break;
+      const location = response.headers.get("location");
+      if (!location)
+        throw new Error("Redirect response did not include a location.");
+      url = await assertPublicHttpUrl(new URL(location, url));
+      if (redirectCount === 5) throw new Error("Too many redirects.");
     }
 
-    const contentType =
-      response.headers.get(
-        'content-type',
-      ) || '';
+    if (!response || !response.ok) {
+      throw new Error(`HTTP ${response?.status}: ${response?.statusText}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
 
     let html: string;
 
     if (
-      contentType.includes('text/')
-      || contentType.includes('json')
-      || contentType.includes('xml')
+      contentType.includes("text/") ||
+      contentType.includes("json") ||
+      contentType.includes("xml")
     ) {
       html = await response.text();
     } else {
       html = await response.text();
     }
 
+    config.recordDomainSuccess(url.hostname);
+
     const title = extractTitle(html);
-    const content = toMarkdown(
-      html,
-      maxCharacters,
-    );
+    const content = toMarkdown(html, maxCharacters);
 
     const result: UrlFetchResult = {
       url: url.toString(),
@@ -232,76 +189,47 @@ export async function performUrlFetch(
 
     await config.setCachedValue(
       cacheKey,
-      'url-fetch',
+      "url-fetch",
       result,
       config.fetchTtlMs,
     );
 
     return result;
   } catch (error) {
-    if (
-      !failureRecorded &&
-      !timeoutController
-        .signal.aborted
-    ) {
-      config.recordDomainFailure(
-        url.hostname,
-      );
+    if (!failureRecorded && !timeoutController.signal.aborted) {
+      config.recordDomainFailure(url.hostname);
     }
 
     throw error;
   } finally {
     clearTimeout(timeout);
 
-    abortSignal?.removeEventListener(
-      'abort',
-      onAbort,
-    );
+    abortSignal?.removeEventListener("abort", onAbort);
   }
 }
 
 let failureRecorded = false;
 
-const urlFetch =
-  createTool({
-    id: 'url-fetch',
+const urlFetch = createTool({
+  id: "url-fetch",
 
-    description:
-      'Read a public HTTP(S) URL as Markdown using an explicit SDK Pilot agent identity.',
+  description:
+    "Read a public HTTP(S) URL as Markdown using an explicit SDK Pilot agent identity.",
 
-    inputSchema: z.object({
-      url: z.string().url(),
+  inputSchema: z.object({
+    url: z.string().url(),
 
-      maxCharacters:
-        z
-          .number()
-          .int()
-          .min(1_000)
-          .max(50_000)
-          .default(12_000),
-    }),
+    maxCharacters: z.number().int().min(1_000).max(50_000).default(12_000),
+  }),
 
-    outputSchema: z.object({
-      url: z.string(),
+  outputSchema: z.object({
+    url: z.string(),
 
-      title:
-        z.string().optional(),
+    title: z.string().optional(),
 
-      content: z.string(),
-    }),
+    content: z.string(),
+  }),
 
-    execute: async (
-      {
-        url,
-        maxCharacters,
-      },
-      {
-        abortSignal,
-      },
-    ) =>
-      performUrlFetch(
-        url,
-        maxCharacters,
-        abortSignal,
-      ),
-  });
+  execute: async ({ url, maxCharacters }, { abortSignal }) =>
+    performUrlFetch(url, maxCharacters, abortSignal),
+});
