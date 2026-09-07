@@ -95,6 +95,39 @@ export function createPilotConversationRuntime(
         },
       };
     },
+    async stream(rawCommand: unknown) {
+      const command = generateConversationReplySchema.parse(rawCommand);
+      const agent = createConversationAgent(command, memory);
+      const output = await agent.stream(command.message, {
+        memory: {
+          resource: createConversationResourceId(
+            command.organizationId,
+            command.worker.id,
+          ),
+          thread: command.conversationId,
+        },
+        maxSteps: conversationRuntimeConfig.maxSteps,
+        toolChoice: 'none',
+      });
+
+      return {
+        runId: output.runId ?? null,
+        textStream: output.textStream,
+        async result() {
+          const completed = await output.getFullOutput();
+          return {
+            finishReason: completed.finishReason,
+            modelId: command.worker.modelId,
+            runId: completed.runId ?? output.runId ?? null,
+            usage: {
+              inputTokens: completed.totalUsage.inputTokens ?? 0,
+              outputTokens: completed.totalUsage.outputTokens ?? 0,
+              totalTokens: completed.totalUsage.totalTokens ?? 0,
+            },
+          };
+        },
+      };
+    },
     async close() {
       await memory.settled();
       await storage.close();

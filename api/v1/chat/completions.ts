@@ -3,7 +3,9 @@ import { ZodError } from 'zod';
 import { createPilotConversationRuntime } from '../../../src/conversation/pilot-conversation.js';
 import {
   createChatCompletionResponse,
+  createChatCompletionStream,
   createConversationCommandFromChatCompletion,
+  isStreamingChatCompletionRequest,
 } from '../../../src/conversation/openai-compatible.js';
 import { verifyPilotRuntimeRequest } from '../../../src/runtime/auth/vercel-oidc.js';
 import { getPilotRuntimeStorageConfig } from '../../../src/runtime/storage/pilot-runtime.js';
@@ -50,8 +52,30 @@ export default {
     }
 
     let runtime: ReturnType<typeof createPilotConversationRuntime> | undefined;
+    let closeRuntime = true;
     try {
       runtime = createPilotConversationRuntime(storageConfig);
+      if (isStreamingChatCompletionRequest(body)) {
+        const stream = await runtime.stream(command);
+        closeRuntime = false;
+        return new Response(
+          createChatCompletionStream(stream, {
+            includeUsage:
+              (body as { stream_options?: { include_usage?: boolean } })
+                .stream_options?.include_usage === true,
+            onClose: async () => {
+              await runtime?.close();
+            },
+          }),
+          {
+            headers: {
+              'cache-control': 'no-cache, no-transform',
+              'content-type': 'text/event-stream; charset=utf-8',
+              connection: 'keep-alive',
+            },
+          },
+        );
+      }
       return Response.json(
         createChatCompletionResponse(await runtime.generate(command)),
       );
@@ -62,7 +86,7 @@ export default {
       );
       return error('Pilot Conversation could not complete.', 'server_error', 502);
     } finally {
-      await runtime?.close();
+      if (closeRuntime) await runtime?.close();
     }
   },
 };

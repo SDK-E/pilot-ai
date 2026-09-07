@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const generate = vi.fn();
+  const stream = vi.fn();
   const close = vi.fn();
   const verifyRequest = vi.fn();
 
@@ -9,7 +10,8 @@ const mocks = vi.hoisted(() => {
     generate,
     close,
     verifyRequest,
-    createRuntime: vi.fn(() => ({ generate, close })),
+    stream,
+    createRuntime: vi.fn(() => ({ generate, stream, close })),
   };
 });
 
@@ -35,6 +37,7 @@ describe('OpenAI-compatible Pilot Conversation function', () => {
     vi.stubEnv('PILOT_MASTRA_DATABASE_URL', 'libsql://runtime.turso.io');
     vi.stubEnv('TURSO_AUTH_TOKEN', 'runtime-token');
     mocks.generate.mockReset();
+    mocks.stream.mockReset();
     mocks.close.mockReset();
     mocks.createRuntime.mockClear();
     mocks.verifyRequest.mockReset();
@@ -107,5 +110,43 @@ describe('OpenAI-compatible Pilot Conversation function', () => {
       error: { message: 'Unauthorized.', type: 'authentication_error' },
     });
     expect(mocks.createRuntime).not.toHaveBeenCalled();
+  });
+
+  it('streams OpenAI-compatible chunks for a verified Pilot request', async () => {
+    mocks.stream.mockResolvedValue({
+      runId: 'stream-123',
+      textStream: new ReadableStream({
+        start(controller) {
+          controller.enqueue('Hello');
+          controller.enqueue('.');
+          controller.close();
+        },
+      }),
+      result: vi.fn().mockResolvedValue({
+        finishReason: 'stop',
+        modelId: 'kilo/kilo-auto/free',
+        runId: 'stream-123',
+        usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+      }),
+    });
+
+    const response = await handler.fetch(new Request('https://ai.pilot.test/v1/chat/completions', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: 'kilo/kilo-auto/free',
+        messages: [
+          { role: 'system', content: 'Be helpful.' },
+          { role: 'user', content: 'Hello.' },
+        ],
+        stream: true,
+        stream_options: { include_usage: true },
+      }),
+    }));
+
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+    await expect(response.text()).resolves.toContain('data: [DONE]');
+    expect(mocks.stream).toHaveBeenCalledOnce();
+    expect(mocks.close).toHaveBeenCalledOnce();
   });
 });
