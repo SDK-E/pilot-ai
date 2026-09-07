@@ -23,6 +23,18 @@
   "author": "",
   "license": "Apache-2.0",
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "imports": {
+    "#conversation/*": "./src/conversation/*.js",
+    "#research/*": "./src/research/*.js",
+    "#runtime/cache": "./src/runtime/cache/index.js",
+    "#runtime/scorers": "./src/runtime/scorers/index.js",
+    "#runtime/schemas": "./src/runtime/schemas/index.js",
+    "#runtime/storage": "./src/runtime/storage/index.js",
+    "#runtime/tools": "./src/runtime/tools/index.js",
+    "#runtime/skills": "./src/runtime/skills/index.js",
+    "#runtime/*": "./src/runtime/*.js"
+  },
   "engines": {
     "node": "24.x"
   },
@@ -30,6 +42,7 @@
     "@mastra/core": "1.64.0",
     "@mastra/libsql": "^1.22.3",
     "@mastra/memory": "^1.28.2",
+    "@libsql/client": "^0.18.0",
     "ipaddr.js": "2.5.0",
     "jose": "6.2.12",
     "mastra": "1.27.3",
@@ -37,7 +50,6 @@
   },
   "devDependencies": {
     "@browserbasehq/stagehand": "^4.0.2",
-    "@libsql/client": "^0.18.0",
     "@mastra/duckdb": "^1.6.4",
     "@mastra/editor": "^0.14.3",
     "@mastra/evals": "^1.10.0",

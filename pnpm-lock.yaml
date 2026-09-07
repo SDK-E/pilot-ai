@@ -11,6 +11,9 @@ importers:
 
   .:
     dependencies:
+      '@libsql/client':
+        specifier: ^0.18.0
+        version: 0.18.0
       '@mastra/core':
         specifier: 1.64.0
         version: 1.64.0(zod@4.5.4)
@@ -36,9 +39,6 @@ importers:
       '@browserbasehq/stagehand':
         specifier: ^4.0.2
         version: 4.0.2
-      '@libsql/client':
-        specifier: ^0.18.0
-        version: 0.18.0
       '@mastra/duckdb':
         specifier: ^1.6.4
         version: 1.6.4(@mastra/core@1.64.0(zod@4.5.4))

@@ -10,7 +10,7 @@ export default { async fetch(request: Request): Promise<Response> {
   if (!(await verifyPilotRuntimeRequest(request))) return Response.json({ error: 'Unauthorized.' }, { status: 401 });
   const input = inputSchema.safeParse(await request.json().catch(() => undefined));
   if (!input.success) return Response.json({ error: 'Invalid task command.' }, { status: 400 });
-  const workflow = mastra.getWorkflow('pilot-task-approval');
+  const workflow = mastra.getWorkflow('taskApprovalWorkflow');
   const run = await workflow.createRun();
   const result = await run.start({ inputData: input.data });
   return Response.json({ runId: run.runId, status: result.status });

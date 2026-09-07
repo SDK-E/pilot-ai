@@ -22,7 +22,7 @@ import { setUrlFetchConfig } from '#runtime/tools/url-fetch';
 import { setLangSearchConfig } from '#runtime/tools/search/langsearch';
 import { setWebSearchConfig } from '#runtime/tools/search/web-search';
 import { setRuntimePreflightConfig } from '#runtime/skills/runtime-preflight';
-import { createClient, type Client } from '@libsql/client';
+import { createClient } from '@libsql/client';
 import {
   createResultStore,
 } from '#runtime/storage/research-result-store';
@@ -36,7 +36,7 @@ import {
 
 setUrlFetchConfig(createUrlFetchConfig());
 
-const client: Client = createClient({
+const client = createClient({
   url: researchMemoryDatabaseUrl,
   authToken: researchMemoryDatabaseAuthToken,
 });
