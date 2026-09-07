@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { conversationRuntimeConfig } from './config';
+import { conversationRuntimeConfig } from './config.js';
 
 const resourcePrefix = 'pilot-conversation';
 

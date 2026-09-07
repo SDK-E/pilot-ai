@@ -6,22 +6,22 @@ import {
   createConversationResourceId,
   generateConversationReplySchema,
   type GenerateConversationReply,
-} from './command';
-import { conversationRuntimeConfig } from './config';
-import { conversationAgentIdentity } from './identity';
-import { conversationCoreInstructions } from './instructions/core';
-import { createBaseAgent } from '#runtime/agent/base-agent';
-import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
+} from './command.js';
+import { conversationRuntimeConfig } from './config.js';
+import { conversationAgentIdentity } from './identity.js';
+import { conversationCoreInstructions } from './instructions/core.js';
+import { createBaseAgent } from '../runtime/agent/base-agent.js';
+import { buildBaseAgentInstructions } from '../runtime/agent/base-instructions.js';
 import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,
-} from '#runtime/storage/pilot-runtime';
+} from '../runtime/storage/pilot-runtime.js';
 
 export {
   generateConversationReplySchema,
-} from './command';
+} from './command.js';
 
-export type { GenerateConversationReply } from './command';
+export type { GenerateConversationReply } from './command.js';
 
 function createConversationAgent(
   command: GenerateConversationReply,

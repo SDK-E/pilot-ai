@@ -1,7 +1,7 @@
 import { ZodError } from 'zod';
 
-import { createPilotConversationRuntime } from '../../../src/conversation/pilot-conversation';
-import { getPilotRuntimeStorageConfig } from '../../../src/runtime/storage/pilot-runtime';
+import { createPilotConversationRuntime } from '../../../src/conversation/pilot-conversation.js';
+import { getPilotRuntimeStorageConfig } from '../../../src/runtime/storage/pilot-runtime.js';
 
 export const config = {
   runtime: 'nodejs',

@@ -15,7 +15,7 @@ import {
   qualityGateProcessor,
   responseVerbosityProcessor,
   staleObjectiveResetProcessor,
-} from '#runtime/processors';
+} from '../processors/index.js';
 
 type BaseAgentLimits = {
   maxSteps: number;

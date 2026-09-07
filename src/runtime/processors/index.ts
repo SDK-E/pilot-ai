@@ -1,25 +1,25 @@
 export {
   currentContextProcessor,
-} from './current-context';
+} from './current-context.js';
 
 export {
   staleObjectiveResetProcessor,
-} from './stale-objective-reset';
+} from './stale-objective-reset.js';
 
 export {
   failureRecoveryProcessor,
-} from './failure-recovery';
+} from './failure-recovery.js';
 
 export {
   processNarrationGateProcessor,
-} from './process-narration-gate';
+} from './process-narration-gate.js';
 
 export {
   qualityGateProcessor,
-} from './quality-gate';
+} from './quality-gate.js';
 
 export {
   responseVerbosityProcessor,
-} from './response-verbosity';
+} from './response-verbosity.js';
 
-export { createStepBudgetProcessor } from './step-budget';
+export { createStepBudgetProcessor } from './step-budget.js';

@@ -1,4 +1,4 @@
-import type { AgentIdentity } from './identity';
+import type { AgentIdentity } from './identity.js';
 
 /** Shared behavior for every Pilot runtime agent. */
 export function buildBaseAgentInstructions(identity: AgentIdentity): string {

@@ -1,4 +1,4 @@
-import type { AgentIdentity } from '#runtime/agent/identity';
+import type { AgentIdentity } from '../runtime/agent/identity.js';
 
 export const conversationAgentIdentity: AgentIdentity = {
   name: 'Pilot Conversation',
