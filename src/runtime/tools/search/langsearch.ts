@@ -5,9 +5,9 @@ import {
   getCachedValue,
   makeCacheKey,
   setCachedValue,
-} from '#runtime/cache';
+} from '../../cache/index.js';
 
-import { pilotConfig } from '#runtime/research/config';
+import { pilotConfig } from '../../research/config/index.js';
 
 export type LangSearchConfig = {
   apiKey?: string;

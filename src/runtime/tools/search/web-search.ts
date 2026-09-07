@@ -7,7 +7,7 @@ import {
   type SearchResult,
 } from './langsearch';
 import { performDorkSearch } from './search-dorks';
-import { performUrlFetch } from '#runtime/tools/url-fetch';
+import { performUrlFetch } from '../url-fetch.js';
 
 export type WebSearchConfig = {
   performStagehandSearch?: boolean;
@@ -123,7 +123,7 @@ async function resilientSearch(
     try {
       const stagehandQuery = simplified || query;
       const { performStagehandSearch } = await import(
-        '#runtime/research/tools/stagehand-browser'
+        '../../research/tools/stagehand-browser.js'
       );
       const browserResults = await performStagehandSearch(stagehandQuery);
       fallbackTrace.push({

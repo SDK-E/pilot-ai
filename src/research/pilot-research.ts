@@ -5,15 +5,15 @@ import type { LibSQLStore } from '@mastra/libsql';
 import type { GenerateConversationReply } from '../conversation/command.js';
 import { createConversationResourceId } from '../conversation/command.js';
 import { conversationRuntimeConfig } from '../conversation/config.js';
-import { createBaseAgent } from '#runtime/agent/base-agent';
-import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
-import { createPilotActivityReporter } from '#runtime/activity-reporter';
-import { configureProductionResearchTools } from '#runtime/research/production-tools';
+import { createBaseAgent } from '../runtime/agent/base-agent.js';
+import { buildBaseAgentInstructions } from '../runtime/agent/base-instructions.js';
+import { createPilotActivityReporter } from '../runtime/activity-reporter.js';
+import { configureProductionResearchTools } from '../runtime/research/production-tools.js';
 import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,
-} from '#runtime/storage/pilot-runtime';
-import { webSearch } from '#runtime/tools/search/web-search';
+} from '../runtime/storage/pilot-runtime.js';
+import { webSearch } from '../runtime/tools/search/web-search.js';
 import { researchAgentIdentity } from './identity';
 
 const productionResearchInstructions = `

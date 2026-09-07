@@ -1,13 +1,13 @@
 import { createClient } from '@libsql/client';
 
-import { createCircuitBreaker } from '#runtime/cache/domain-circuit-breaker';
-import { createGenericCache } from '#runtime/cache/generic-cache';
-import { setRuntimeCache } from '#runtime/cache';
-import { pilotConfig } from '#runtime/research/config';
-import type { PilotRuntimeStorageConfig } from '#runtime/storage/pilot-runtime';
-import { setUrlFetchConfig } from '#runtime/tools/url-fetch';
-import { setLangSearchConfig } from '#runtime/tools/search/langsearch';
-import { setWebSearchConfig } from '#runtime/tools/search/web-search';
+import { createCircuitBreaker } from '../cache/domain-circuit-breaker.js';
+import { createGenericCache } from '../cache/generic-cache.js';
+import { setRuntimeCache } from '../cache/index.js';
+import { pilotConfig } from './config/index.js';
+import type { PilotRuntimeStorageConfig } from '../storage/pilot-runtime.js';
+import { setUrlFetchConfig } from '../tools/url-fetch.js';
+import { setLangSearchConfig } from '../tools/search/langsearch.js';
+import { setWebSearchConfig } from '../tools/search/web-search.js';
 
 /**
  * Configures only the production-safe read-only web tool. The development

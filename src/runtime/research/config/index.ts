@@ -1,3 +1,3 @@
 export {
   pilotConfig,
-} from '#runtime/research/config/research-agent/pilot.config';
+} from './research-agent/pilot.config.js';
