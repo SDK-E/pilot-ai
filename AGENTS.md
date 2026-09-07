@@ -13,8 +13,10 @@ change between versions.
   instructions in `src/<agent>`. Put shared processors, configuration,
   schemas, scorers, tools, storage, workflows, skills, and caches in
   `src/runtime`. Every registered or delegated Pilot agent must use the
-  BaseAgent factory in `src/runtime/agent/base-agent.ts`; put only
-  agent-specific processors after that shared pipeline. A private helper model
+  BaseAgent factory in `src/runtime/agent/base-agent.ts`; its shared pipeline
+  includes normalization, current context, compact prompt enhancement for
+  short requests, reliability gates, token limiting, and a step budget. Put
+  only agent-specific processors after that shared pipeline. A private helper model
   created inside a processor is not a registered or delegated Pilot agent and
   must stay narrowly scoped to that processor's work. Request-scoped Pilot
   runtime adapters may be exported from the entrypoint without registering a

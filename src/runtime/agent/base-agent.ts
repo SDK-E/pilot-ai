@@ -1,21 +1,22 @@
-import { Agent, type AgentConfig } from '@mastra/core/agent';
+import { Agent, type AgentConfig } from "@mastra/core/agent";
 import {
   type ErrorProcessorOrWorkflow,
   type InputProcessorOrWorkflow,
   PrefillErrorHandler,
   TokenLimiterProcessor,
   UnicodeNormalizer,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
 import {
   currentContextProcessor,
   createStepBudgetProcessor,
   failureRecoveryProcessor,
   processNarrationGateProcessor,
+  promptEnhancerProcessor,
   qualityGateProcessor,
   responseVerbosityProcessor,
   staleObjectiveResetProcessor,
-} from '../processors/index.js';
+} from "../processors/index.js";
 
 type BaseAgentLimits = {
   maxSteps: number;
@@ -26,7 +27,7 @@ type BaseAgentLimits = {
 
 type BaseAgentConfig = Omit<
   AgentConfig,
-  'inputProcessors' | 'errorProcessors'
+  "inputProcessors" | "errorProcessors"
 > & {
   base: BaseAgentLimits;
   inputProcessors?: InputProcessorOrWorkflow[];
@@ -58,6 +59,7 @@ export function createBaseAgent({
         collapseWhitespace: true,
       }),
       currentContextProcessor,
+      promptEnhancerProcessor,
       staleObjectiveResetProcessor,
       responseVerbosityProcessor,
       processNarrationGateProcessor,
@@ -66,7 +68,7 @@ export function createBaseAgent({
       ...inputProcessors,
       new TokenLimiterProcessor({
         limit: base.tokenLimit,
-        strategy: 'truncate',
+        strategy: "truncate",
       }),
       createStepBudgetProcessor(base),
     ],

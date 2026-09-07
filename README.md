@@ -97,7 +97,10 @@ development artifact. Vercel deploys only the isolated OpenAI-compatible
 Conversation function.
 
 Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package
-documentation. Production runtime storage uses the environment-specific Turso
+documentation. Every Pilot agent is constructed through the shared BaseAgent
+pipeline, including the generic short-request prompt enhancer; agent-specific
+research policy and verification processors run after that shared context.
+Production runtime storage uses the environment-specific Turso
 LibSQL database through `PILOT_MASTRA_DATABASE_URL`; never add a file-backed
 database to the Pilot Conversation path or expose a tool before Pilot enforces
 its capability and approval policy.
