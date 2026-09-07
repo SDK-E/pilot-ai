@@ -5,9 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "mastra dev --dir src",
-    "dev:research": "PILOT_ENABLE_RESEARCH=true mastra dev --dir src",
+    "dev:research": "PILOT_ENABLE_DEVELOPMENT_RESEARCH=true mastra dev --dir src",
     "build": "mastra build --dir src",
-    "build:research": "PILOT_ENABLE_RESEARCH=true mastra build --dir src",
+    "build:research": "PILOT_ENABLE_DEVELOPMENT_RESEARCH=true mastra build --dir src",
     "start": "mastra start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

@@ -14,9 +14,20 @@ export const generateConversationReplySchema = z
     }),
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
-    allowedToolIds: z.array(z.string()).max(0).default([]),
+    baseAgentId: z.enum(['conversational', 'research']),
+    allowedToolIds: z.array(z.literal('web-search')).max(1).default([]),
+    executionId: z.uuid(),
   })
-  .strict();
+  .strict()
+  .superRefine((command, context) => {
+    if (command.baseAgentId === 'conversational' && command.allowedToolIds.length > 0) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Conversational requests cannot use tools.',
+        path: ['allowedToolIds'],
+      });
+    }
+  });
 
 export type GenerateConversationReply = z.infer<
   typeof generateConversationReplySchema

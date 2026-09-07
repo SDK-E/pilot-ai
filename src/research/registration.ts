@@ -17,6 +17,7 @@ import { peopleResearchWorkflow } from '#runtime/research/workflows/people-resea
 import { technicalResearchWorkflow } from '#runtime/research/workflows/technical-research';
 import { webSearchWorkflow } from '#runtime/research/workflows/web-search';
 import { createUrlFetchConfig } from '#runtime/research/cache';
+import { setRuntimeCache } from '#runtime/cache';
 import { setUrlFetchConfig } from '#runtime/tools/url-fetch';
 import { setLangSearchConfig } from '#runtime/tools/search/langsearch';
 import { setWebSearchConfig } from '#runtime/tools/search/web-search';
@@ -39,6 +40,8 @@ const client: Client = createClient({
   url: researchMemoryDatabaseUrl,
   authToken: researchMemoryDatabaseAuthToken,
 });
+
+setRuntimeCache(client);
 
 const resultStore = createResultStore({
   client,

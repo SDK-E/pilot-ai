@@ -27,6 +27,7 @@ change between versions.
   authorization stay in the Pilot application; Pilot AI does not create or
   accept a separate user session.
 - Any tool that fetches a model-controlled URL must validate the initial URL and every redirect against a public-network boundary before sending a request. Reject loopback, private, link-local, mixed DNS answers, local hostnames, and credential-bearing URLs; do not treat a read-only tool as safe without this check.
+- Production Research must remain request-scoped and import only its explicitly approved tools. Its activity callback must use the original verified Pilot OIDC token, target the fixed `PILOT_ACTIVITY_CALLBACK_URL`, and send only capability ID, lifecycle state, organization ID, and execution ID. Never send prompts, tool inputs, outputs, URLs, errors, or reasoning through that callback.
 
 ## Resources
 

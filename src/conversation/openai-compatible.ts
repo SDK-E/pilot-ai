@@ -25,7 +25,19 @@ const pilotContextSchema = z.object({
   organizationId: z.string().min(1).max(255),
   workerId: z.uuid(),
   conversationId: z.uuid(),
+  executionId: z.uuid(),
+  baseAgentId: z.enum(['conversational', 'research']),
+  allowedToolIds: z.array(z.literal('web-search')).max(1),
 }).strict();
+
+function parseAllowedToolIds(value: string | null): unknown {
+  if (!value) return [];
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
 
 export function createConversationCommandFromChatCompletion(
   rawRequest: unknown,
@@ -36,6 +48,9 @@ export function createConversationCommandFromChatCompletion(
     organizationId: headers.get('x-pilot-organization-id'),
     workerId: headers.get('x-pilot-worker-id'),
     conversationId: headers.get('x-pilot-conversation-id'),
+    executionId: headers.get('x-pilot-execution-id'),
+    baseAgentId: headers.get('x-pilot-base-agent-id'),
+    allowedToolIds: parseAllowedToolIds(headers.get('x-pilot-allowed-tool-ids')),
   });
   const message = request.messages.at(-1);
   const instructions = request.messages.find(
@@ -57,7 +72,9 @@ export function createConversationCommandFromChatCompletion(
     },
     conversationId: context.conversationId,
     message: message.content,
-    allowedToolIds: [],
+    executionId: context.executionId,
+    baseAgentId: context.baseAgentId,
+    allowedToolIds: context.allowedToolIds,
   };
 }
 

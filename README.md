@@ -12,6 +12,12 @@ execution records, and approvals. Mastra supplies agent, memory, workflow, and
 durable-execution capabilities; it does not own Pilot domain records or make
 authorization decisions.
 
+The production Research adapter is separate from the broad local-development
+agent. When enabled, it receives only the hardened `web-search` tool and uses
+the original verified Pilot OIDC token to append sanitized tool lifecycle
+events through `PILOT_ACTIVITY_CALLBACK_URL`. It does not import Stagehand,
+browser actions, MCP, files, exports, scratchpad writes, or delegation.
+
 `src/index.ts` is the Mastra service entrypoint. It holds the Pilot route and
 conditionally registers both agents for local Mastra development. The Vercel
 function at `api/v1/chat/completions.ts` is the production adapter: it imports
@@ -89,7 +95,7 @@ DNS, and credential-bearing targets before issuing a network request.
 local research data from being copied into a deployment.
 
 `pnpm dev` and `pnpm build` run the normal Pilot configuration. `pnpm
-dev:research` and `pnpm build:research` set `PILOT_ENABLE_RESEARCH=true` and
+dev:research` and `pnpm build:research` set `PILOT_ENABLE_DEVELOPMENT_RESEARCH=true` and
 register Pilot Research through the same entrypoint. Research is not activated
 for a normal runtime request. Mastra's build still follows the optional
 registration import and packages research dependencies, so it is a local

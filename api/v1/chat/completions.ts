@@ -1,6 +1,7 @@
 import { ZodError } from 'zod';
 
 import { createPilotConversationRuntime } from '../../../src/conversation/pilot-conversation.js';
+import { createPilotResearchRuntime } from '../../../src/research/pilot-research.js';
 import {
   createChatCompletionResponse,
   createChatCompletionStream,
@@ -51,10 +52,22 @@ export default {
       );
     }
 
-    let runtime: ReturnType<typeof createPilotConversationRuntime> | undefined;
+    let runtime:
+      | ReturnType<typeof createPilotConversationRuntime>
+      | ReturnType<typeof createPilotResearchRuntime>
+      | undefined;
     let closeRuntime = true;
     try {
-      runtime = createPilotConversationRuntime(storageConfig);
+      if (command.baseAgentId === 'research') {
+        if (process.env.PILOT_ENABLE_RESEARCH !== 'true') {
+          return error('Pilot Research is not enabled.', 'invalid_request_error', 403);
+        }
+        const oidcToken = request.headers.get('x-pilot-runtime-oidc-token');
+        if (!oidcToken) return error('Unauthorized.', 'authentication_error', 401);
+        runtime = createPilotResearchRuntime(storageConfig, oidcToken);
+      } else {
+        runtime = createPilotConversationRuntime(storageConfig);
+      }
       if (isStreamingChatCompletionRequest(body)) {
         const stream = await runtime.stream(command);
         closeRuntime = false;

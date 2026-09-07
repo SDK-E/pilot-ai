@@ -12,6 +12,6 @@ export default { async fetch(request: Request): Promise<Response> {
   const storageConfig = getPilotRuntimeStorageConfig(); if (!storageConfig) return Response.json({ error: 'Pilot Conversation is not configured.' }, { status: 503 });
   const command = commandSchema.safeParse(await request.json().catch(() => undefined)); if (!command.success) return Response.json({ error: 'Invalid cleanup command.' }, { status: 400 });
   const runtime = createPilotConversationRuntime(storageConfig);
-  try { await runtime.deleteConversation({ organizationId: command.data.organizationId, worker: { id: command.data.workerId, instructions: 'Cleanup only.', modelId: 'kilo/kilo-auto/free' }, conversationId: command.data.conversationId, message: 'Cleanup only.', allowedToolIds: [] }); return new Response(null, { status: 204 }); }
+  try { await runtime.deleteConversation({ organizationId: command.data.organizationId, worker: { id: command.data.workerId, instructions: 'Cleanup only.', modelId: 'kilo/kilo-auto/free' }, conversationId: command.data.conversationId, message: 'Cleanup only.', baseAgentId: 'conversational', allowedToolIds: [], executionId: '00000000-0000-4000-8000-000000000000' }); return new Response(null, { status: 204 }); }
   finally { await runtime.close(); }
 } };

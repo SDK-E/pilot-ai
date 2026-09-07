@@ -30,6 +30,9 @@ const headers = {
   'x-pilot-organization-id': 'org-preview',
   'x-pilot-worker-id': '6f96e48d-c27a-4b4b-ab63-e406f69132ce',
   'x-pilot-conversation-id': '2e61a6d9-0b48-4e17-8e0e-97075112953d',
+  'x-pilot-execution-id': '843b97b3-b0ec-4244-9a6c-2b872645a9ed',
+  'x-pilot-base-agent-id': 'conversational',
+  'x-pilot-allowed-tool-ids': '[]',
 };
 
 describe('OpenAI-compatible Pilot Conversation function', () => {
@@ -89,7 +92,9 @@ describe('OpenAI-compatible Pilot Conversation function', () => {
       },
       conversationId: '2e61a6d9-0b48-4e17-8e0e-97075112953d',
       message: 'Hello.',
+      baseAgentId: 'conversational',
       allowedToolIds: [],
+      executionId: '843b97b3-b0ec-4244-9a6c-2b872645a9ed',
     });
   });
 
@@ -108,6 +113,33 @@ describe('OpenAI-compatible Pilot Conversation function', () => {
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
       error: { message: 'Unauthorized.', type: 'authentication_error' },
+    });
+    expect(mocks.createRuntime).not.toHaveBeenCalled();
+  });
+
+  it('rejects Research before the production adapter is enabled', async () => {
+    const response = await handler.fetch(new Request('https://ai.pilot.test/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'x-pilot-base-agent-id': 'research',
+        'x-pilot-allowed-tool-ids': '["web-search"]',
+      },
+      body: JSON.stringify({
+        model: 'kilo/kilo-auto/free',
+        messages: [
+          { role: 'system', content: 'Use primary sources.' },
+          { role: 'user', content: 'Find current sources.' },
+        ],
+      }),
+    }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        message: 'Pilot Research is not enabled.',
+        type: 'invalid_request_error',
+      },
     });
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });

@@ -17,6 +17,8 @@ const validCommand = {
   },
   conversationId: "97e756d5-2c8c-47fa-8a87-0e8dcddb7d28",
   message: "Hello.",
+  baseAgentId: "conversational",
+  executionId: "98f1871e-72fb-4c5c-9a09-d89713e64950",
 };
 
 describe("Pilot Conversation command", () => {

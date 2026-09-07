@@ -7,7 +7,7 @@ import {
   getPilotRuntimeStorageConfig,
 } from '#runtime/storage/pilot-runtime';
 
-const researchEnabled = process.env.PILOT_ENABLE_RESEARCH === 'true';
+const researchEnabled = process.env.PILOT_ENABLE_DEVELOPMENT_RESEARCH === 'true';
 
 const researchRuntime = researchEnabled
   ? await import('./research/registration')

@@ -1,45 +1,52 @@
 import {
   createGenericCache,
 } from './generic-cache';
-import { createSkillFeedback, type SkillFeedbackStats } from './skill-feedback';
-
 import {
-  createClient,
-  type Client,
-} from '@libsql/client';
+  createSkillFeedback,
+  type SkillFeedbackStats,
+} from './skill-feedback';
+import type { Client } from '@libsql/client';
 
-import {
-  researchMemoryDatabaseAuthToken,
-  researchMemoryDatabaseUrl,
-} from '#runtime/research/config/research-agent/storage';
-import { pilotConfig } from '#runtime/research/config';
+let researchCache: ReturnType<typeof createGenericCache> | undefined;
+let skillFeedback: ReturnType<typeof createSkillFeedback> | undefined;
 
-const client: Client = createClient({
-  url: researchMemoryDatabaseUrl,
-  authToken: researchMemoryDatabaseAuthToken,
-});
+/** Configures the cache for the current runtime environment. */
+export function setRuntimeCache(client: Client): void {
+  researchCache = createGenericCache({
+    client,
+    tableName: 'pilot_research_cache',
+  });
+  skillFeedback = createSkillFeedback({
+    client,
+    tableName: 'pilot_skill_feedback',
+  });
+}
 
-const researchCache = createGenericCache({
-  client,
-  tableName: 'pilot_research_cache',
-});
+function requireSkillFeedback() {
+  if (!skillFeedback) {
+    throw new Error('Research skill feedback is not configured for this runtime.');
+  }
+  return skillFeedback;
+}
 
-const skillFeedback = createSkillFeedback({
-  client,
-  tableName: 'pilot_skill_feedback',
-});
+function requireCache() {
+  if (!researchCache) {
+    throw new Error('Research cache is not configured for this runtime.');
+  }
+  return researchCache;
+}
 
 export function makeCacheKey(
   type: string,
   input: unknown,
 ): string {
-  return researchCache.makeCacheKey(type, input);
+  return requireCache().makeCacheKey(type, input);
 }
 
 export async function getCachedValue<T>(
   key: string,
 ): Promise<T | undefined> {
-  return researchCache.getCachedValue<T>(key);
+  return requireCache().getCachedValue<T>(key);
 }
 
 export async function setCachedValue(
@@ -48,10 +55,17 @@ export async function setCachedValue(
   value: unknown,
   ttlMs: number,
 ): Promise<void> {
-  return researchCache.setCachedValue(key, type, value, ttlMs);
+  return requireCache().setCachedValue(key, type, value, ttlMs);
 }
 
-export const getSkillFeedbackMap = skillFeedback.getSkillFeedbackMap;
-export const recordSkillFeedback = skillFeedback.recordSkillFeedback;
-export const recordSkillUse = skillFeedback.recordSkillUse;
+export const getSkillFeedbackMap = (skillIds: string[]) =>
+  requireSkillFeedback().getSkillFeedbackMap(skillIds);
+export const recordSkillFeedback = (
+  skillId: string,
+  helpful: boolean,
+  query?: string,
+  reason?: string,
+) => requireSkillFeedback().recordSkillFeedback(skillId, helpful, query, reason);
+export const recordSkillUse = (skillId: string, query?: string) =>
+  requireSkillFeedback().recordSkillUse(skillId, query);
 export type { SkillFeedbackStats };
