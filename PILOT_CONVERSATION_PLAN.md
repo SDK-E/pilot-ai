@@ -56,7 +56,7 @@ Use `@mastra/libsql` with the matching Turso environment for Mastra storage. Do 
 
 ## Delivery order
 
-1. Use deployed storage with `@mastra/libsql` and prove restart-safe message history. Preview and production runtime configuration is required before accepting this slice.
+1. Use deployed storage with `@mastra/libsql` and prove restart-safe message history. **Preview was verified through two separate protected Vercel invocations on 2026-09-07. Production still needs its own sensitive `TURSO_AUTH_TOKEN` before deployment.**
 2. Add `pilot-conversation` with direct chat behavior and no enabled capabilities by default. **Implemented and covered by deterministic command-validation tests.**
 3. Add the typed internal endpoint and protected Pilot-to-runtime transport. **The runtime endpoint is implemented; Pilot still needs to become the authenticated caller and Vercel Trusted Sources must be configured before deployment.**
 4. Keep the local Research Agent in the shared Pilot runtime before deployment. **Implemented with `src/index.ts` registering both agents, `src/runtime/agent/base-agent.ts` providing their shared behavior, and `src/research` holding research-specific code. The normal Pilot build does not load research dependencies.**

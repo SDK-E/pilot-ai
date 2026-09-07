@@ -43,6 +43,13 @@ The runtime requires `PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
 the matching environment. `pnpm verify:memory` performs a real two-process
 memory check and deletes its randomized thread afterward.
 
+On 2026-09-07, Preview was deployed through a remote Linux Vercel build and
+verified through its protected endpoint. Two separate function invocations
+wrote and then recalled a randomized conversation value through Turso. This
+does not authorize Pilot traffic: configure Pilot as the Trusted Source before
+setting its runtime URL. Production also requires its own sensitive
+`TURSO_AUTH_TOKEN` before deployment.
+
 ## Development
 
 Use Node.js 24 and pnpm. The `dev` and `build` scripts invoke the Mastra CLI.
