@@ -1,6 +1,7 @@
 import { Mastra } from '@mastra/core/mastra';
 
 import { conversationApiRoutes } from './conversation/api';
+import { taskApprovalWorkflow } from './runtime/workflows/task-approval';
 import {
   createPilotRuntimeStorage,
   getPilotRuntimeStorageConfig,
@@ -22,6 +23,7 @@ const runtimeRegistration = researchRuntime?.registration ?? { storage };
 
 export const mastra = new Mastra({
   ...runtimeRegistration,
+  workflows: { taskApprovalWorkflow },
   server: {
     apiRoutes: [
       ...conversationApiRoutes,
