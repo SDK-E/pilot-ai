@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm typecheck",
+  "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/pilot/conversations/generate",
+      "destination": "/api/pilot/conversations/generate"
+    }
+  ],
+  "functions": {
+    "api/pilot/conversations/generate.ts": {
+      "maxDuration": 90
+    }
+  }
+}

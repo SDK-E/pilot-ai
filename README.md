@@ -12,8 +12,11 @@ execution records, and approvals. Mastra supplies agent, memory, workflow, and
 durable-execution capabilities; it does not own Pilot domain records or make
 authorization decisions.
 
-`src/index.ts` is the only service entrypoint. It holds the Pilot route and
-conditionally registers both agents. `src/runtime/agent/base-agent.ts` is the
+`src/index.ts` is the Mastra service entrypoint. It holds the Pilot route and
+conditionally registers both agents for local Mastra development. The Vercel
+function at `api/pilot/conversations/generate.ts` is the production adapter: it
+imports only the tenant-scoped Conversation runtime and has no Research import.
+`src/runtime/agent/base-agent.ts` is the
 shared BaseAgent factory: every agent receives the same input normalization,
 current-context, objective-continuity, response-quality, failure-recovery,
 token-limit, step-budget, and bounded API-retry pipeline. Agent-specific code
@@ -70,10 +73,11 @@ local research data from being copied into a deployment.
 `pnpm dev` and `pnpm build` run the normal Pilot configuration. `pnpm
 dev:research` and `pnpm build:research` set `PILOT_ENABLE_RESEARCH=true` and
 register Pilot Research through the same entrypoint. Research is not activated
-for a normal runtime request. The current Mastra build still follows the
-optional registration import and packages research dependencies, so it must not
-be deployed to Vercel until the deploy artifact is split or the bundler's
-supported exclusion mechanism is verified.
+for a normal runtime request. Mastra's build still follows the optional
+registration import and packages research dependencies, so it is a local
+development artifact. Vercel deploys the isolated Conversation function instead;
+it is reachable only through the protected
+`POST /pilot/conversations/generate` rewrite.
 
 Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package
 documentation. Production runtime storage uses the environment-specific Neon
