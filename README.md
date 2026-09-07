@@ -30,7 +30,7 @@ accepts only a server-generated, validated command; maps the organization and
 Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
 to the Mastra thread; and uses `@mastra/libsql` with the matching Turso database.
 It allows only the Kilo Gateway development model `kilo/kilo-auto/free` and
-has no enabled tools. Its only endpoint is `POST /pilot/conversations/generate`, which
+has no enabled tools. Its internal endpoint is `POST /pilot/conversations/generate`, which
 is disabled unless both `PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` are configured. Deploy it only
 behind Vercel Deployment Protection with Pilot configured as a Trusted Source;
 it relies on that server-to-server boundary and must never be attached to a
@@ -47,8 +47,19 @@ On 2026-09-07, Preview was deployed through a remote Linux Vercel build and
 verified through its protected endpoint. Two separate function invocations
 wrote and then recalled a randomized conversation value through Turso. This
 does not authorize Pilot traffic: configure Pilot as the Trusted Source before
-setting its runtime URL. Production also requires its own sensitive
-`TURSO_AUTH_TOKEN` before deployment.
+setting its runtime URL. Production is now also deployed with its own sensitive
+`TURSO_AUTH_TOKEN`.
+
+## Runtime API
+
+The protected production runtime is `https://ai.pilot.sdk.enterprises`.
+`POST /v1/chat/completions` accepts OpenAI Chat Completions `model`,
+`messages`, and `stream: false`, then returns a `chat.completion` object with
+`choices` and token `usage`. Pilot sends its verified organization, Worker,
+and Conversation IDs only in server-to-server headers. `vercel.json` deploys
+the isolated Node function and rewrites `/v1/*` to its Vercel Function entry.
+Mastra's generic agent routes remain private because they would expose
+development-only Research capabilities.
 
 ## Development
 
