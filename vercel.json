@@ -11,6 +11,9 @@
   "functions": {
     "api/v1/chat/completions.ts": {
       "maxDuration": 90
+    },
+    "api/v1/conversations/delete.ts": {
+      "maxDuration": 30
     }
   }
 }
