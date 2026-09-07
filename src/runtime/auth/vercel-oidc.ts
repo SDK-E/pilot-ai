@@ -1,14 +1,22 @@
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 
 const teamSlug = 'sdk-enterprises';
-const issuer = `https://oidc.vercel.com/${teamSlug}`;
+const teamIssuer = `https://oidc.vercel.com/${teamSlug}`;
+const globalIssuer = 'https://oidc.vercel.com';
 const audience = `https://vercel.com/${teamSlug}`;
 const sourceProject = 'pilot';
-const tokenHeader = 'x-vercel-trusted-oidc-idp-token';
+const tokenHeader = 'x-pilot-runtime-oidc-token';
 
-const verificationKeys = createRemoteJWKSet(
-  new URL(`${issuer}/.well-known/jwks`),
-);
+const verificationKeysByIssuer = new Map([
+  [
+    teamIssuer,
+    createRemoteJWKSet(new URL(`${teamIssuer}/.well-known/jwks`)),
+  ],
+  [
+    globalIssuer,
+    createRemoteJWKSet(new URL(`${globalIssuer}/.well-known/jwks`)),
+  ],
+]);
 
 function deploymentEnvironment(): 'preview' | 'production' | undefined {
   const environment = process.env.VERCEL_ENV;
@@ -31,6 +39,18 @@ export async function verifyPilotRuntimeRequest(request: Request): Promise<boole
   }
 
   try {
+    // Decoding selects one of two fixed Vercel issuers only. jwtVerify below
+    // verifies the signature and pins that issuer before accepting the token.
+    const decoded = decodeJwt(token);
+    const issuer = typeof decoded.iss === 'string' ? decoded.iss : undefined;
+    const verificationKeys = issuer
+      ? verificationKeysByIssuer.get(issuer)
+      : undefined;
+
+    if (!issuer || !verificationKeys) {
+      return false;
+    }
+
     await jwtVerify(token, verificationKeys, {
       issuer,
       audience,
