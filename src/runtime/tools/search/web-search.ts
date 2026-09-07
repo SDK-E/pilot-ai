@@ -5,8 +5,8 @@ import {
   performLangSearch,
   searchResultSchema,
   type SearchResult,
-} from './langsearch';
-import { performDorkSearch } from './search-dorks';
+} from './langsearch.js';
+import { performDorkSearch } from './search-dorks.js';
 import { performUrlFetch } from '../url-fetch.js';
 
 export type WebSearchConfig = {

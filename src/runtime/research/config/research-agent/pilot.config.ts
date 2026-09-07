@@ -3,7 +3,7 @@ import {
   pilotProfileSchema,
   type PilotConfig,
   type PilotProfile,
-} from './pilot.config.schema';
+} from './pilot.config.schema.js';
 
 const DEFAULT_MODEL =
   'kilo/kilo-auto/free';

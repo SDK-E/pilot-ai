@@ -14,7 +14,7 @@ import {
   type PilotRuntimeStorageConfig,
 } from '../runtime/storage/pilot-runtime.js';
 import { webSearch } from '../runtime/tools/search/web-search.js';
-import { researchAgentIdentity } from './identity';
+import { researchAgentIdentity } from './identity.js';
 
 const productionResearchInstructions = `
 You are Pilot Research, a careful public-web research agent.

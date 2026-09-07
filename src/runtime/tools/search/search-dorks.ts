@@ -5,7 +5,7 @@ import {
   performLangSearch,
   searchResultSchema,
   type SearchResult,
-} from './langsearch';
+} from './langsearch.js';
 
 const dorkSearchResultSchema = z.object({
   query: z.string(),

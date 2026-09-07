@@ -1,10 +1,10 @@
 import {
   createGenericCache,
-} from './generic-cache';
+} from './generic-cache.js';
 import {
   createSkillFeedback,
   type SkillFeedbackStats,
-} from './skill-feedback';
+} from './skill-feedback.js';
 import type { Client } from '@libsql/client';
 
 let researchCache: ReturnType<typeof createGenericCache> | undefined;
