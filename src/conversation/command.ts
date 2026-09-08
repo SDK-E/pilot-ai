@@ -1,8 +1,9 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-import { conversationRuntimeConfig } from './config.js';
+import { conversationRuntimeConfig } from "./config.js";
 
-const resourcePrefix = 'pilot-conversation';
+const resourcePrefix = "pilot-conversation";
+const projectResourcePrefix = "pilot-project";
 
 export const generateConversationReplySchema = z
   .object({
@@ -14,17 +15,27 @@ export const generateConversationReplySchema = z
     }),
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
-    baseAgentId: z.enum(['conversational', 'research']),
-    allowedToolIds: z.array(z.literal('web-search')).max(1).default([]),
+    baseAgentId: z.enum(["conversational", "research"]),
+    allowedToolIds: z.array(z.literal("web-search")).max(1).default([]),
     executionId: z.uuid(),
+    project: z
+      .object({
+        id: z.uuid(),
+        instructions: z.string().min(1).max(10_000).optional(),
+        sharedMemoryEnabled: z.boolean(),
+      })
+      .optional(),
   })
   .strict()
   .superRefine((command, context) => {
-    if (command.baseAgentId === 'conversational' && command.allowedToolIds.length > 0) {
+    if (
+      command.baseAgentId === "conversational" &&
+      command.allowedToolIds.length > 0
+    ) {
       context.addIssue({
-        code: 'custom',
-        message: 'Conversational requests cannot use tools.',
-        path: ['allowedToolIds'],
+        code: "custom",
+        message: "Conversational requests cannot use tools.",
+        path: ["allowedToolIds"],
       });
     }
   });
@@ -37,5 +48,29 @@ export function createConversationResourceId(
   organizationId: string,
   workerId: string,
 ): string {
-  return [resourcePrefix, organizationId, workerId].join(':');
+  return [resourcePrefix, organizationId, workerId].join(":");
+}
+
+export function createProjectResourceId(
+  organizationId: string,
+  workerId: string,
+  projectId: string,
+): string {
+  return [projectResourcePrefix, organizationId, workerId, projectId].join(":");
+}
+
+export function createMemoryResourceId(
+  command: GenerateConversationReply,
+): string {
+  if (command.project?.sharedMemoryEnabled) {
+    return createProjectResourceId(
+      command.organizationId,
+      command.worker.id,
+      command.project.id,
+    );
+  }
+  return createConversationResourceId(
+    command.organizationId,
+    command.worker.id,
+  );
 }

@@ -102,6 +102,45 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     });
   });
 
+  it("accepts server-provided project context without trusting the request body", async () => {
+    mocks.generate.mockResolvedValue({
+      text: "Hello.",
+      finishReason: "stop",
+      modelId: "kilo/kilo-auto/free",
+      runId: "run-project",
+      usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    });
+    const response = await handler.fetch(
+      new Request("https://ai.pilot.test/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          ...headers,
+          "x-pilot-project-id": "46cc2779-64a8-467a-851c-2448c550cd7e",
+          "x-pilot-project-instructions": "Use the project plan.",
+          "x-pilot-project-shared-memory-enabled": "true",
+        },
+        body: JSON.stringify({
+          model: "kilo/kilo-auto/free",
+          messages: [
+            { role: "system", content: "Be helpful." },
+            { role: "user", content: "Hello." },
+          ],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: {
+          id: "46cc2779-64a8-467a-851c-2448c550cd7e",
+          instructions: "Use the project plan.",
+          sharedMemoryEnabled: true,
+        },
+      }),
+    );
+  });
+
   it("rejects requests without a valid Vercel OIDC token before initialization", async () => {
     mocks.verifyRequest.mockResolvedValue(false);
 
