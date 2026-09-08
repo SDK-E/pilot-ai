@@ -39,7 +39,7 @@ to the Mastra thread; and uses `@mastra/libsql` with the matching Turso database
 Conversation has no tools. Production Research accepts only a server-generated
 `web-search` capability and must not rely on browser-provided tool identifiers.
 
-The runtime requires `PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
+The runtime requires `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
 the matching environment. `pnpm verify:memory` performs a real two-process
 memory check and deletes its randomized thread afterward.
 
@@ -79,7 +79,7 @@ pnpm build
 Kilo/browser evaluation work and are deliberately opt-in.
 
 `pnpm verify:memory` is an opt-in live persistence check. Set
-`PILOT_MASTRA_DATABASE_URL` and `TURSO_AUTH_TOKEN` for an isolated,
+`TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for an isolated,
 matching-environment Turso database; it performs two Kilo Gateway generations
 and deletes its randomized Mastra thread.
 
@@ -108,7 +108,7 @@ documentation. Every Pilot agent is constructed through the shared BaseAgent
 pipeline, including the generic short-request prompt enhancer; agent-specific
 research policy and verification processors run after that shared context.
 Production runtime storage uses the environment-specific Turso
-LibSQL database through `PILOT_MASTRA_DATABASE_URL`; never add a file-backed
+LibSQL database through `TURSO_DATABASE_URL`; never add a file-backed
 database to the Pilot Conversation path or expose a tool before Pilot enforces
 its capability and approval policy.
 

@@ -10,17 +10,17 @@ The model never decides whether it may use a capability. Pilot resolves the acti
 
 ## Reuse from Pilot Research Agent
 
-| Pilot Research Agent component | Pilot Conversation decision |
-| --- | --- |
-| Kilo Gateway model configuration and retry policy | Reuse as the initial model adapter, with the Worker-selected model checked against Pilot's server allowlist. |
-| `BaseAgent` | Reuse the identity contract and shared normalization, context, objective continuity, response-quality, recovery, bounded retry, token and step-budget pipeline. |
-| `UnicodeNormalizer` | Reuse to normalize untrusted message text before model input. |
-| `TokenLimiterProcessor` and step budget | Reuse with smaller conversational limits and a clear terminal reply when a limit is reached. |
-| Response quality, verbosity and process-narration processors | Reuse their conversation-safe parts so replies stay direct, proportionate and free of internal runtime narration. |
-| `ToolSearchProcessor` | Reuse for authorized tool discovery only. Supply the tool set dynamically from request context, use `storage: 'context'` so loaded-tool state survives process restarts, and filter every search/load/activation against the request's allowed tool IDs. |
-| Mastra `Memory` | Reuse message history with the stable Pilot Worker resource and Pilot Conversation thread. Start with message history only; add observational memory after normal two-turn persistence is proven. |
-| Tool approval and suspended-run support | Reuse when an authorized capability requires approval. Pilot owns the approval record, user experience and resume authorization. |
-| Agent tests, evals and scorer approach | Reuse the discipline, not the research-specific datasets. Add a small conversational regression suite for memory, authorization, direct answers, allowed tools, denied tools and approval suspension. |
+| Pilot Research Agent component                               | Pilot Conversation decision                                                                                                                                                                                                                              |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kilo Gateway model configuration and retry policy            | Reuse as the initial model adapter, with the Worker-selected model checked against Pilot's server allowlist.                                                                                                                                             |
+| `BaseAgent`                                                  | Reuse the identity contract and shared normalization, context, objective continuity, response-quality, recovery, bounded retry, token and step-budget pipeline.                                                                                          |
+| `UnicodeNormalizer`                                          | Reuse to normalize untrusted message text before model input.                                                                                                                                                                                            |
+| `TokenLimiterProcessor` and step budget                      | Reuse with smaller conversational limits and a clear terminal reply when a limit is reached.                                                                                                                                                             |
+| Response quality, verbosity and process-narration processors | Reuse their conversation-safe parts so replies stay direct, proportionate and free of internal runtime narration.                                                                                                                                        |
+| `ToolSearchProcessor`                                        | Reuse for authorized tool discovery only. Supply the tool set dynamically from request context, use `storage: 'context'` so loaded-tool state survives process restarts, and filter every search/load/activation against the request's allowed tool IDs. |
+| Mastra `Memory`                                              | Reuse message history with the stable Pilot Worker resource and Pilot Conversation thread. Start with message history only; add observational memory after normal two-turn persistence is proven.                                                        |
+| Tool approval and suspended-run support                      | Reuse when an authorized capability requires approval. Pilot owns the approval record, user experience and resume authorization.                                                                                                                         |
+| Agent tests, evals and scorer approach                       | Reuse the discipline, not the research-specific datasets. Add a small conversational regression suite for memory, authorization, direct answers, allowed tools, denied tools and approval suspension.                                                    |
 
 ## Do not copy from Pilot Research Agent
 
@@ -56,7 +56,7 @@ Use `@mastra/libsql` with the matching Turso environment for Mastra storage. Do 
 
 ## Delivery order
 
-1. Use deployed storage with `@mastra/libsql` and prove restart-safe message history. **Preview was verified through two separate protected Vercel invocations on 2026-09-07. Production still needs its own sensitive `TURSO_AUTH_TOKEN` before deployment.**
+1. Use deployed storage with `@mastra/libsql` and prove restart-safe message history. **Preview was verified through two separate protected Vercel invocations on 2026-09-07. Production requires its own sensitive `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.**
 2. Add `pilot-conversation` with direct chat behavior and no enabled capabilities by default. **Implemented and covered by deterministic command-validation tests.**
 3. Add the typed internal endpoint and protected Pilot-to-runtime transport. **The runtime endpoint is implemented; Pilot still needs to become the authenticated caller and Vercel Trusted Sources must be configured before deployment.**
 4. Keep the local Research Agent in the shared Pilot runtime before deployment. **Implemented with `src/index.ts` registering both agents, `src/runtime/agent/base-agent.ts` providing their shared behavior, and `src/research` holding research-specific code. The normal Pilot build does not load research dependencies.**
