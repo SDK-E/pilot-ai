@@ -4,6 +4,7 @@ import type { Memory } from "@mastra/memory";
 
 import {
   createMemoryResourceId,
+  createProjectResourceId,
   generateConversationReplySchema,
   type GenerateConversationReply,
 } from "./command.js";
@@ -151,6 +152,30 @@ export function createPilotConversationRuntime(
       }
 
       await selectedMemory.deleteThread(command.conversationId);
+    },
+
+    async deleteProjectMemory(rawCommand: unknown) {
+      const command = generateConversationReplySchema.parse({
+        ...(rawCommand as object),
+        conversationId: "00000000-0000-4000-8000-000000000000",
+        message: "Cleanup only.",
+        baseAgentId: "conversational",
+        allowedToolIds: [],
+        executionId: "00000000-0000-4000-8000-000000000000",
+      });
+      if (!command.project?.sharedMemoryEnabled) return;
+      const resourceId = createProjectResourceId(
+        command.organizationId,
+        command.worker.id,
+        command.project.id,
+      );
+      const { threads } = await projectMemory.listThreads({
+        filter: { resourceId },
+        perPage: false,
+      });
+      await Promise.all(
+        threads.map((thread) => projectMemory.deleteThread(thread.id)),
+      );
     },
   };
 }
