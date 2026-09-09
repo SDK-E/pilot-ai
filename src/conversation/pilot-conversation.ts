@@ -87,6 +87,7 @@ export function createPilotConversationRuntime(
       });
 
       return {
+        kind: "completed" as const,
         text: result.text,
         finishReason: result.finishReason,
         modelId: command.worker.modelId,
@@ -116,6 +117,7 @@ export function createPilotConversationRuntime(
         async result() {
           const completed = await output.getFullOutput();
           return {
+            kind: "completed" as const,
             finishReason: completed.finishReason,
             modelId: command.worker.modelId,
             runId: completed.runId ?? output.runId ?? null,

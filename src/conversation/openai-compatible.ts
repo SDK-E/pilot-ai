@@ -33,6 +33,7 @@ const pilotContextSchema = z
     executionId: z.uuid(),
     baseAgentId: z.enum(["conversational", "research"]),
     allowedToolIds: z.array(z.literal("web-search")).max(1),
+    toolApprovalMode: z.enum(["allow", "ask"]).optional(),
     projectId: z.uuid().optional(),
     projectInstructions: z.string().min(1).max(10_000).optional(),
     projectSharedMemoryEnabled: z.boolean().optional(),
@@ -46,6 +47,10 @@ function parseAllowedToolIds(value: string | null): unknown {
   } catch {
     return undefined;
   }
+}
+
+function parseToolApprovalMode(value: string | null): unknown {
+  return value === "allow" || value === "ask" ? value : undefined;
 }
 
 function parseOptionalBoolean(value: string | null): unknown {
@@ -68,6 +73,9 @@ export function createConversationCommandFromChatCompletion(
     baseAgentId: headers.get("x-pilot-base-agent-id"),
     allowedToolIds: parseAllowedToolIds(
       headers.get("x-pilot-allowed-tool-ids"),
+    ),
+    toolApprovalMode: parseToolApprovalMode(
+      headers.get("x-pilot-tool-approval-mode"),
     ),
     projectId: headers.get("x-pilot-project-id") || undefined,
     projectInstructions:
@@ -99,6 +107,7 @@ export function createConversationCommandFromChatCompletion(
     executionId: context.executionId,
     baseAgentId: context.baseAgentId,
     allowedToolIds: context.allowedToolIds,
+    toolApprovalMode: context.toolApprovalMode,
     project: context.projectId
       ? {
           id: context.projectId,
@@ -106,6 +115,17 @@ export function createConversationCommandFromChatCompletion(
           sharedMemoryEnabled: context.projectSharedMemoryEnabled ?? false,
         }
       : undefined,
+  };
+}
+
+export function createApprovalRequiredResponse(result: {
+  runId: string;
+  toolCallId: string;
+}) {
+  return {
+    object: "pilot.approval.required" as const,
+    run_id: result.runId,
+    tool_call_id: result.toolCallId,
   };
 }
 
@@ -141,16 +161,29 @@ export function createChatCompletionResponse(
 type StreamingConversationResult = {
   runId: string | null;
   textStream: AsyncIterable<string>;
-  result(): Promise<{
-    finishReason: string | undefined;
-    modelId: string;
-    runId: string | null;
-    usage: {
-      inputTokens: number;
-      outputTokens: number;
-      totalTokens: number;
-    };
-  }>;
+  result(): Promise<
+    | {
+        kind: "completed";
+        finishReason: string | undefined;
+        modelId: string;
+        runId: string | null;
+        usage: {
+          inputTokens: number;
+          outputTokens: number;
+          totalTokens: number;
+        };
+      }
+    | {
+        kind: "suspended";
+        runId: string;
+        toolCallId: string;
+        usage: {
+          inputTokens: number;
+          outputTokens: number;
+          totalTokens: number;
+        };
+      }
+  >;
 };
 
 export function isStreamingChatCompletionRequest(rawRequest: unknown) {
@@ -191,6 +224,22 @@ export function createChatCompletionStream(
         }
 
         const completed = await result.result();
+        if (completed.kind === "suspended") {
+          controller.enqueue(
+            send({
+              id,
+              object: "pilot.approval.required",
+              model: "kilo/kilo-auto/free",
+              pilot: {
+                run_id: completed.runId,
+                tool_call_id: completed.toolCallId,
+              },
+            }),
+          );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+          return;
+        }
         controller.enqueue(
           send({
             id,

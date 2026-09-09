@@ -14,7 +14,8 @@ const activitySchema = z.object({
   executionId: z.string().uuid(),
   toolId: z.literal('web-search'),
   toolCallId: z.string().min(1).max(255).optional(),
-  state: z.enum(['started', 'completed', 'failed']),
+  state: z.enum(['started', 'completed', 'failed', 'awaiting_approval']),
+  runtimeRunId: z.string().min(1).max(255).optional(),
 }).strict();
 
 type ActivityEvent = z.infer<typeof activitySchema>;

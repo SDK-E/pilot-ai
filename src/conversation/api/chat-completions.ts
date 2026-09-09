@@ -1,41 +1,42 @@
-import { registerApiRoute } from '@mastra/core/server';
-import { ZodError } from 'zod';
+import { registerApiRoute } from "@mastra/core/server";
+import { ZodError } from "zod";
 
 import {
+  createApprovalRequiredResponse,
   createChatCompletionResponse,
   createChatCompletionStream,
   createConversationCommandFromChatCompletion,
   isStreamingChatCompletionRequest,
-} from '#conversation/openai-compatible';
-import { createPilotConversationRuntime } from '../pilot-conversation.js';
-import { createPilotResearchRuntime } from '#research/pilot-research';
-import { verifyPilotRuntimeRequest } from '#runtime/auth/vercel-oidc';
-import { getPilotRuntimeStorageConfig } from '#runtime/storage/pilot-runtime';
+} from "#conversation/openai-compatible";
+import { createPilotConversationRuntime } from "../pilot-conversation.js";
+import { createPilotResearchRuntime } from "#research/pilot-research";
+import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
+import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
 
 function error(message: string, type: string, status: number): Response {
   return Response.json({ error: { message, type } }, { status });
 }
 
 export const chatCompletionsRegistration = registerApiRoute(
-  '/v1/chat/completions',
+  "/v1/chat/completions",
   {
-    method: 'POST',
+    method: "POST",
     requiresAuth: false,
     handler: async (c) => {
       const request = c.req.raw;
 
-      if (request.method !== 'POST') {
-        return error('Method not allowed.', 'invalid_request_error', 405);
+      if (request.method !== "POST") {
+        return error("Method not allowed.", "invalid_request_error", 405);
       }
       if (!(await verifyPilotRuntimeRequest(request))) {
-        return error('Unauthorized.', 'authentication_error', 401);
+        return error("Unauthorized.", "authentication_error", 401);
       }
 
       const storageConfig = getPilotRuntimeStorageConfig();
       if (!storageConfig) {
         return error(
-          'Pilot Conversation is not configured.',
-          'server_error',
+          "Pilot Conversation is not configured.",
+          "server_error",
           503,
         );
       }
@@ -45,8 +46,8 @@ export const chatCompletionsRegistration = registerApiRoute(
         body = await request.json();
       } catch {
         return error(
-          'Request body must be valid JSON.',
-          'invalid_request_error',
+          "Request body must be valid JSON.",
+          "invalid_request_error",
           400,
         );
       }
@@ -61,8 +62,8 @@ export const chatCompletionsRegistration = registerApiRoute(
         return error(
           cause instanceof ZodError || cause instanceof Error
             ? cause.message
-            : 'Invalid chat completion request.',
-          'invalid_request_error',
+            : "Invalid chat completion request.",
+          "invalid_request_error",
           400,
         );
       }
@@ -74,18 +75,18 @@ export const chatCompletionsRegistration = registerApiRoute(
       let closeRuntime = true;
 
       try {
-        if (command.baseAgentId === 'research') {
-          if (process.env.PILOT_ENABLE_RESEARCH !== 'true') {
+        if (command.baseAgentId === "research") {
+          if (process.env.PILOT_ENABLE_RESEARCH !== "true") {
             return error(
-              'Pilot Research is not enabled.',
-              'invalid_request_error',
+              "Pilot Research is not enabled.",
+              "invalid_request_error",
               403,
             );
           }
 
-          const oidcToken = request.headers.get('x-pilot-runtime-oidc-token');
+          const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
           if (!oidcToken) {
-            return error('Unauthorized.', 'authentication_error', 401);
+            return error("Unauthorized.", "authentication_error", 401);
           }
           runtime = createPilotResearchRuntime(storageConfig, oidcToken);
         } else {
@@ -108,24 +109,27 @@ export const chatCompletionsRegistration = registerApiRoute(
             }),
             {
               headers: {
-                'cache-control': 'no-cache, no-transform',
-                'content-type': 'text/event-stream; charset=utf-8',
-                connection: 'keep-alive',
+                "cache-control": "no-cache, no-transform",
+                "content-type": "text/event-stream; charset=utf-8",
+                connection: "keep-alive",
               },
             },
           );
         }
 
         const result = await runtime.generate(command);
+        if (result.kind === "suspended") {
+          return Response.json(createApprovalRequiredResponse(result));
+        }
         return Response.json(createChatCompletionResponse(result));
       } catch (cause) {
         console.error(
-          '[pilot-conversation] generation failed:',
-          cause instanceof Error ? cause.name : 'unknown error',
+          "[pilot-conversation] generation failed:",
+          cause instanceof Error ? cause.name : "unknown error",
         );
         return error(
-          'Pilot Conversation could not complete.',
-          'server_error',
+          "Pilot Conversation could not complete.",
+          "server_error",
           502,
         );
       } finally {

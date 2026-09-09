@@ -18,3 +18,13 @@ describe("Vercel cleanup entrypoints", () => {
     expect(response.status).toBe(405);
   });
 });
+
+describe("Vercel approval resume entrypoint", () => {
+  it("loads and rejects a non-POST request before parsing an approval command", async () => {
+    const approvalResume = await import("../../../api/v1/approvals/resume.js");
+    const response = await approvalResume.default.fetch(
+      new Request("https://ai.pilot.test/v1/approvals/resume"),
+    );
+    expect(response.status).toBe(405);
+  });
+});

@@ -32,3 +32,4 @@ change between versions.
 ## Resources
 
 - [Mastra Documentation](https://mastra.ai/llms.txt)
+- The Vercel `api/v1/approvals/resume` entrypoint and the Mastra custom API route must remain behaviorally identical and reject a non-POST or unauthenticated request before parsing an approval command.
