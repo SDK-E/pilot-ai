@@ -63,6 +63,11 @@ function and rewrites `/v1/*` to its Vercel Function entry. Generic Mastra
 runtime routes verify the same OIDC token before they parse a request or create
 storage, so they cannot expose local-development capabilities.
 
+The same Vercel function boundary exposes `POST /v1/conversations/delete` and
+`POST /v1/projects/delete-memory` for Pilot-owned cleanup. Both require the
+verified Pilot OIDC token and accept only typed server commands; they are never
+called by the browser.
+
 ## Development
 
 Use Node.js 24 and pnpm. The `dev` and `build` scripts invoke the Mastra CLI.
