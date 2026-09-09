@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import { createPilotConversationRuntime } from "../pilot-conversation.js";
-import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
-import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
+import { verifyPilotRuntimeRequest } from "../../runtime/auth/vercel-oidc.js";
+import { getPilotRuntimeStorageConfig } from "../../runtime/storage/pilot-runtime.js";
 
 export const conversationCleanupSchema = z
   .object({
