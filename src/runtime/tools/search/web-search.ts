@@ -1,13 +1,13 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 import {
   performLangSearch,
   searchResultSchema,
   type SearchResult,
-} from './langsearch.js';
-import { performDorkSearch } from './search-dorks.js';
-import { performUrlFetch } from '../url-fetch.js';
+} from "./langsearch.js";
+import { performDorkSearch } from "./search-dorks.js";
+import { performUrlFetch } from "../url-fetch.js";
 
 export type WebSearchConfig = {
   performStagehandSearch?: boolean;
@@ -29,7 +29,7 @@ const webSearchResultSchema = searchResultSchema.extend({
 });
 
 const fallbackSchema = z.object({
-  stage: z.enum(['primary', 'simplified', 'dork', 'stagehand']),
+  stage: z.enum(["primary", "simplified", "dork", "stagehand"]),
   query: z.string(),
   resultCount: z.number().int().min(0),
 });
@@ -37,7 +37,7 @@ const fallbackSchema = z.object({
 function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
+    return url.protocol === "http:" || url.protocol === "https:";
   } catch {
     return false;
   }
@@ -45,21 +45,21 @@ function isHttpUrl(value: string): boolean {
 
 function simplifyQuery(query: string): string {
   return query
-    .replace(/\b(?:site|intitle|inurl|filetype|after|before):[^\s)]+/gi, ' ')
-    .replace(/[()"']/g, ' ')
-    .replace(/\bOR\b/gi, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/\b(?:site|intitle|inurl|filetype|after|before):[^\s)]+/gi, " ")
+    .replace(/[()"']/g, " ")
+    .replace(/\bOR\b/gi, " ")
+    .replace(/\s+/g, " ")
     .trim()
-    .split(' ')
+    .split(" ")
     .filter(Boolean)
     .slice(0, 12)
-    .join(' ');
+    .join(" ");
 }
 
 function dedupe(results: SearchResult[]): SearchResult[] {
   const seen = new Set<string>();
   return results.filter((result) => {
-    const key = result.url.replace(/\/$/, '').toLowerCase();
+    const key = result.url.replace(/\/$/, "").toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -78,7 +78,7 @@ async function resilientSearch(
   const fallbackTrace: Array<z.infer<typeof fallbackSchema>> = [];
 
   const primary = await performLangSearch(query, maxResults, abortSignal);
-  fallbackTrace.push({ stage: 'primary', query, resultCount: primary.length });
+  fallbackTrace.push({ stage: "primary", query, resultCount: primary.length });
   if (primary.length > 0) {
     return { results: primary, fallbackTrace };
   }
@@ -87,7 +87,7 @@ async function resilientSearch(
   if (simplified && simplified !== query) {
     const retry = await performLangSearch(simplified, maxResults, abortSignal);
     fallbackTrace.push({
-      stage: 'simplified',
+      stage: "simplified",
       query: simplified,
       resultCount: retry.length,
     });
@@ -107,7 +107,7 @@ async function resilientSearch(
   );
   const dorkResults = dedupe(dorkSearches.flatMap((item) => item.results));
   fallbackTrace.push({
-    stage: 'dork',
+    stage: "dork",
     query,
     resultCount: dorkResults.length,
   });
@@ -122,12 +122,11 @@ async function resilientSearch(
   if (config.performStagehandSearch) {
     try {
       const stagehandQuery = simplified || query;
-      const { performStagehandSearch } = await import(
-        '../../research/tools/stagehand-browser.js'
-      );
+      const { performStagehandSearch } =
+        await import("../../research/tools/stagehand-browser.js");
       const browserResults = await performStagehandSearch(stagehandQuery);
       fallbackTrace.push({
-        stage: 'stagehand',
+        stage: "stagehand",
         query: stagehandQuery,
         resultCount: browserResults.length,
       });
@@ -138,7 +137,7 @@ async function resilientSearch(
       };
     } catch {
       fallbackTrace.push({
-        stage: 'stagehand',
+        stage: "stagehand",
         query: simplified || query,
         resultCount: 0,
       });
@@ -151,17 +150,22 @@ async function resilientSearch(
 }
 
 export const webSearch = createTool({
-  id: 'web-search',
+  id: "web-search",
 
   description:
-    'Search the public web or read a public URL. Empty searches automatically retry with a simpler query, then dork-aware search, then Stagehand browser search before returning no results.',
+    "Search the public web or read a public URL. Empty searches automatically retry with a simpler query, then dork-aware search, then Stagehand browser search before returning no results.",
 
   inputSchema: z.object({
     query: z.string().min(1),
     maxResults: z.number().int().min(1).max(10).default(5),
     readPages: z.boolean().default(true),
     maxPages: z.number().int().min(1).max(5).default(3),
-    maxCharactersPerPage: z.number().int().min(1_000).max(50_000).default(15_000),
+    maxCharactersPerPage: z
+      .number()
+      .int()
+      .min(1_000)
+      .max(50_000)
+      .default(15_000),
   }),
 
   outputSchema: z.object({
@@ -170,13 +174,7 @@ export const webSearch = createTool({
   }),
 
   execute: async (
-    {
-      query,
-      maxResults,
-      readPages,
-      maxPages,
-      maxCharactersPerPage,
-    },
+    { query, maxResults, readPages, maxPages, maxCharactersPerPage },
     { abortSignal },
   ) => {
     if (isHttpUrl(query)) {
@@ -216,11 +214,7 @@ export const webSearch = createTool({
 
     const fetched = await Promise.allSettled(
       pagesToRead.map((result) =>
-        performUrlFetch(
-          result.url,
-          maxCharactersPerPage,
-          abortSignal,
-        ),
+        performUrlFetch(result.url, maxCharactersPerPage, abortSignal),
       ),
     );
 
@@ -228,7 +222,7 @@ export const webSearch = createTool({
       if (index >= pagesToRead.length) return result;
 
       const fetchedResult = fetched[index];
-      if (fetchedResult.status === 'fulfilled') {
+      if (fetchedResult.status === "fulfilled") {
         return {
           ...result,
           title: fetchedResult.value.title ?? result.title,
@@ -254,22 +248,27 @@ export const webSearch = createTool({
   },
 
   toModelOutput: (output) => ({
-    type: 'text',
+    type: "text",
     value:
       output.results.length === 0
-        ? `No web results were returned after fallback attempts.\n${output.fallbackTrace.map((item) => `${item.stage}: ${item.resultCount}`).join(' | ')}`
+        ? `No web results were returned after fallback attempts.\n${output.fallbackTrace.map((item: z.infer<typeof fallbackSchema>) => `${item.stage}: ${item.resultCount}`).join(" | ")}`
         : output.results
-            .map((result, index) =>
-              [
-                `${index + 1}. ${result.title}`,
-                result.url,
-                result.publishedAt ? `Published: ${result.publishedAt}` : undefined,
-                result.markdown ?? result.snippet ?? result.content,
-                result.fetchError ? `Page read failed: ${result.fetchError}` : undefined,
-              ]
-                .filter(Boolean)
-                .join('\n\n'),
+            .map(
+              (result: z.infer<typeof webSearchResultSchema>, index: number) =>
+                [
+                  `${index + 1}. ${result.title}`,
+                  result.url,
+                  result.publishedAt
+                    ? `Published: ${result.publishedAt}`
+                    : undefined,
+                  result.markdown ?? result.snippet ?? result.content,
+                  result.fetchError
+                    ? `Page read failed: ${result.fetchError}`
+                    : undefined,
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
             )
-            .join('\n\n---\n\n'),
+            .join("\n\n---\n\n"),
   }),
 });

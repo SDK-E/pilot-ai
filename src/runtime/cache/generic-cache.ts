@@ -1,7 +1,4 @@
-import {
-  createClient,
-  type Client,
-} from '@libsql/client';
+import { createClient, type Client } from "@libsql/client/node";
 
 type GenericCacheConfig = {
   client: Client;
@@ -19,18 +16,15 @@ type GenericCache = {
   ) => Promise<void>;
 };
 
-export function createGenericCache(
-  config: GenericCacheConfig,
-): GenericCache {
+export function createGenericCache(config: GenericCacheConfig): GenericCache {
   const { client, tableName } = config;
 
-  let initializationPromise:
-    | Promise<void>
-    | undefined;
+  let initializationPromise: Promise<void> | undefined;
 
   async function initialize(): Promise<void> {
     initializationPromise ??= client
-      .execute(`
+      .execute(
+        `
         CREATE TABLE IF NOT EXISTS ${tableName} (
           cache_key TEXT PRIMARY KEY,
           cache_type TEXT NOT NULL,
@@ -38,22 +32,18 @@ export function createGenericCache(
           created_at TEXT NOT NULL,
           expires_at TEXT NOT NULL
         )
-      `)
+      `,
+      )
       .then(() => undefined);
 
     await initializationPromise;
   }
 
-  function makeCacheKey(
-    type: string,
-    input: unknown,
-  ): string {
+  function makeCacheKey(type: string, input: unknown): string {
     return `${type}:${JSON.stringify(input)}`;
   }
 
-  async function getCachedValue<T>(
-    key: string,
-  ): Promise<T | undefined> {
+  async function getCachedValue<T>(key: string): Promise<T | undefined> {
     await initialize();
 
     const result = await client.execute({
@@ -75,7 +65,7 @@ export function createGenericCache(
     const expiresAt = row.expires_at;
 
     if (
-      typeof expiresAt !== 'string' ||
+      typeof expiresAt !== "string" ||
       new Date(expiresAt).getTime() <= Date.now()
     ) {
       await client.execute({
@@ -91,7 +81,7 @@ export function createGenericCache(
 
     const raw = row.value_json;
 
-    if (typeof raw !== 'string') {
+    if (typeof raw !== "string") {
       return undefined;
     }
 
@@ -111,9 +101,7 @@ export function createGenericCache(
     await initialize();
 
     const createdAt = new Date();
-    const expiresAt = new Date(
-      createdAt.getTime() + ttlMs,
-    );
+    const expiresAt = new Date(createdAt.getTime() + ttlMs);
 
     await client.execute({
       sql: `

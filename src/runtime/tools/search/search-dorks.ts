@@ -1,11 +1,11 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 import {
   performLangSearch,
   searchResultSchema,
   type SearchResult,
-} from './langsearch.js';
+} from "./langsearch.js";
 
 const dorkSearchResultSchema = z.object({
   query: z.string(),
@@ -18,11 +18,9 @@ function quote(value: string): string {
 }
 
 function normalize(values?: string[]): string[] {
-  return [...new Set(
-    (values ?? [])
-      .map((value) => value.trim())
-      .filter(Boolean),
-  )];
+  return [
+    ...new Set((values ?? []).map((value) => value.trim()).filter(Boolean)),
+  ];
 }
 
 function buildBaseQuery(input: {
@@ -43,18 +41,24 @@ function buildBaseQuery(input: {
 
   const anyOf = normalize(input.anyOf);
   if (anyOf.length > 0) {
-    parts.push(`(${anyOf.map(quote).join(' OR ')})`);
+    parts.push(`(${anyOf.map(quote).join(" OR ")})`);
   }
 
   parts.push(...normalize(input.exclude).map((value) => `-${quote(value)}`));
-  parts.push(...normalize(input.inTitle).map((value) => `intitle:${quote(value)}`));
+  parts.push(
+    ...normalize(input.inTitle).map((value) => `intitle:${quote(value)}`),
+  );
   parts.push(...normalize(input.inUrl).map((value) => `inurl:${quote(value)}`));
-  parts.push(...normalize(input.fileTypes).map((value) => `filetype:${value.replace(/^\./, '')}`));
+  parts.push(
+    ...normalize(input.fileTypes).map(
+      (value) => `filetype:${value.replace(/^\./, "")}`,
+    ),
+  );
 
   if (input.after) parts.push(`after:${input.after}`);
   if (input.before) parts.push(`before:${input.before}`);
 
-  return parts.join(' ').trim();
+  return parts.join(" ").trim();
 }
 
 export function buildDorkQueries(input: {
@@ -80,7 +84,10 @@ export function buildDorkQueries(input: {
     .filter((site): site is string => Boolean(site));
 
   if (rawSites.length > 1) {
-    base = base.replace(/(?:^|\s)site:[^\s)]+/gi, ' ').replace(/\s+/g, ' ').trim();
+    base = base
+      .replace(/(?:^|\s)site:[^\s)]+/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   const sites = normalize([
@@ -130,17 +137,17 @@ export async function performDorkSearch(
   );
 
   return settled.map((result, index) =>
-    result.status === 'fulfilled'
+    result.status === "fulfilled"
       ? result.value
       : { query: queries[index]!, results: [] },
   );
 }
 
 export const searchDorks = createTool({
-  id: 'search-dorks',
+  id: "search-dorks",
 
   description:
-    'Build and execute precise public-web search dorks. Use for targeted discovery with site:, intitle:, inurl:, filetype:, exact phrases, exclusions, OR groups, and date bounds. Multiple site: operators are split into independent searches automatically.',
+    "Build and execute precise public-web search dorks. Use for targeted discovery with site:, intitle:, inurl:, filetype:, exact phrases, exclusions, OR groups, and date bounds. Multiple site: operators are split into independent searches automatically.",
 
   inputSchema: z.object({
     rawQuery: z.string().min(1).optional(),
@@ -152,8 +159,14 @@ export const searchDorks = createTool({
     inTitle: z.array(z.string().min(1)).default([]),
     inUrl: z.array(z.string().min(1)).default([]),
     fileTypes: z.array(z.string().min(1)).default([]),
-    after: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    before: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    after: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    before: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
     maxQueries: z.number().int().min(1).max(10).default(5),
     maxResultsPerQuery: z.number().int().min(1).max(10).default(5),
   }),
@@ -166,7 +179,7 @@ export const searchDorks = createTool({
   execute: async (input, { abortSignal }) => {
     const searches = await performDorkSearch(input, abortSignal);
     if (searches.length === 0) {
-      throw new Error('At least one searchable condition is required.');
+      throw new Error("At least one searchable condition is required.");
     }
     return {
       queries: searches.map((item) => item.query),
@@ -175,19 +188,21 @@ export const searchDorks = createTool({
   },
 
   toModelOutput: (output) => ({
-    type: 'text',
+    type: "text",
     value: output.searches
-      .map((search) => [
-        `Query: ${search.query}`,
-        search.results.length === 0
-          ? 'No results.'
-          : search.results
-              .map(
-                (result, index) =>
-                  `${index + 1}. ${result.title}\n${result.url}\n${result.snippet ?? result.content ?? ''}`,
-              )
-              .join('\n\n'),
-      ].join('\n'))
-      .join('\n\n---\n\n'),
+      .map((search: { query: string; results: SearchResult[] }) =>
+        [
+          `Query: ${search.query}`,
+          search.results.length === 0
+            ? "No results."
+            : search.results
+                .map(
+                  (result: SearchResult, index: number) =>
+                    `${index + 1}. ${result.title}\n${result.url}\n${result.snippet ?? result.content ?? ""}`,
+                )
+                .join("\n\n"),
+        ].join("\n"),
+      )
+      .join("\n\n---\n\n"),
   }),
 });

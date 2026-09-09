@@ -1,11 +1,9 @@
-import {
-  createGenericCache,
-} from './generic-cache.js';
+import { createGenericCache } from "./generic-cache.js";
 import {
   createSkillFeedback,
   type SkillFeedbackStats,
-} from './skill-feedback.js';
-import type { Client } from '@libsql/client';
+} from "./skill-feedback.js";
+import type { Client } from "@libsql/client/node";
 
 let researchCache: ReturnType<typeof createGenericCache> | undefined;
 let skillFeedback: ReturnType<typeof createSkillFeedback> | undefined;
@@ -14,38 +12,35 @@ let skillFeedback: ReturnType<typeof createSkillFeedback> | undefined;
 export function setRuntimeCache(client: Client): void {
   researchCache = createGenericCache({
     client,
-    tableName: 'pilot_research_cache',
+    tableName: "pilot_research_cache",
   });
   skillFeedback = createSkillFeedback({
     client,
-    tableName: 'pilot_skill_feedback',
+    tableName: "pilot_skill_feedback",
   });
 }
 
 function requireSkillFeedback() {
   if (!skillFeedback) {
-    throw new Error('Research skill feedback is not configured for this runtime.');
+    throw new Error(
+      "Research skill feedback is not configured for this runtime.",
+    );
   }
   return skillFeedback;
 }
 
 function requireCache() {
   if (!researchCache) {
-    throw new Error('Research cache is not configured for this runtime.');
+    throw new Error("Research cache is not configured for this runtime.");
   }
   return researchCache;
 }
 
-export function makeCacheKey(
-  type: string,
-  input: unknown,
-): string {
+export function makeCacheKey(type: string, input: unknown): string {
   return requireCache().makeCacheKey(type, input);
 }
 
-export async function getCachedValue<T>(
-  key: string,
-): Promise<T | undefined> {
+export async function getCachedValue<T>(key: string): Promise<T | undefined> {
   return requireCache().getCachedValue<T>(key);
 }
 
@@ -65,7 +60,8 @@ export const recordSkillFeedback = (
   helpful: boolean,
   query?: string,
   reason?: string,
-) => requireSkillFeedback().recordSkillFeedback(skillId, helpful, query, reason);
+) =>
+  requireSkillFeedback().recordSkillFeedback(skillId, helpful, query, reason);
 export const recordSkillUse = (skillId: string, query?: string) =>
   requireSkillFeedback().recordSkillUse(skillId, query);
 export type { SkillFeedbackStats };

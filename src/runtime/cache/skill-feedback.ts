@@ -1,6 +1,4 @@
-import {
-  type Client,
-} from '@libsql/client';
+import { type Client } from "@libsql/client/node";
 
 export type SkillFeedbackStats = {
   skillId: string;
@@ -12,14 +10,19 @@ export type SkillFeedbackStats = {
 
 export type SkillFeedback = {
   recordSkillUse: (skillId: string, query?: string) => Promise<void>;
-  recordSkillFeedback: (skillId: string, helpful: boolean, query?: string, reason?: string) => Promise<SkillFeedbackStats>;
-  getSkillFeedbackMap: (skillIds: string[]) => Promise<Map<string, SkillFeedbackStats>>;
+  recordSkillFeedback: (
+    skillId: string,
+    helpful: boolean,
+    query?: string,
+    reason?: string,
+  ) => Promise<SkillFeedbackStats>;
+  getSkillFeedbackMap: (
+    skillIds: string[],
+  ) => Promise<Map<string, SkillFeedbackStats>>;
 };
 
 function toCount(value: unknown): number {
-  return typeof value === 'number'
-    ? value
-    : Number(value ?? 0);
+  return typeof value === "number" ? value : Number(value ?? 0);
 }
 
 function toStats(
@@ -37,10 +40,7 @@ function toStats(
     helpful,
     unhelpful,
     learnedScore:
-      totalFeedback === 0
-        ? 0
-        : (helpful - unhelpful) /
-          (totalFeedback + 4),
+      totalFeedback === 0 ? 0 : (helpful - unhelpful) / (totalFeedback + 4),
   };
 }
 
@@ -51,13 +51,12 @@ export function createSkillFeedback({
   client: Client;
   tableName: string;
 }): SkillFeedback {
-  let initializationPromise:
-    | Promise<void>
-    | undefined;
+  let initializationPromise: Promise<void> | undefined;
 
   async function initialize(): Promise<void> {
     initializationPromise ??= client
-      .execute(`
+      .execute(
+        `
         CREATE TABLE IF NOT EXISTS ${tableName} (
           skill_id TEXT PRIMARY KEY,
           uses INTEGER NOT NULL DEFAULT 0,
@@ -68,7 +67,8 @@ export function createSkillFeedback({
           last_query TEXT,
           last_reason TEXT
         )
-      `)
+      `,
+      )
       .then(() => undefined);
 
     await initializationPromise;
@@ -96,11 +96,7 @@ export function createSkillFeedback({
           last_used_at = excluded.last_used_at,
           last_query = COALESCE(excluded.last_query, ${tableName}.last_query)
       `,
-      args: [
-        skillId,
-        new Date().toISOString(),
-        query ?? null,
-      ],
+      args: [skillId, new Date().toISOString(), query ?? null],
     });
   }
 
@@ -160,9 +156,7 @@ export function createSkillFeedback({
       args: [skillId],
     });
 
-    const row = result.rows[0] as
-      | Record<string, unknown>
-      | undefined;
+    const row = result.rows[0] as Record<string, unknown> | undefined;
 
     return toStats(skillId, row);
   }
@@ -170,9 +164,7 @@ export function createSkillFeedback({
   async function getSkillFeedbackMap(
     skillIds: string[],
   ): Promise<Map<string, SkillFeedbackStats>> {
-    const uniqueIds = [
-      ...new Set(skillIds.filter(Boolean)),
-    ];
+    const uniqueIds = [...new Set(skillIds.filter(Boolean))];
 
     if (uniqueIds.length === 0) {
       return new Map();
@@ -180,8 +172,7 @@ export function createSkillFeedback({
 
     await initialize();
 
-    const placeholders =
-      uniqueIds.map(() => '?').join(', ');
+    const placeholders = uniqueIds.map(() => "?").join(", ");
 
     const result = await client.execute({
       sql: `
@@ -192,25 +183,16 @@ export function createSkillFeedback({
       args: uniqueIds,
     });
 
-    const stats = new Map<
-      string,
-      SkillFeedbackStats
-    >();
+    const stats = new Map<string, SkillFeedbackStats>();
 
     for (const row of result.rows) {
       const skillId = row.skill_id;
 
-      if (typeof skillId !== 'string') {
+      if (typeof skillId !== "string") {
         continue;
       }
 
-      stats.set(
-        skillId,
-        toStats(
-          skillId,
-          row as Record<string, unknown>,
-        ),
-      );
+      stats.set(skillId, toStats(skillId, row as Record<string, unknown>));
     }
 
     return stats;
