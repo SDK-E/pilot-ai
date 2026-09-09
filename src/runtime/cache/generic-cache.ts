@@ -1,4 +1,6 @@
-import { createClient, type Client } from "@libsql/client/node";
+import type { createClient } from "@libsql/client";
+
+type Client = ReturnType<typeof createClient>;
 
 type GenericCacheConfig = {
   client: Client;

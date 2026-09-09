@@ -1,4 +1,6 @@
-import { type Client } from "@libsql/client/node";
+import type { createClient } from "@libsql/client";
+
+type Client = ReturnType<typeof createClient>;
 
 export type SkillFeedbackStats = {
   skillId: string;

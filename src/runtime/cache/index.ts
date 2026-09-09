@@ -3,7 +3,9 @@ import {
   createSkillFeedback,
   type SkillFeedbackStats,
 } from "./skill-feedback.js";
-import type { Client } from "@libsql/client/node";
+import type { createClient } from "@libsql/client";
+
+type Client = ReturnType<typeof createClient>;
 
 let researchCache: ReturnType<typeof createGenericCache> | undefined;
 let skillFeedback: ReturnType<typeof createSkillFeedback> | undefined;
