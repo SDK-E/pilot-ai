@@ -9,7 +9,7 @@ import {
   isStreamingChatCompletionRequest,
 } from "#conversation/openai-compatible";
 import { createPilotConversationRuntime } from "../pilot-conversation.js";
-import { createPilotResearchRuntime } from "#research/pilot-research";
+import { createPilotPublicWebRuntime } from "#research/pilot-research";
 import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
 import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
 
@@ -70,15 +70,15 @@ export const chatCompletionsRegistration = registerApiRoute(
 
       let runtime:
         | ReturnType<typeof createPilotConversationRuntime>
-        | ReturnType<typeof createPilotResearchRuntime>
+        | ReturnType<typeof createPilotPublicWebRuntime>
         | undefined;
       let closeRuntime = true;
 
       try {
-        if (command.baseAgentId === "research") {
+        if (command.allowedToolIds.includes("web-search")) {
           if (process.env.PILOT_ENABLE_RESEARCH !== "true") {
             return error(
-              "Pilot Research is not enabled.",
+              "Pilot public web search is not enabled.",
               "invalid_request_error",
               403,
             );
@@ -88,7 +88,7 @@ export const chatCompletionsRegistration = registerApiRoute(
           if (!oidcToken) {
             return error("Unauthorized.", "authentication_error", 401);
           }
-          runtime = createPilotResearchRuntime(storageConfig, oidcToken);
+          runtime = createPilotPublicWebRuntime(storageConfig, oidcToken);
         } else {
           runtime = createPilotConversationRuntime(storageConfig);
         }

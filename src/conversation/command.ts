@@ -36,16 +36,6 @@ export const generateConversationReplySchema = z
         path: ["toolApprovalMode"],
       });
     }
-    if (
-      command.baseAgentId === "conversational" &&
-      command.allowedToolIds.length > 0
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "Conversational requests cannot use tools.",
-        path: ["allowedToolIds"],
-      });
-    }
   });
 
 export type GenerateConversationReply = z.infer<

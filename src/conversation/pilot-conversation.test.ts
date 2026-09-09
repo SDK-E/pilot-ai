@@ -70,6 +70,20 @@ describe("Pilot Conversation command", () => {
     ).toThrow();
   });
 
+  it("allows the bounded public web capability for a Conversational agent", () => {
+    expect(
+      generateConversationReplySchema.parse({
+        ...validCommand,
+        allowedToolIds: ["web-search"],
+        toolApprovalMode: "ask",
+      }),
+    ).toMatchObject({
+      baseAgentId: "conversational",
+      allowedToolIds: ["web-search"],
+      toolApprovalMode: "ask",
+    });
+  });
+
   it("rejects an unallowlisted model", () => {
     expect(() =>
       generateConversationReplySchema.parse({

@@ -1,7 +1,7 @@
 import { ZodError } from "zod";
 
 import { createPilotConversationRuntime } from "../../../src/conversation/pilot-conversation.js";
-import { createPilotResearchRuntime } from "../../../src/research/pilot-research.js";
+import { createPilotPublicWebRuntime } from "../../../src/research/pilot-research.js";
 import {
   createApprovalRequiredResponse,
   createChatCompletionResponse,
@@ -66,14 +66,14 @@ export default {
 
     let runtime:
       | ReturnType<typeof createPilotConversationRuntime>
-      | ReturnType<typeof createPilotResearchRuntime>
+      | ReturnType<typeof createPilotPublicWebRuntime>
       | undefined;
     let closeRuntime = true;
     try {
-      if (command.baseAgentId === "research") {
+      if (command.allowedToolIds.includes("web-search")) {
         if (process.env.PILOT_ENABLE_RESEARCH !== "true") {
           return error(
-            "Pilot Research is not enabled.",
+            "Pilot public web search is not enabled.",
             "invalid_request_error",
             403,
           );
@@ -81,7 +81,7 @@ export default {
         const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
         if (!oidcToken)
           return error("Unauthorized.", "authentication_error", 401);
-        runtime = createPilotResearchRuntime(storageConfig, oidcToken);
+        runtime = createPilotPublicWebRuntime(storageConfig, oidcToken);
       } else {
         runtime = createPilotConversationRuntime(storageConfig);
       }

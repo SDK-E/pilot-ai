@@ -162,13 +162,13 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 
-  it("rejects Research before the production adapter is enabled", async () => {
+  it("rejects public web search before the production adapter is enabled", async () => {
     const response = await handler.fetch(
       new Request("https://ai.pilot.test/v1/chat/completions", {
         method: "POST",
         headers: {
           ...headers,
-          "x-pilot-base-agent-id": "research",
+          "x-pilot-base-agent-id": "conversational",
           "x-pilot-allowed-tool-ids": '["web-search"]',
         },
         body: JSON.stringify({
@@ -184,7 +184,7 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({
       error: {
-        message: "Pilot Research is not enabled.",
+        message: "Pilot public web search is not enabled.",
         type: "invalid_request_error",
       },
     });

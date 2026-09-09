@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { createPilotResearchRuntime } from "../../research/pilot-research.js";
+import { createPilotPublicWebRuntime } from "../../research/pilot-research.js";
 import { generateConversationReplySchema } from "../command.js";
 import { createChatCompletionResponse } from "../openai-compatible.js";
 import { verifyPilotRuntimeRequest } from "../../runtime/auth/vercel-oidc.js";
@@ -23,7 +23,7 @@ export async function handleApprovalResume(
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   if (process.env.PILOT_ENABLE_RESEARCH !== "true")
     return Response.json(
-      { error: "Pilot Research is not enabled." },
+      { error: "Pilot public web search is not enabled." },
       { status: 403 },
     );
   const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
@@ -43,7 +43,7 @@ export async function handleApprovalResume(
       { error: "Pilot Conversation is not configured." },
       { status: 503 },
     );
-  const runtime = createPilotResearchRuntime(storageConfig, oidcToken);
+  const runtime = createPilotPublicWebRuntime(storageConfig, oidcToken);
   try {
     const result = await runtime.resume(input.data, input.data.approved);
     return Response.json(
