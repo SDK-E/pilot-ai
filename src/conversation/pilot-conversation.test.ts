@@ -84,6 +84,19 @@ describe("Pilot Conversation command", () => {
     });
   });
 
+  it("allows the complete production shared-tool set", () => {
+    expect(
+      generateConversationReplySchema.parse({
+        ...validCommand,
+        allowedToolIds: ["web-search", "scratchpad", "ask-user"],
+        toolApprovalMode: "ask",
+      }),
+    ).toMatchObject({
+      allowedToolIds: ["web-search", "scratchpad", "ask-user"],
+      toolApprovalMode: "ask",
+    });
+  });
+
   it("rejects an unallowlisted model", () => {
     expect(() =>
       generateConversationReplySchema.parse({
