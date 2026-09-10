@@ -6,6 +6,7 @@ import {
   createChatCompletionResponse,
   createChatCompletionStream,
   createConversationCommandFromChatCompletion,
+  createUserInputRequiredResponse,
   isStreamingChatCompletionRequest,
 } from "#conversation/openai-compatible";
 import { createPilotConversationRuntime } from "../pilot-conversation.js";
@@ -122,6 +123,16 @@ export const chatCompletionsRegistration = registerApiRoute(
         const result = await runtime.generate(command);
         if (result.kind === "suspended") {
           return Response.json(createApprovalRequiredResponse(result));
+        }
+        if (result.kind === "user_input_required") {
+          return Response.json(createUserInputRequiredResponse(result));
+        }
+        if (!("text" in result)) {
+          return error(
+            "Pilot Conversation returned an invalid result.",
+            "server_error",
+            502,
+          );
         }
         return Response.json(createChatCompletionResponse(result));
       } catch (cause) {

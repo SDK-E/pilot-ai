@@ -17,8 +17,8 @@ export const generateConversationReplySchema = z
     message: z.string().min(1).max(10_000),
     baseAgentId: z.enum(["conversational", "research"]),
     allowedToolIds: z
-      .array(z.enum(["web-search", "scratchpad"]))
-      .max(2)
+      .array(z.enum(["web-search", "scratchpad", "ask-user"]))
+      .max(3)
       .default([]),
     toolApprovalMode: z.enum(["allow", "ask"]).optional(),
     executionId: z.uuid(),

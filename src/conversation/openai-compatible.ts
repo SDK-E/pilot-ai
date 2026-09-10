@@ -4,8 +4,6 @@ import { z } from "zod";
 
 import type { GenerateConversationReply } from "./command.js";
 import { conversationRuntimeConfig } from "./config.js";
-import type { createPilotConversationRuntime } from "./pilot-conversation.js";
-import type { createPilotProductionToolRuntime } from "#research/pilot-research";
 
 const chatMessageSchema = z
   .object({
@@ -33,7 +31,9 @@ const pilotContextSchema = z
     conversationId: z.uuid(),
     executionId: z.uuid(),
     baseAgentId: z.enum(["conversational", "research"]),
-    allowedToolIds: z.array(z.enum(["web-search", "scratchpad"])).max(2),
+    allowedToolIds: z
+      .array(z.enum(["web-search", "scratchpad", "ask-user"]))
+      .max(3),
     toolApprovalMode: z.enum(["allow", "ask"]).optional(),
     projectId: z.uuid().optional(),
     projectInstructions: z.string().min(1).max(10_000).optional(),
@@ -132,16 +132,34 @@ export function createApprovalRequiredResponse(result: {
   };
 }
 
-export function createChatCompletionResponse(
-  result: Awaited<
-    ReturnType<
-      ReturnType<
-        | typeof createPilotConversationRuntime
-        | typeof createPilotProductionToolRuntime
-      >["generate"]
-    >
-  >,
-) {
+export function createUserInputRequiredResponse(result: {
+  runId: string;
+  toolCallId: string;
+  question: string;
+  options?: Array<{ label: string; description?: string }>;
+  selectionMode?: "single_select" | "multi_select";
+}) {
+  return {
+    object: "pilot.user_input.required" as const,
+    run_id: result.runId,
+    tool_call_id: result.toolCallId,
+    question: result.question,
+    options: result.options,
+    selection_mode: result.selectionMode,
+  };
+}
+
+export function createChatCompletionResponse(result: {
+  text: string;
+  finishReason: string | undefined;
+  modelId: string;
+  runId: string | null;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+}) {
   return {
     id: `chatcmpl_${result.runId ?? randomUUID()}`,
     object: "chat.completion" as const,
@@ -186,6 +204,19 @@ type StreamingConversationResult = {
         runId: string;
         toolCallId: string;
         toolId: "web-search" | "scratchpad";
+        usage: {
+          inputTokens: number;
+          outputTokens: number;
+          totalTokens: number;
+        };
+      }
+    | {
+        kind: "user_input_required";
+        runId: string;
+        toolCallId: string;
+        question: string;
+        options?: Array<{ label: string; description?: string }>;
+        selectionMode?: "single_select" | "multi_select";
         usage: {
           inputTokens: number;
           outputTokens: number;
@@ -243,6 +274,25 @@ export function createChatCompletionStream(
                 run_id: completed.runId,
                 tool_call_id: completed.toolCallId,
                 tool_id: completed.toolId,
+              },
+            }),
+          );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+          return;
+        }
+        if (completed.kind === "user_input_required") {
+          controller.enqueue(
+            send({
+              id,
+              object: "pilot.user_input.required",
+              model: "kilo/kilo-auto/free",
+              pilot: {
+                run_id: completed.runId,
+                tool_call_id: completed.toolCallId,
+                question: completed.question,
+                options: completed.options,
+                selection_mode: completed.selectionMode,
               },
             }),
           );

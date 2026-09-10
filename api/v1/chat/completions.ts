@@ -7,6 +7,7 @@ import {
   createChatCompletionResponse,
   createChatCompletionStream,
   createConversationCommandFromChatCompletion,
+  createUserInputRequiredResponse,
   isStreamingChatCompletionRequest,
 } from "../../../src/conversation/openai-compatible.js";
 import { verifyPilotRuntimeRequest } from "../../../src/runtime/auth/vercel-oidc.js";
@@ -110,11 +111,20 @@ export default {
         );
       }
       const result = await runtime.generate(command);
-      return Response.json(
-        result.kind === "suspended"
-          ? createApprovalRequiredResponse(result)
-          : createChatCompletionResponse(result),
-      );
+      if (result.kind === "suspended") {
+        return Response.json(createApprovalRequiredResponse(result));
+      }
+      if (result.kind === "user_input_required") {
+        return Response.json(createUserInputRequiredResponse(result));
+      }
+      if (!("text" in result)) {
+        return error(
+          "Pilot Conversation returned an invalid result.",
+          "server_error",
+          502,
+        );
+      }
+      return Response.json(createChatCompletionResponse(result));
     } catch (cause) {
       console.error(
         "[pilot-conversation] generation failed:",

@@ -228,6 +228,40 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 
+  it("accepts the in-chat Ask User capability without enabling public research", async () => {
+    mocks.generate.mockResolvedValue({
+      kind: "user_input_required",
+      runId: "ask-user-run",
+      toolCallId: "ask-user-call",
+      question: "Which audience should I prioritize?",
+      options: [{ label: "Developers" }, { label: "Buyers" }],
+      selectionMode: "single_select",
+      usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    });
+    const response = await handler.fetch(
+      new Request("https://ai.pilot.test/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          ...headers,
+          "x-pilot-allowed-tool-ids": '["ask-user"]',
+          "x-pilot-runtime-oidc-token": "pilot-oidc-token",
+        },
+        body: JSON.stringify({
+          model: "kilo/kilo-auto/free",
+          messages: [
+            { role: "system", content: "Be helpful." },
+            { role: "user", content: "Help me plan." },
+          ],
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      object: "pilot.user_input.required",
+      question: "Which audience should I prioritize?",
+    });
+  });
+
   it("streams OpenAI-compatible chunks for a verified Pilot request", async () => {
     mocks.stream.mockResolvedValue({
       runId: "stream-123",

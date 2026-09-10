@@ -19,7 +19,7 @@ const activitySchema = z
   .object({
     organizationId: z.string().min(1).max(255),
     executionId: z.string().uuid(),
-    toolId: z.enum(["web-search", "scratchpad"]),
+    toolId: z.enum(["web-search", "scratchpad", "ask-user"]),
     toolCallId: z.string().min(1).max(255).optional(),
     state: z.enum(["started", "completed", "failed", "awaiting_approval"]),
     runtimeRunId: z.string().min(1).max(255).optional(),
