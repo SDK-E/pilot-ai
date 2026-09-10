@@ -28,7 +28,7 @@ change between versions.
   accept a separate user session.
 - Any tool that fetches a model-controlled URL must validate the initial URL and every redirect against a public-network boundary before sending a request. Reject loopback, private, link-local, mixed DNS answers, local hostnames, and credential-bearing URLs; do not treat a read-only tool as safe without this check.
 - Production Research must remain request-scoped and import only its explicitly approved tools. Its activity callback must use the original verified Pilot OIDC token, target the fixed `PILOT_ACTIVITY_CALLBACK_URL`, and send only capability ID, lifecycle state, organization ID, and execution ID. Never send prompts, tool inputs, outputs, URLs, errors, or reasoning through that callback.
-- The bounded public `web-search` adapter is shared by request-scoped Pilot and Pilot Research agents. It must retain the same OIDC-verified activity callback, durable Mastra approval suspension, and public-network URL safeguards regardless of the selected base agent. Broader tool preferences must not become runtime tools without equivalent boundaries.
+- The bounded public `web-search` adapter and private `scratchpad` adapter are shared by request-scoped Pilot and Pilot Research agents. They must retain the same OIDC-verified activity callback and durable Mastra approval suspension regardless of the selected base agent. `web-search` must also retain its public-network URL safeguards. The scratchpad callback must derive organization, conversation, worker, and creator from the active execution record, never from model-controlled input. Broader tool preferences must not become runtime tools without equivalent boundaries.
 
 ## Resources
 

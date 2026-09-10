@@ -13,10 +13,11 @@ durable-execution capabilities; it does not own Pilot domain records or make
 authorization decisions.
 
 The production Research adapter is separate from the broad local-development
-agent. When enabled, it receives only the hardened `web-search` tool and uses
-the original verified Pilot OIDC token to append sanitized tool lifecycle
-events through `PILOT_ACTIVITY_CALLBACK_URL`. It does not import Stagehand,
-browser actions, MCP, files, exports, scratchpad writes, or delegation.
+agent. When enabled, it receives the hardened `web-search` tool and a private
+chat-scoped `scratchpad` tool. It uses the original verified Pilot OIDC token
+to append sanitized lifecycle events and to reach Pilot's fixed scratchpad
+callback through `PILOT_ACTIVITY_CALLBACK_URL`. It does not import Stagehand,
+browser actions, MCP, files, exports, or delegation.
 
 `src/index.ts` is the Mastra service entrypoint. It holds the Pilot route and
 conditionally registers both agents for local Mastra development. The Vercel
@@ -36,8 +37,11 @@ The `pilot` adapter is the beginning of the product runtime. It
 accepts only a server-generated, validated command; maps the organization and
 Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
 to the Mastra thread; and uses `@mastra/libsql` with the matching Turso database.
-Conversation has no tools. Production Research accepts only a server-generated
-`web-search` capability and must not rely on browser-provided tool identifiers.
+Production tools are selected only from Pilot's server-generated command;
+both Conversational and Research may receive `web-search` and `scratchpad`.
+The scratchpad callback derives the conversation and creator from its active
+execution record, so the runtime never supplies user or conversation ownership.
+Neither capability relies on browser-provided tool identifiers.
 
 The runtime requires `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
 the matching environment. `pnpm verify:memory` performs a real two-process

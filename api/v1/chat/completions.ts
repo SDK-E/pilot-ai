@@ -1,7 +1,7 @@
 import { ZodError } from "zod";
 
 import { createPilotConversationRuntime } from "../../../src/conversation/pilot-conversation.js";
-import { createPilotPublicWebRuntime } from "../../../src/research/pilot-research.js";
+import { createPilotProductionToolRuntime } from "../../../src/research/pilot-research.js";
 import {
   createApprovalRequiredResponse,
   createChatCompletionResponse,
@@ -66,12 +66,15 @@ export default {
 
     let runtime:
       | ReturnType<typeof createPilotConversationRuntime>
-      | ReturnType<typeof createPilotPublicWebRuntime>
+      | ReturnType<typeof createPilotProductionToolRuntime>
       | undefined;
     let closeRuntime = true;
     try {
-      if (command.allowedToolIds.includes("web-search")) {
-        if (process.env.PILOT_ENABLE_RESEARCH !== "true") {
+      if (command.allowedToolIds.length) {
+        if (
+          command.allowedToolIds.includes("web-search") &&
+          process.env.PILOT_ENABLE_RESEARCH !== "true"
+        ) {
           return error(
             "Pilot public web search is not enabled.",
             "invalid_request_error",
@@ -81,7 +84,7 @@ export default {
         const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
         if (!oidcToken)
           return error("Unauthorized.", "authentication_error", 401);
-        runtime = createPilotPublicWebRuntime(storageConfig, oidcToken);
+        runtime = createPilotProductionToolRuntime(storageConfig, oidcToken);
       } else {
         runtime = createPilotConversationRuntime(storageConfig);
       }

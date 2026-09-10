@@ -6,7 +6,7 @@ import {
   generateConversationReplySchema,
   type GenerateConversationReply,
 } from "../pilot-conversation";
-import { createPilotPublicWebRuntime } from "#research/pilot-research";
+import { createPilotProductionToolRuntime } from "#research/pilot-research";
 import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
 import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
 
@@ -44,12 +44,15 @@ export const generateRegistration = registerApiRoute(
 
       let runtime:
         | ReturnType<typeof createPilotConversationRuntime>
-        | ReturnType<typeof createPilotPublicWebRuntime>
+        | ReturnType<typeof createPilotProductionToolRuntime>
         | undefined;
 
       try {
-        if (command.allowedToolIds.includes("web-search")) {
-          if (process.env.PILOT_ENABLE_RESEARCH !== "true") {
+        if (command.allowedToolIds.length) {
+          if (
+            command.allowedToolIds.includes("web-search") &&
+            process.env.PILOT_ENABLE_RESEARCH !== "true"
+          ) {
             return context.json(
               { error: "Pilot public web search is not enabled." },
               403,
@@ -59,7 +62,7 @@ export const generateRegistration = registerApiRoute(
             "x-pilot-runtime-oidc-token",
           );
           if (!oidcToken) return context.json({ error: "Unauthorized." }, 401);
-          runtime = createPilotPublicWebRuntime(
+          runtime = createPilotProductionToolRuntime(
             runtimeStorageConfig,
             oidcToken,
           );

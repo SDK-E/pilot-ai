@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { createPilotPublicWebRuntime } from "../../research/pilot-research.js";
+import { createPilotProductionToolRuntime } from "../../research/pilot-research.js";
 import { generateConversationReplySchema } from "../command.js";
 import { createChatCompletionResponse } from "../openai-compatible.js";
 import { verifyPilotRuntimeRequest } from "../../runtime/auth/vercel-oidc.js";
@@ -10,6 +10,7 @@ const inputSchema = generateConversationReplySchema
   .extend({
     runtimeRunId: z.string().min(1).max(255),
     toolCallId: z.string().min(1).max(255),
+    toolId: z.enum(["web-search", "scratchpad"]),
     approved: z.boolean(),
   })
   .strict();
@@ -21,7 +22,10 @@ export async function handleApprovalResume(
     return Response.json({ error: "Method not allowed." }, { status: 405 });
   if (!(await verifyPilotRuntimeRequest(request)))
     return Response.json({ error: "Unauthorized." }, { status: 401 });
-  if (process.env.PILOT_ENABLE_RESEARCH !== "true")
+  if (
+    request.headers.get("x-pilot-allowed-tool-ids")?.includes("web-search") &&
+    process.env.PILOT_ENABLE_RESEARCH !== "true"
+  )
     return Response.json(
       { error: "Pilot public web search is not enabled." },
       { status: 403 },
@@ -43,7 +47,7 @@ export async function handleApprovalResume(
       { error: "Pilot Conversation is not configured." },
       { status: 503 },
     );
-  const runtime = createPilotPublicWebRuntime(storageConfig, oidcToken);
+  const runtime = createPilotProductionToolRuntime(storageConfig, oidcToken);
   try {
     const result = await runtime.resume(input.data, input.data.approved);
     return Response.json(

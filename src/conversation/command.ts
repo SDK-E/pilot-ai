@@ -16,7 +16,10 @@ export const generateConversationReplySchema = z
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
     baseAgentId: z.enum(["conversational", "research"]),
-    allowedToolIds: z.array(z.literal("web-search")).max(1).default([]),
+    allowedToolIds: z
+      .array(z.enum(["web-search", "scratchpad"]))
+      .max(2)
+      .default([]),
     toolApprovalMode: z.enum(["allow", "ask"]).optional(),
     executionId: z.uuid(),
     project: z

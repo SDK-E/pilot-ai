@@ -12,11 +12,16 @@ const mocks = vi.hoisted(() => {
     verifyRequest,
     stream,
     createRuntime: vi.fn(() => ({ generate, stream, close })),
+    createToolRuntime: vi.fn(() => ({ generate, stream, close })),
   };
 });
 
 vi.mock("./pilot-conversation.js", () => ({
   createPilotConversationRuntime: mocks.createRuntime,
+}));
+
+vi.mock("../research/pilot-research.js", () => ({
+  createPilotProductionToolRuntime: mocks.createToolRuntime,
 }));
 
 vi.mock("../runtime/auth/vercel-oidc.js", () => ({
@@ -43,6 +48,7 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     mocks.stream.mockReset();
     mocks.close.mockReset();
     mocks.createRuntime.mockClear();
+    mocks.createToolRuntime.mockClear();
     mocks.verifyRequest.mockReset();
     mocks.verifyRequest.mockResolvedValue(true);
   });
@@ -188,6 +194,37 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
         type: "invalid_request_error",
       },
     });
+    expect(mocks.createRuntime).not.toHaveBeenCalled();
+  });
+
+  it("accepts the private scratchpad capability without enabling public research", async () => {
+    mocks.generate.mockResolvedValue({
+      text: "Saved.",
+      finishReason: "stop",
+      modelId: "kilo/kilo-auto/free",
+      runId: "scratchpad-123",
+      usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    });
+    const response = await handler.fetch(
+      new Request("https://ai.pilot.test/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          ...headers,
+          "x-pilot-allowed-tool-ids": '["scratchpad"]',
+          "x-pilot-runtime-oidc-token": "pilot-oidc-token",
+        },
+        body: JSON.stringify({
+          model: "kilo/kilo-auto/free",
+          messages: [
+            { role: "system", content: "Be helpful." },
+            { role: "user", content: "Keep concise notes." },
+          ],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.createToolRuntime).toHaveBeenCalledOnce();
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 

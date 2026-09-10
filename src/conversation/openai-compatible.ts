@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { GenerateConversationReply } from "./command.js";
 import { conversationRuntimeConfig } from "./config.js";
 import type { createPilotConversationRuntime } from "./pilot-conversation.js";
+import type { createPilotProductionToolRuntime } from "#research/pilot-research";
 
 const chatMessageSchema = z
   .object({
@@ -32,7 +33,7 @@ const pilotContextSchema = z
     conversationId: z.uuid(),
     executionId: z.uuid(),
     baseAgentId: z.enum(["conversational", "research"]),
-    allowedToolIds: z.array(z.literal("web-search")).max(1),
+    allowedToolIds: z.array(z.enum(["web-search", "scratchpad"])).max(2),
     toolApprovalMode: z.enum(["allow", "ask"]).optional(),
     projectId: z.uuid().optional(),
     projectInstructions: z.string().min(1).max(10_000).optional(),
@@ -121,17 +122,24 @@ export function createConversationCommandFromChatCompletion(
 export function createApprovalRequiredResponse(result: {
   runId: string;
   toolCallId: string;
+  toolId: "web-search" | "scratchpad";
 }) {
   return {
     object: "pilot.approval.required" as const,
     run_id: result.runId,
     tool_call_id: result.toolCallId,
+    tool_id: result.toolId,
   };
 }
 
 export function createChatCompletionResponse(
   result: Awaited<
-    ReturnType<ReturnType<typeof createPilotConversationRuntime>["generate"]>
+    ReturnType<
+      ReturnType<
+        | typeof createPilotConversationRuntime
+        | typeof createPilotProductionToolRuntime
+      >["generate"]
+    >
   >,
 ) {
   return {
@@ -177,6 +185,7 @@ type StreamingConversationResult = {
         kind: "suspended";
         runId: string;
         toolCallId: string;
+        toolId: "web-search" | "scratchpad";
         usage: {
           inputTokens: number;
           outputTokens: number;
@@ -233,6 +242,7 @@ export function createChatCompletionStream(
               pilot: {
                 run_id: completed.runId,
                 tool_call_id: completed.toolCallId,
+                tool_id: completed.toolId,
               },
             }),
           );
