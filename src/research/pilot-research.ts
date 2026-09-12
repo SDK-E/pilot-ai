@@ -136,13 +136,7 @@ function createProductionToolAgent(
     defaultOptions: {
       hooks: {
         beforeToolCall: async ({ toolName }) => {
-          if (
-            toolName !== "web-search" &&
-            toolName !== "scratchpad" &&
-            toolName !== "ask_user"
-          )
-            throw new Error("A non-production Research tool was requested.");
-          const toolId = toolIdFromName(toolName);
+          const toolId = productionToolIdFromName(toolName);
           if (!isProductionToolId(toolId)) {
             throw new Error("A non-production Research tool was requested.");
           }
@@ -154,13 +148,7 @@ function createProductionToolAgent(
           });
         },
         afterToolCall: async ({ toolName, error }) => {
-          if (
-            toolName !== "web-search" &&
-            toolName !== "scratchpad" &&
-            toolName !== "ask_user"
-          )
-            return;
-          const toolId = toolIdFromName(toolName);
+          const toolId = productionToolIdFromName(toolName);
           if (!isProductionToolId(toolId)) return;
           await reportActivity({
             organizationId: command.organizationId,
@@ -182,10 +170,11 @@ function isProductionToolId(
   );
 }
 
-function toolIdFromName(
+export function productionToolIdFromName(
   value: unknown,
 ): "web-search" | "scratchpad" | "ask-user" | undefined {
   if (value === "ask_user") return "ask-user";
+  if (value === "webSearch") return "web-search";
   return isProductionToolId(value) ? value : undefined;
 }
 
@@ -202,7 +191,7 @@ async function suspendedToolId(
   const toolName = runs.runs
     .find((candidate) => candidate.runId === runId)
     ?.toolCalls.find((tool) => tool.toolCallId === toolCallId)?.toolName;
-  const toolId = toolIdFromName(toolName);
+  const toolId = productionToolIdFromName(toolName);
   if (!isProductionToolId(toolId)) {
     throw new Error("The suspended tool is not a production capability.");
   }
@@ -275,7 +264,7 @@ function optionsFor(command: GenerateConversationReply) {
       ? ("auto" as const)
       : ("none" as const),
     requireToolApproval: ({ toolName }: { toolName: string }) => {
-      const toolId = toolIdFromName(toolName);
+      const toolId = productionToolIdFromName(toolName);
       return toolId ? command.approvalRequiredToolIds.includes(toolId) : false;
     },
     autoResumeSuspendedTools: command.allowedToolIds.includes("ask-user"),
