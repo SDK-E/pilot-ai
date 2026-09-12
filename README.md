@@ -38,6 +38,7 @@ accepts only a server-generated, validated command; maps the organization and
 Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
 to the Mastra thread; and uses `@mastra/libsql` with the matching Turso database.
 Production tools are selected only from Pilot's server-generated command;
+per-tool approval requirements travel separately, so an `ask` policy for one capability never pauses an allowed capability. `ask_user` remains a clarification suspension rather than an approval.
 both Conversational and Research may receive `web-search` and `scratchpad`.
 The scratchpad callback derives the conversation and creator from its active
 execution record, so the runtime never supplies user or conversation ownership.
