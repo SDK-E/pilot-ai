@@ -1,6 +1,7 @@
 import type { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
 
+import { PILOT_CONVERSATION_MODEL_ID } from "../../conversation/contract.js";
 import { conversationRuntimeConfig } from "../../conversation/config.js";
 
 export function createConversationMemory(storage: LibSQLStore) {
@@ -21,7 +22,7 @@ export function createProjectMemory(storage: LibSQLStore) {
     options: {
       lastMessages: conversationRuntimeConfig.lastMessages,
       observationalMemory: {
-        model: conversationRuntimeConfig.modelId,
+        model: PILOT_CONVERSATION_MODEL_ID,
         scope: "resource",
         observation: { bufferOnIdle: true },
       },

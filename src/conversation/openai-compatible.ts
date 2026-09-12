@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
+import { PILOT_CONVERSATION_MODEL_ID } from "./contract.js";
 import type { GenerateConversationReply } from "./command.js";
-import { conversationRuntimeConfig } from "./config.js";
 
 const chatMessageSchema = z
   .object({
@@ -14,7 +14,7 @@ const chatMessageSchema = z
 
 export const chatCompletionRequestSchema = z
   .object({
-    model: z.literal(conversationRuntimeConfig.modelId),
+    model: z.literal(PILOT_CONVERSATION_MODEL_ID),
     messages: z.array(chatMessageSchema).min(1).max(2),
     stream: z.boolean().optional(),
     stream_options: z

@@ -8,14 +8,14 @@ import {
   createProjectResourceId,
 } from "./command";
 
-import { conversationRuntimeConfig } from "./config";
+import { PILOT_CONVERSATION_MODEL_ID } from "./contract";
 
 const validCommand = {
   organizationId: "org_01J4QY5F74J9SE3MQS7K0WB2N9",
   worker: {
     id: "e7d8b5cb-164c-405e-8f74-53b5e7a2a7c0",
     instructions: "Be concise and helpful.",
-    modelId: conversationRuntimeConfig.modelId,
+    modelId: PILOT_CONVERSATION_MODEL_ID,
   },
   conversationId: "97e756d5-2c8c-47fa-8a87-0e8dcddb7d28",
   message: "Hello.",

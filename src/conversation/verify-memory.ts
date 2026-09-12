@@ -3,7 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { createPilotConversationRuntime } from "./pilot-conversation";
-import { conversationRuntimeConfig } from "./config";
+import { PILOT_CONVERSATION_MODEL_ID } from "./contract";
 import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
 
 const storageConfig = getPilotRuntimeStorageConfig();
@@ -19,7 +19,7 @@ const command = {
     id: randomUUID(),
     instructions:
       "Answer concisely. Follow direct user requests about this conversation.",
-    modelId: conversationRuntimeConfig.modelId,
+    modelId: PILOT_CONVERSATION_MODEL_ID,
   },
   conversationId: randomUUID(),
   message: `Remember this exact verification code for this conversation: ${memoryCode}.`,
