@@ -23,6 +23,9 @@ const command = {
   },
   conversationId: randomUUID(),
   message: `Remember this exact verification code for this conversation: ${memoryCode}.`,
+  baseAgentId: "conversational" as const,
+  allowedToolIds: [],
+  executionId: randomUUID(),
 };
 
 const firstRuntime = createPilotConversationRuntime(storageConfig);

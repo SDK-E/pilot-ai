@@ -43,8 +43,10 @@ The scratchpad callback derives the conversation and creator from its active
 execution record, so the runtime never supplies user or conversation ownership.
 Neither capability relies on browser-provided tool identifiers.
 
-The runtime requires `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
-the matching environment. `pnpm verify:memory` performs a real two-process
+Preview and Production require `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
+the matching environment. Local development without that pair intentionally
+uses `.mastra/pilot-runtime.db`; it is a local-only fallback and must never be
+used in a deployed runtime. `pnpm verify:memory` performs a real two-process
 memory check and deletes its randomized thread afterward.
 
 On 2026-09-07, Preview was deployed through a remote Linux Vercel build and
@@ -87,9 +89,10 @@ pnpm build
 `pnpm test` runs deterministic unit tests. The `pnpm eval:*` commands run live
 Kilo/browser evaluation work and are deliberately opt-in.
 
-`pnpm verify:memory` is an opt-in live persistence check. Set
-`TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for an isolated,
-matching-environment Turso database; it performs two Kilo Gateway generations
+`pnpm verify:memory` is an opt-in live persistence check. Without Turso it
+checks the local LibSQL fallback. Set `TURSO_DATABASE_URL` and
+`TURSO_AUTH_TOKEN` for an isolated, matching-environment Turso database to
+exercise the production storage path; it performs two Kilo Gateway generations
 and deletes its randomized Mastra thread.
 
 The broad Research Agent is local-development only. It requires explicit

@@ -1,3 +1,6 @@
+overrides:
+  adm-zip: 0.6.1
+
 allowBuilds:
   esbuild: true
   onnxruntime-node: true
