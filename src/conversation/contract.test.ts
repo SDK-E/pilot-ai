@@ -22,6 +22,7 @@ const validCommand: GenerateConversationReply = {
   message: "Hello.",
   baseAgentId: "conversational",
   allowedToolIds: [],
+  approvalRequiredToolIds: [],
   executionId: "98f1871e-72fb-4c5c-9a09-d89713e64950",
 };
 
@@ -59,19 +60,28 @@ describe("contract", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects toolApprovalMode without allowed tools", () => {
+  it("rejects approval requirements for a tool that is not allowed", () => {
     const result = generateConversationReplySchema.safeParse({
       ...validCommand,
-      toolApprovalMode: "ask",
+      approvalRequiredToolIds: ["web-search"],
     });
     expect(result.success).toBe(false);
   });
 
-  it("accepts the full production shared-tool set", () => {
+  it("rejects an approval requirement for Ask User", () => {
+    const result = generateConversationReplySchema.safeParse({
+      ...validCommand,
+      allowedToolIds: ["ask-user"],
+      approvalRequiredToolIds: ["ask-user"],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a granular approval configuration", () => {
     const result = generateConversationReplySchema.safeParse({
       ...validCommand,
       allowedToolIds: ["web-search", "scratchpad", "ask-user"],
-      toolApprovalMode: "ask",
+      approvalRequiredToolIds: ["web-search"],
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -80,14 +90,19 @@ describe("contract", () => {
         "scratchpad",
         "ask-user",
       ]);
-      expect(result.data.toolApprovalMode).toBe("ask");
+      expect(result.data.approvalRequiredToolIds).toEqual(["web-search"]);
     }
   });
 
   it("createConversationResourceId scopes by organization + worker", () => {
     expect(
-      createConversationResourceId(validCommand.organizationId, validCommand.worker.id),
-    ).toBe("pilot-conversation:org_01J4QY5F74J9SE3MQS7K0WB2N9:e7d8b5cb-164c-405e-8f74-53b5e7a2a7c0");
+      createConversationResourceId(
+        validCommand.organizationId,
+        validCommand.worker.id,
+      ),
+    ).toBe(
+      "pilot-conversation:org_01J4QY5F74J9SE3MQS7K0WB2N9:e7d8b5cb-164c-405e-8f74-53b5e7a2a7c0",
+    );
   });
 
   it("createProjectResourceId includes project", () => {
@@ -97,17 +112,25 @@ describe("contract", () => {
         validCommand.worker.id,
         "proj_1",
       ),
-    ).toBe("pilot-project:org_01J4QY5F74J9SE3MQS7K0WB2N9:e7d8b5cb-164c-405e-8f74-53b5e7a2a7c0:proj_1");
+    ).toBe(
+      "pilot-project:org_01J4QY5F74J9SE3MQS7K0WB2N9:e7d8b5cb-164c-405e-8f74-53b5e7a2a7c0:proj_1",
+    );
   });
 
   it("createMemoryResourceId uses project resource only when shared memory enabled", () => {
     expect(
-      createMemoryResourceId({ ...validCommand, project: { id: "p1", sharedMemoryEnabled: true } }),
+      createMemoryResourceId({
+        ...validCommand,
+        project: { id: "p1", sharedMemoryEnabled: true },
+      }),
     ).toBe(
       "pilot-project:org_01J4QY5F74J9SE3MQS7K0WB2N9:e7d8b5cb-164c-405e-8f74-53b5e7a2a7c0:p1",
     );
     expect(
-      createMemoryResourceId({ ...validCommand, project: { id: "p1", sharedMemoryEnabled: false } }),
+      createMemoryResourceId({
+        ...validCommand,
+        project: { id: "p1", sharedMemoryEnabled: false },
+      }),
     ).toBe(
       "pilot-conversation:org_01J4QY5F74J9SE3MQS7K0WB2N9:e7d8b5cb-164c-405e-8f74-53b5e7a2a7c0",
     );

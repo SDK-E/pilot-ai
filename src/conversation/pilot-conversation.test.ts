@@ -21,6 +21,7 @@ const validCommand = {
   message: "Hello.",
   baseAgentId: "conversational" as const,
   allowedToolIds: [] as "web-search"[],
+  approvalRequiredToolIds: [] as "web-search"[],
   executionId: "98f1871e-72fb-4c5c-9a09-d89713e64950",
 };
 
@@ -75,12 +76,12 @@ describe("Pilot Conversation command", () => {
       generateConversationReplySchema.parse({
         ...validCommand,
         allowedToolIds: ["web-search"],
-        toolApprovalMode: "ask",
+        approvalRequiredToolIds: ["web-search"],
       }),
     ).toMatchObject({
       baseAgentId: "conversational",
       allowedToolIds: ["web-search"],
-      toolApprovalMode: "ask",
+      approvalRequiredToolIds: ["web-search"],
     });
   });
 
@@ -89,11 +90,11 @@ describe("Pilot Conversation command", () => {
       generateConversationReplySchema.parse({
         ...validCommand,
         allowedToolIds: ["web-search", "scratchpad", "ask-user"],
-        toolApprovalMode: "ask",
+        approvalRequiredToolIds: ["web-search"],
       }),
     ).toMatchObject({
       allowedToolIds: ["web-search", "scratchpad", "ask-user"],
-      toolApprovalMode: "ask",
+      approvalRequiredToolIds: ["web-search"],
     });
   });
 

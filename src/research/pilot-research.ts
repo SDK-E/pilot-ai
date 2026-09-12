@@ -182,8 +182,11 @@ function isProductionToolId(
   );
 }
 
-function toolIdFromName(value: unknown) {
-  return value === "ask_user" ? "ask-user" : value;
+function toolIdFromName(
+  value: unknown,
+): "web-search" | "scratchpad" | "ask-user" | undefined {
+  if (value === "ask_user") return "ask-user";
+  return isProductionToolId(value) ? value : undefined;
 }
 
 async function suspendedToolId(
@@ -271,10 +274,10 @@ function optionsFor(command: GenerateConversationReply) {
     toolChoice: command.allowedToolIds.length
       ? ("auto" as const)
       : ("none" as const),
-    requireToolApproval:
-      command.toolApprovalMode === "ask"
-        ? ({ toolName }: { toolName: string }) => toolName !== "ask_user"
-        : false,
+    requireToolApproval: ({ toolName }: { toolName: string }) => {
+      const toolId = toolIdFromName(toolName);
+      return toolId ? command.approvalRequiredToolIds.includes(toolId) : false;
+    },
     autoResumeSuspendedTools: command.allowedToolIds.includes("ask-user"),
   };
 }

@@ -21,11 +21,11 @@ export const generateConversationReplySchema = z
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
     baseAgentId: z.enum(BASE_AGENT_IDS),
-    allowedToolIds: z
+    allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(3).default([]),
+    approvalRequiredToolIds: z
       .array(z.enum(ALLOWED_TOOL_IDS))
-      .max(3)
+      .max(2)
       .default([]),
-    toolApprovalMode: z.enum(["allow", "ask"]).optional(),
     executionId: z.uuid(),
     project: z
       .object({
@@ -37,12 +37,22 @@ export const generateConversationReplySchema = z
   })
   .strict()
   .superRefine((command, context) => {
-    if (command.toolApprovalMode && command.allowedToolIds.length === 0) {
-      context.addIssue({
-        code: "custom",
-        message: "A tool approval mode requires an allowed tool.",
-        path: ["toolApprovalMode"],
-      });
+    for (const toolId of command.approvalRequiredToolIds) {
+      if (!command.allowedToolIds.includes(toolId)) {
+        context.addIssue({
+          code: "custom",
+          message: "An approval-required tool must be allowed.",
+          path: ["approvalRequiredToolIds"],
+        });
+      }
+      if (toolId === "ask-user") {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Ask User is a clarification flow and cannot require approval.",
+          path: ["approvalRequiredToolIds"],
+        });
+      }
     }
   });
 

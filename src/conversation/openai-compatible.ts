@@ -34,7 +34,10 @@ const pilotContextSchema = z
     allowedToolIds: z
       .array(z.enum(["web-search", "scratchpad", "ask-user"]))
       .max(3),
-    toolApprovalMode: z.enum(["allow", "ask"]).optional(),
+    approvalRequiredToolIds: z
+      .array(z.enum(["web-search", "scratchpad", "ask-user"]))
+      .max(2)
+      .default([]),
     projectId: z.uuid().optional(),
     projectInstructions: z.string().min(1).max(10_000).optional(),
     projectSharedMemoryEnabled: z.boolean().optional(),
@@ -50,8 +53,13 @@ function parseAllowedToolIds(value: string | null): unknown {
   }
 }
 
-function parseToolApprovalMode(value: string | null): unknown {
-  return value === "allow" || value === "ask" ? value : undefined;
+function parseApprovalRequiredToolIds(value: string | null): unknown {
+  if (!value) return [];
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
 }
 
 function parseOptionalBoolean(value: string | null): unknown {
@@ -75,8 +83,8 @@ export function createConversationCommandFromChatCompletion(
     allowedToolIds: parseAllowedToolIds(
       headers.get("x-pilot-allowed-tool-ids"),
     ),
-    toolApprovalMode: parseToolApprovalMode(
-      headers.get("x-pilot-tool-approval-mode"),
+    approvalRequiredToolIds: parseApprovalRequiredToolIds(
+      headers.get("x-pilot-approval-required-tool-ids"),
     ),
     projectId: headers.get("x-pilot-project-id") || undefined,
     projectInstructions:
@@ -108,7 +116,7 @@ export function createConversationCommandFromChatCompletion(
     executionId: context.executionId,
     baseAgentId: context.baseAgentId,
     allowedToolIds: context.allowedToolIds,
-    toolApprovalMode: context.toolApprovalMode,
+    approvalRequiredToolIds: context.approvalRequiredToolIds,
     project: context.projectId
       ? {
           id: context.projectId,
