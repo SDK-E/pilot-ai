@@ -14,7 +14,7 @@ const chatMessageSchema = z
 
 export const chatCompletionRequestSchema = z
   .object({
-    model: z.literal(PILOT_CONVERSATION_MODEL_ID),
+    model: z.string().regex(/^kilo\/[a-z0-9][a-z0-9._:-]*(?:\/[a-z0-9][a-z0-9._:-]*)*$/i).max(200),
     messages: z.array(chatMessageSchema).min(1).max(2),
     stream: z.boolean().optional(),
     stream_options: z
