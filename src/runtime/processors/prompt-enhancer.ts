@@ -1,5 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 
+import { logger } from "../logger.js";
+
 import type {
   Processor,
   ProcessInputArgs,
@@ -96,7 +98,9 @@ ${brief}
         "prompt-enhancer",
       );
     } catch (error) {
-      console.warn("[prompt-enhancer] enhancement failed", error);
+      logger.warn("Prompt enhancement failed; continuing without a brief.", {
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
     }
 
     return messageList;

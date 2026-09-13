@@ -4,6 +4,7 @@ import { askUserTool } from "@mastra/core/tools";
 
 import { createBaseAgent } from "#runtime/agent/base-agent";
 import { buildBaseAgentInstructions } from "#runtime/agent/base-instructions";
+import { logger } from "#runtime/logger";
 import { pilotConfig } from "#runtime/research-config";
 import {
   challengeClaimProcessor,
@@ -24,17 +25,6 @@ import { skillsMarketplace } from "#runtime/research-tools/skills-marketplace";
 import { stagehandBrowser } from "#runtime/research-tools/stagehand-browser";
 import { bulkUrlFetch } from "#runtime/tools/bulk-url-fetch";
 import { csvFile } from "#runtime/tools/csv-file";
-
-import { completionInstructions } from "./instructions/completion";
-import { researchPlanningInstructions } from "./instructions/research-planning";
-import { toolUsageInstructions } from "./instructions/tool-usage";
-import { verificationInstructions } from "./instructions/verification";
-import { orgContext } from "./instructions/org-context";
-
-import { pilotResearchMemory } from "./memory/memory";
-
-import { discoveryAgent, technicalAgent, verificationAgent } from "./subagents";
-
 import { domainIntelligence } from "#runtime/tools/domain-intelligence";
 import { exportResults } from "#runtime/tools/export-results";
 import { exportValidator } from "#runtime/tools/export-validator";
@@ -43,11 +33,23 @@ import { queryPlanner } from "#runtime/tools/query-planner";
 import { researchScratchpad } from "#runtime/tools/research-scratchpad";
 import { resultCollector } from "#runtime/tools/result-collector";
 import { searchDorks } from "#runtime/tools/search/search-dorks";
+import { webSearch } from "#runtime/tools/search/web-search";
 import { siteDiscovery } from "#runtime/tools/site-discovery";
 import { structuredData } from "#runtime/tools/structured-data";
-import { webSearch } from "#runtime/tools/search/web-search";
-import { researchAgentIdentity } from "./identity";
-import { coreInstructions } from "./instructions/core";
+
+import { researchAgentIdentity } from "./identity.js";
+import { completionInstructions } from "./instructions/completion.js";
+import { coreInstructions } from "./instructions/core.js";
+import { orgContext } from "./instructions/org-context.js";
+import { researchPlanningInstructions } from "./instructions/research-planning.js";
+import { toolUsageInstructions } from "./instructions/tool-usage.js";
+import { verificationInstructions } from "./instructions/verification.js";
+import { pilotResearchMemory } from "./memory/memory.js";
+import {
+  discoveryAgent,
+  technicalAgent,
+  verificationAgent,
+} from "./subagents/index.js";
 
 const toolSearchProcessor = new ToolSearchProcessor({
   tools: {
@@ -120,10 +122,10 @@ Current time: ${new Date().toISOString()}
       onDelegationComplete: async ({ primitiveId, error }) => {
         if (!error) return;
 
-        console.warn(
-          `[pilot-research] delegation to ${primitiveId} failed`,
-          error,
-        );
+        logger.warn("Delegated branch failed; asking the parent to recover.", {
+          primitiveId,
+          errorName: error instanceof Error ? error.name : "unknown",
+        });
 
         return {
           feedback: `
