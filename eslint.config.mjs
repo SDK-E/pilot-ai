@@ -109,11 +109,20 @@ export default defineConfig([
       // libsql rows and Mastra result types use null as a first-class value;
       // auto-rewriting it to undefined would silently break that interop.
       "unicorn/no-null": "off",
+      // `void promise` is the documented way to mark an intentional
+      // fire-and-forget for @typescript-eslint/no-floating-promises;
+      // no-meaningless-void-operator still catches pointless uses.
+      "sonarjs/void-use": "off",
     },
   },
 
   {
-    files: ["**/*.test.ts", "src/research/evals/**"],
+    // Tests, evals, and CLI scripts print to the terminal by design.
+    files: [
+      "**/*.test.ts",
+      "src/research/evals/**",
+      "src/conversation/verify-memory.ts",
+    ],
     rules: {
       "max-lines-per-function": "off",
       "max-lines": "off",
