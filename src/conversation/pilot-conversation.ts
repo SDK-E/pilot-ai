@@ -14,6 +14,11 @@ import { conversationCoreInstructions } from "./instructions/core.js";
 import { createBaseAgent } from "../runtime/agent/base-agent.js";
 import { buildBaseAgentInstructions } from "../runtime/agent/base-instructions.js";
 import {
+  createPilotActivityReporter,
+  runtimeSkillsEnabled,
+} from "../runtime/activity-reporter.js";
+import { createRuntimeSkillResolverProcessor } from "../runtime/research/processors/runtime-skill-resolver.js";
+import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,
 } from "../runtime/storage/pilot-runtime.js";
@@ -29,7 +34,9 @@ export type { GenerateConversationReply } from "./command.js";
 function createConversationAgent(
   command: GenerateConversationReply,
   memory: Memory,
+  oidcToken?: string,
 ): Agent {
+  const skillProcessor = createSkillProcessor(command, oidcToken);
   return createBaseAgent({
     base: {
       maxSteps: conversationRuntimeConfig.maxSteps,
@@ -59,12 +66,37 @@ function createConversationAgent(
       },
     ],
     memory,
+    inputProcessors: skillProcessor ? [skillProcessor] : [],
     tools: {},
   });
 }
 
+function createSkillProcessor(
+  command: GenerateConversationReply,
+  oidcToken?: string,
+) {
+  if (!oidcToken || !runtimeSkillsEnabled()) return undefined;
+  try {
+    const reportActivity = createPilotActivityReporter(oidcToken);
+    return createRuntimeSkillResolverProcessor({
+      onSkillLoaded: (skillId) =>
+        reportActivity({
+          kind: "skill",
+          organizationId: command.organizationId,
+          executionId: command.executionId,
+          skillId,
+        }),
+    });
+  } catch {
+    // Runtime skills are opt-in and fail closed when the protected callback is
+    // not configured. Generation remains available without them.
+    return undefined;
+  }
+}
+
 export function createPilotConversationRuntime(
   storageConfig: PilotRuntimeStorageConfig,
+  oidcToken?: string,
 ) {
   const storage: LibSQLStore = createPilotRuntimeStorage(storageConfig);
 
@@ -76,7 +108,7 @@ export function createPilotConversationRuntime(
   return {
     async generate(rawCommand: unknown) {
       const command = generateConversationReplySchema.parse(rawCommand);
-      const agent = createConversationAgent(command, memoryFor(command));
+      const agent = createConversationAgent(command, memoryFor(command), oidcToken);
       const result = await agent.generate(command.message, {
         memory: {
           resource: createMemoryResourceId(command),
@@ -101,7 +133,7 @@ export function createPilotConversationRuntime(
     },
     async stream(rawCommand: unknown) {
       const command = generateConversationReplySchema.parse(rawCommand);
-      const agent = createConversationAgent(command, memoryFor(command));
+      const agent = createConversationAgent(command, memoryFor(command), oidcToken);
       const output = await agent.stream(command.message, {
         memory: {
           resource: createMemoryResourceId(command),

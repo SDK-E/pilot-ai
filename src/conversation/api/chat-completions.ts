@@ -76,6 +76,7 @@ export const chatCompletionsRegistration = registerApiRoute(
       let closeRuntime = true;
 
       try {
+        const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
         if (command.allowedToolIds.length) {
           if (
             command.allowedToolIds.includes("web-search") &&
@@ -87,13 +88,12 @@ export const chatCompletionsRegistration = registerApiRoute(
               403,
             );
           }
-          const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
           if (!oidcToken) {
             return error("Unauthorized.", "authentication_error", 401);
           }
           runtime = createPilotProductionToolRuntime(storageConfig, oidcToken);
         } else {
-          runtime = createPilotConversationRuntime(storageConfig);
+          runtime = createPilotConversationRuntime(storageConfig, oidcToken ?? undefined);
         }
 
         if (isStreamingChatCompletionRequest(body)) {

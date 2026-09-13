@@ -103,6 +103,12 @@ local research data from being copied into a deployment. The production adapter
 requires `PILOT_ENABLE_RESEARCH=true`, `PILOT_ACTIVITY_CALLBACK_URL`, and the
 same matching-environment Turso configuration as Conversation.
 
+Production skill discovery is separately opt-in through
+`PILOT_ENABLE_RUNTIME_SKILLS=true`. It runs per request only when the verified
+Pilot OIDC token and activity callback are available. Pilot stores and displays
+only a validated selected-skill label; discovery queries, downloaded guidance,
+sources, audit details, and failures never leave the runtime as activity data.
+
 All model-controlled public URL fetches are protected by a DNS and redirect
 boundary. The runtime rejects loopback, private, link-local, local-name, mixed
 DNS, and credential-bearing targets before issuing a network request.

@@ -7,7 +7,11 @@ import { createMemoryResourceId } from "../conversation/command.js";
 import { conversationRuntimeConfig } from "../conversation/config.js";
 import { createBaseAgent } from "../runtime/agent/base-agent.js";
 import { buildBaseAgentInstructions } from "../runtime/agent/base-instructions.js";
-import { createPilotActivityReporter } from "../runtime/activity-reporter.js";
+import {
+  createPilotActivityReporter,
+  runtimeSkillsEnabled,
+} from "../runtime/activity-reporter.js";
+import { createRuntimeSkillResolverProcessor } from "../runtime/research/processors/runtime-skill-resolver.js";
 import { configureProductionResearchTools } from "../runtime/research/production-tools.js";
 import {
   createPilotRuntimeStorage,
@@ -68,6 +72,15 @@ type CompletedResult = {
   usage: { inputTokens: number; outputTokens: number; totalTokens: number };
 };
 
+async function reportActivitySafely(
+  reportActivity: ReturnType<typeof createPilotActivityReporter>,
+  event: Parameters<ReturnType<typeof createPilotActivityReporter>>[0],
+) {
+  // The protected audit trail is best-effort. A temporary callback failure must
+  // not turn a completed response into an artificial agent failure.
+  await reportActivity(event).catch(() => {});
+}
+
 function usageOf(value: {
   totalUsage: {
     inputTokens?: number;
@@ -88,6 +101,17 @@ function createProductionToolAgent(
   oidcToken: string,
 ): Agent {
   const reportActivity = createPilotActivityReporter(oidcToken);
+  const skillProcessor = runtimeSkillsEnabled()
+    ? createRuntimeSkillResolverProcessor({
+        onSkillLoaded: (skillId) =>
+          reportActivitySafely(reportActivity, {
+            kind: "skill",
+            organizationId: command.organizationId,
+            executionId: command.executionId,
+            skillId,
+          }),
+      })
+    : undefined;
   const isResearch = command.baseAgentId === "research";
   const identity = isResearch
     ? researchAgentIdentity
@@ -124,6 +148,7 @@ function createProductionToolAgent(
       },
     ],
     memory,
+    inputProcessors: skillProcessor ? [skillProcessor] : [],
     tools: {
       ...(command.allowedToolIds.includes("web-search") ? { webSearch } : {}),
       ...(command.allowedToolIds.includes("scratchpad")
@@ -140,7 +165,8 @@ function createProductionToolAgent(
           if (!isProductionToolId(toolId)) {
             throw new Error("A non-production Research tool was requested.");
           }
-          await reportActivity({
+          await reportActivitySafely(reportActivity, {
+            kind: "tool",
             organizationId: command.organizationId,
             executionId: command.executionId,
             toolId,
@@ -150,7 +176,8 @@ function createProductionToolAgent(
         afterToolCall: async ({ toolName, error }) => {
           const toolId = productionToolIdFromName(toolName);
           if (!isProductionToolId(toolId)) return;
-          await reportActivity({
+          await reportActivitySafely(reportActivity, {
+            kind: "tool",
             organizationId: command.organizationId,
             executionId: command.executionId,
             toolId,
@@ -334,7 +361,8 @@ export function createPilotProductionToolRuntime(
             usageOf(result),
           );
         }
-        await createPilotActivityReporter(oidcToken)({
+        await reportActivitySafely(createPilotActivityReporter(oidcToken), {
+          kind: "tool",
           organizationId: command.organizationId,
           executionId: command.executionId,
           toolId,
@@ -389,7 +417,8 @@ export function createPilotProductionToolRuntime(
                 usageOf(completed),
               );
             }
-            await createPilotActivityReporter(oidcToken)({
+            await reportActivitySafely(createPilotActivityReporter(oidcToken), {
+              kind: "tool",
               organizationId: command.organizationId,
               executionId: command.executionId,
               toolId,

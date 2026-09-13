@@ -6,6 +6,10 @@ import type {
 
 import { runRuntimeSkillPreflight } from '#runtime/skills/runtime-preflight';
 
+type RuntimeSkillResolverOptions = {
+  onSkillLoaded?: (skillId: string) => Promise<void>;
+};
+
 function getText(
   messages: ProcessInputArgs['messages'],
 ): string {
@@ -32,6 +36,8 @@ export class RuntimeSkillResolverProcessor
   readonly id = 'runtime-skill-resolver';
   readonly name = 'Runtime Skill Resolver';
 
+  constructor(private readonly options: RuntimeSkillResolverOptions = {}) {}
+
   async processInput({
     messages,
     messageList,
@@ -44,6 +50,11 @@ export class RuntimeSkillResolverProcessor
       await runRuntimeSkillPreflight(request);
 
     if (preflight.loaded && preflight.instructions) {
+      if (preflight.skillId) {
+        // Activity delivery is observational: a transient callback failure must
+        // never affect the user request or reveal skill discovery internals.
+        await this.options.onSkillLoaded?.(preflight.skillId).catch(() => {});
+      }
       messageList.addSystem(
         `
 <runtime-skill-preflight status="loaded" skill="${preflight.skillId}">
@@ -64,7 +75,6 @@ ${preflight.instructions}
 <runtime-skill-preflight status="${preflight.searched ? 'searched-no-load' : 'unavailable'}">
 Runtime skill discovery was executed before model execution.
 No skill instructions were loaded for this run.
-${preflight.error ? `Preflight error: ${preflight.error}` : ''}
 Do not repeat the marketplace search unless the user explicitly asks about skills or a later task clearly requires a different capability.
 </runtime-skill-preflight>
 `,
@@ -100,3 +110,9 @@ Do not expose internal skill resolution unless the user asks about execution det
 
 export const runtimeSkillResolverProcessor =
   new RuntimeSkillResolverProcessor();
+
+export function createRuntimeSkillResolverProcessor(
+  options: RuntimeSkillResolverOptions,
+): RuntimeSkillResolverProcessor {
+  return new RuntimeSkillResolverProcessor(options);
+}

@@ -67,7 +67,11 @@ export const generateRegistration = registerApiRoute(
             oidcToken,
           );
         } else {
-          runtime = createPilotConversationRuntime(runtimeStorageConfig);
+          runtime = createPilotConversationRuntime(
+            runtimeStorageConfig,
+            context.req.raw.headers.get("x-pilot-runtime-oidc-token") ??
+              undefined,
+          );
         }
         return context.json(await runtime.generate(command));
       } finally {
