@@ -11,8 +11,8 @@ import {
   createPilotActivityReporter,
   runtimeSkillsEnabled,
 } from "../runtime/activity-reporter.js";
-import { createRuntimeSkillResolverProcessor } from "../runtime/research/processors/runtime-skill-resolver.js";
-import { configureProductionResearchTools } from "../runtime/research/production-tools.js";
+import { createRuntimeSkillResolverProcessor } from "../runtime/research-processors/runtime-skill-resolver.js";
+import { configureProductionResearchTools } from "../runtime/research-tools/production-tools.js";
 import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,

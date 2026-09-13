@@ -8,7 +8,7 @@ import { exportValidator } from '#runtime/tools/export-validator';
 import { markdownFile } from '#runtime/tools/markdown-file';
 import { siteDiscovery } from '#runtime/tools/site-discovery';
 import { structuredData } from '#runtime/tools/structured-data';
-import { githubPublic } from '#runtime/research/tools/github-public';
+import { githubPublic } from '#runtime/research-tools/github-public';
 
 /**
  * Tools deferred from the initial model context. Each agent gets a fresh

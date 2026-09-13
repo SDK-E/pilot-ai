@@ -123,7 +123,7 @@ async function resilientSearch(
     try {
       const stagehandQuery = simplified || query;
       const { performStagehandSearch } =
-        await import("../../research/tools/stagehand-browser.js");
+        await import("../../research-tools/stagehand-browser.js");
       const browserResults = await performStagehandSearch(stagehandQuery);
       fallbackTrace.push({
         stage: "stagehand",

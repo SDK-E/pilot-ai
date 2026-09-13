@@ -4,7 +4,7 @@ import {
 
 import {
   pilotConfig,
-} from '#runtime/research/config';
+} from '#runtime/research-config';
 
 import {
   resolvePilotEvalMode,

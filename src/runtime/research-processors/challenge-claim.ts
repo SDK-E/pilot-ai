@@ -4,7 +4,7 @@ import type {
   ProcessInputStepResult,
 } from '@mastra/core/processors';
 
-import { pilotConfig } from '../config';
+import { pilotConfig } from '../research-config';
 
 export class ChallengeClaimProcessor
   implements Processor

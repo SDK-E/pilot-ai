@@ -3,7 +3,7 @@ import { createClient } from '@libsql/client';
 import { createCircuitBreaker } from '../cache/domain-circuit-breaker.js';
 import { createGenericCache } from '../cache/generic-cache.js';
 import { setRuntimeCache } from '../cache/index.js';
-import { pilotConfig } from './config/index.js';
+import { pilotConfig } from '../research-config/index.js';
 import type { PilotRuntimeStorageConfig } from '../storage/pilot-runtime.js';
 import { setUrlFetchConfig } from '../tools/url-fetch.js';
 import { setLangSearchConfig } from '../tools/search/langsearch.js';

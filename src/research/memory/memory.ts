@@ -1,12 +1,12 @@
 import { fastembed } from '@mastra/fastembed';
 import { Memory } from '@mastra/memory';
 
-import { pilotConfig } from '#runtime/research/config';
+import { pilotConfig } from '#runtime/research-config';
 
 import {
   memoryStorage,
   memoryVector,
-} from '#runtime/research/storage';
+} from '#runtime/research-storage';
 
 import { memoryTemplate } from './memory-template';
 

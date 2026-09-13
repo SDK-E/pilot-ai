@@ -13,7 +13,7 @@ import {
 import {
   researchMemoryDatabaseAuthToken,
   researchMemoryDatabaseUrl,
-} from '#runtime/research/config/research-agent/storage';
+} from '#runtime/research-config/research-agent/storage';
 
 const client: Client = createClient({
   url: researchMemoryDatabaseUrl,

@@ -2,7 +2,7 @@ import { ToolSearchProcessor } from "@mastra/core/processors";
 import { TaskSignalProvider } from "@mastra/core/signals";
 import { askUserTool } from "@mastra/core/tools";
 
-import { pilotConfig } from "#runtime/research/config";
+import { pilotConfig } from "#runtime/research-config";
 
 import { researchAgentIdentity } from "./identity";
 
@@ -31,7 +31,7 @@ import {
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
   taskDependencyProcessor,
-} from "#runtime/research/processors";
+} from "#runtime/research-processors";
 
 import { discoveryAgent, technicalAgent, verificationAgent } from "./subagents";
 
@@ -40,15 +40,15 @@ import { csvFile } from "#runtime/tools/csv-file";
 import { domainIntelligence } from "#runtime/tools/domain-intelligence";
 import { exportResults } from "#runtime/tools/export-results";
 import { exportValidator } from "#runtime/tools/export-validator";
-import { githubPublic } from "#runtime/research/tools/github-public";
+import { githubPublic } from "#runtime/research-tools/github-public";
 import { markdownFile } from "#runtime/tools/markdown-file";
 import { queryPlanner } from "#runtime/tools/query-planner";
 import { researchScratchpad } from "#runtime/tools/research-scratchpad";
 import { resultCollector } from "#runtime/tools/result-collector";
 import { searchDorks } from "#runtime/tools/search/search-dorks";
 import { siteDiscovery } from "#runtime/tools/site-discovery";
-import { skillsMarketplace } from "#runtime/research/tools/skills-marketplace";
-import { stagehandBrowser } from "#runtime/research/tools/stagehand-browser";
+import { skillsMarketplace } from "#runtime/research-tools/skills-marketplace";
+import { stagehandBrowser } from "#runtime/research-tools/stagehand-browser";
 import { structuredData } from "#runtime/tools/structured-data";
 import { webSearch } from "#runtime/tools/search/web-search";
 

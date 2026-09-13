@@ -4,7 +4,7 @@ import type {
   ProcessInputResult,
 } from '@mastra/core/processors';
 
-import { runRuntimeSkillPreflight } from '../../skills/runtime-preflight.js';
+import { runRuntimeSkillPreflight } from '../skills/runtime-preflight.js';
 
 type RuntimeSkillResolverOptions = {
   onSkillLoaded?: (skillId: string) => Promise<void>;

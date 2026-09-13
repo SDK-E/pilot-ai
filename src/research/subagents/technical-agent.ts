@@ -1,4 +1,4 @@
-import { pilotConfig } from '#runtime/research/config';
+import { pilotConfig } from '#runtime/research-config';
 import { createBaseAgent } from '#runtime/agent/base-agent';
 import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
 
@@ -8,13 +8,13 @@ import {
   recencyCheckProcessor,
   runtimeSkillResolverProcessor,
   sourceConfidenceProcessor,
-} from '#runtime/research/processors';
+} from '#runtime/research-processors';
 import { queryPlanner } from '#runtime/tools/query-planner';
 import { researchScratchpad } from '#runtime/tools/research-scratchpad';
 import { resultCollector } from '#runtime/tools/result-collector';
 import { searchDorks } from '#runtime/tools/search/search-dorks';
-import { skillsMarketplace } from '#runtime/research/tools/skills-marketplace';
-import { stagehandBrowser } from '#runtime/research/tools/stagehand-browser';
+import { skillsMarketplace } from '#runtime/research-tools/skills-marketplace';
+import { stagehandBrowser } from '#runtime/research-tools/stagehand-browser';
 import { webSearch } from '#runtime/tools/search/web-search';
 import { createResearchToolSearchProcessor } from '../tool-search';
 import { technicalAgentIdentity } from './identity';

@@ -4,7 +4,7 @@ import {
 
 import {
   pilotConfig,
-} from '#runtime/research/config';
+} from '#runtime/research-config';
 
 import { researchAgentIdentity } from './identity';
 import { createBaseAgent } from '#runtime/agent/base-agent';

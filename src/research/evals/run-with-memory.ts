@@ -11,7 +11,7 @@ import type {
 
 import { pilotResearchAgent } from '../agent';
 
-import { pilotConfig } from '#runtime/research/config';
+import { pilotConfig } from '#runtime/research-config';
 
 const EVAL_RESOURCE_ID =
   'pilot-research-evals';
