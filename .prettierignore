@@ -1,0 +1,9 @@
+.mastra
+.vercel
+node_modules
+pnpm-lock.yaml
+storage
+src/public
+coverage
+*.db
+*.db-*

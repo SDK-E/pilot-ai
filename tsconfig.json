@@ -30,5 +30,5 @@
       "#conversation/*": ["/src/conversation/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "api/**/*"]
 }
