@@ -17,7 +17,7 @@ export default defineConfig([
     "dist/**",
     "storage/**",
     "src/.mastra/**",
-    "src/public/**",
+    "src/mastra/public/**",
   ]),
 
   js.configs.recommended,
@@ -48,14 +48,7 @@ export default defineConfig([
     rules: {
       // Functions deploy unbundled to Node ESM, which does not resolve
       // extensionless relative specifiers. `.js` is mandatory; `.ts` never is.
-      "import-x/extensions": [
-        "error",
-        "ignorePackages",
-        {
-          ts: "never",
-          pathGroupOverrides: [{ pattern: "#*/**", action: "ignore" }],
-        },
-      ],
+      "import-x/extensions": ["error", "ignorePackages", { ts: "never" }],
       "import-x/no-cycle": "error",
       "import-x/order": [
         "error",
@@ -118,11 +111,7 @@ export default defineConfig([
 
   {
     // Tests, evals, and CLI scripts print to the terminal by design.
-    files: [
-      "**/*.test.ts",
-      "src/research/evals/**",
-      "src/conversation/verify-memory.ts",
-    ],
+    files: ["**/*.test.ts", "src/evals/**", "scripts/**"],
     rules: {
       "max-lines-per-function": "off",
       "max-lines": "off",

@@ -1,143 +1,131 @@
 # Pilot AI
 
-The runtime boundary for [Pilot](https://github.com/SDK-E/pilot) and Pilot Research.
+The Mastra runtime behind [Pilot](https://github.com/SDK-E/pilot). Pilot owns
+authentication, organization authorization, agents, conversations, execution
+records, and approvals. This service owns agent construction, memory,
+workflows, and the protected runtime API; it never makes authorization
+decisions and never stores Pilot domain records.
 
-Pilot Research has two deliberately separate forms: a broad agent for local
-development and an isolated, tenant-scoped production adapter. The broad agent
-is never a Pilot Worker capability. The production adapter is gated and has a
-small, reviewed capability boundary.
+## Project structure
 
-Pilot owns authentication, organization authorization, workers, conversations,
-execution records, and approvals. Mastra supplies agent, memory, workflow, and
-durable-execution capabilities; it does not own Pilot domain records or make
-authorization decisions.
+The layout follows Mastra's standard `src/mastra` project structure. Every
+agent is built by the base agent; the base agent owns everything reusable.
 
-The production Research adapter is separate from the broad local-development
-agent. When enabled, it receives the hardened `web-search` tool and a private
-chat-scoped `scratchpad` tool. It uses the original verified Pilot OIDC token
-to append sanitized lifecycle events and to reach Pilot's fixed scratchpad
-callback through `PILOT_ACTIVITY_CALLBACK_URL`. It does not import Stagehand,
-browser actions, MCP, files, exports, or delegation.
+```
+api/v1/                     Vercel Functions. Each file is a thin wrapper over a
+                            handler in src/mastra/server.
+src/contracts/              Pure request/response contract shared with Pilot.
+                            Zero @mastra imports, zero process.env.
+src/mastra/
+  index.ts                  Mastra instance: storage, logger, routes, workflows.
+  agents/
+    base/                   The base agent: factory, shared instructions, limits,
+                            config profiles, processors, and skill preflight.
+      processors/           Input processors grouped by concern:
+        context/ quality/ budget/ response/ policy/
+    chat/                   Chat agent: identity and instructions only.
+    runtime/                Request-scoped runtimes used by the server.
+  server/                   HTTP layer: OpenAI-compatible translation, handlers,
+                            and Mastra route registrations (routes/).
+  tools/                    Mastra tools, discovered by the Mastra CLI. Grouped by
+                            what they touch: web/ search/ files/ planning/ pilot/
+                            browser/ code/ skills/.
+  workflows/                Mastra workflows.
+  scorers/                  Evaluation scorers.
+  memory/ storage/ cache/   Memory factories, storage adapters, caches.
+  activity/ auth/ security/ Pilot activity callback, Vercel OIDC verification,
+                            public-URL guard.
+  work/                     Durable Work cache (Redis).
+  setup/                    Wires cache and network config into the tools.
+  development/              The full-capability development agent, subagents,
+                            long-form instructions, and memory. Registered only
+                            when PILOT_ENABLE_DEVELOPMENT_TOOLS=true; never
+                            imported by a deployed function.
+src/evals/                  Opt-in live evaluations (pnpm eval:*).
+scripts/                    Terminal scripts (pnpm verify:memory).
+```
 
-`src/index.ts` is the Mastra service entrypoint. It holds the Pilot route and
-conditionally registers both agents for local Mastra development. The Vercel
-function at `api/v1/chat/completions.ts` is the production adapter: it imports
-the tenant-scoped Conversation runtime and, only when explicitly enabled, the
-isolated Research runtime.
-`src/runtime/agent/base-agent.ts` is the
-shared BaseAgent factory: every agent receives the same input normalization,
-current-context, objective-continuity, response-quality, failure-recovery,
-token-limit, step-budget, and bounded API-retry pipeline. Agent-specific code
-lives in `src/conversation` and `src/research`; shared and research-capability
-runtime components live in `src/runtime`. Browser, local LibSQL, DuckDB,
-embeddings, evals, editor, observability, and Stagehand remain development
-dependencies of Pilot Research.
-
-The `pilot` adapter is the beginning of the product runtime. It
-accepts only a server-generated, validated command; maps the organization and
-Worker to an immutable Mastra memory resource; maps the Pilot Conversation UUID
-to the Mastra thread; and uses `@mastra/libsql` with the matching Turso database.
-Production tools are selected only from Pilot's server-generated command;
-per-tool approval requirements travel separately, so an `ask` policy for one capability never pauses an allowed capability. `ask_user` remains a clarification suspension rather than an approval.
-both Conversational and Research may receive `web-search` and `scratchpad`.
-The scratchpad callback derives the conversation and creator from its active
-execution record, so the runtime never supplies user or conversation ownership.
-Neither capability relies on browser-provided tool identifiers.
-
-Preview and Production require `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
-the matching environment. Local development without that pair intentionally
-uses `.mastra/pilot-runtime.db`; it is a local-only fallback and must never be
-used in a deployed runtime. `pnpm verify:memory` performs a real two-process
-memory check and deletes its randomized thread afterward.
-
-On 2026-09-07, Preview was deployed through a remote Linux Vercel build and
-verified through its protected endpoint. Two separate function invocations
-wrote and then recalled a randomized conversation value through Turso.
-Production is now also deployed with its own sensitive `TURSO_AUTH_TOKEN`.
-
-Pilot Work durability is separately fail-closed. A shared Redis endpoint in
-`PILOT_WORK_REDIS_URL` is required before a Work run can claim reconnectable
-observation across Vercel instances; use `rediss://` for a managed TLS endpoint.
-`PILOT_WORK_CACHE_TTL_SECONDS` is optional and defaults to one hour (minimum
-60 seconds). Turso remains the persistent Mastra workflow and memory store;
-Redis holds bounded resumable stream events. Do not enable autonomous Work
-dispatch until this cache, Pilot's owner-scoped run contract, recovery, and
-cancellation paths are all deployed together.
+Relative imports carry an explicit `.js` extension because the Vercel
+functions run unbundled on Node ESM. ESLint enforces this.
 
 ## Runtime API
 
 The production runtime is `https://ai.pilot.sdk.enterprises`.
 `POST /v1/chat/completions` accepts OpenAI Chat Completions `model`,
-`messages`, and `stream: false`, then returns a `chat.completion` object with
-`choices` and token `usage`. Pilot first checks the user's WorkOS session and
-tenant authorization, then forwards a short-lived Vercel OIDC token. The
-runtime validates its issuer, audience, and exact Pilot project and environment
-subject before it reads the request body, initializes Mastra, or accepts the
-tenant headers. This protects the custom domain even where Vercel Deployment
-Protection does not apply to it. `vercel.json` deploys only this isolated Node
-function and rewrites `/v1/*` to its Vercel Function entry. Generic Mastra
-runtime routes verify the same OIDC token before they parse a request or create
-storage, so they cannot expose local-development capabilities.
+`messages`, and `stream`, and returns a `chat.completion` object or an SSE
+stream. Pilot first checks the user's WorkOS session and tenant authorization,
+then forwards a short-lived Vercel OIDC token. The runtime validates its
+issuer, audience, and exact Pilot project and environment subject before it
+reads the request body, initializes Mastra, or accepts the tenant headers.
+This protects the custom domain even where Vercel Deployment Protection does
+not apply to it. `vercel.json` rewrites `/v1/*` to the function entries.
 
-The same Vercel function boundary exposes `POST /v1/conversations/delete` and
-`POST /v1/projects/delete-memory` for Pilot-owned cleanup. Both require the
-verified Pilot OIDC token and accept only typed server commands; they are never
-called by the browser.
+The same boundary exposes `POST /v1/approvals/resume`,
+`POST /v1/conversations/delete`, `POST /v1/projects/delete-memory`, and
+`POST /v1/tasks/approval`. All require the verified Pilot OIDC token and accept
+only typed server commands; the browser never calls them.
+
+A request with granted capabilities runs on the tool runtime with `web-search`,
+`scratchpad`, and `ask-user`. Capabilities are selected only from Pilot's
+server-generated command; per-tool approval requirements travel separately, so
+an `ask` policy for one capability never pauses an allowed one. `ask_user` is a
+clarification suspension, not an approval. The scratchpad callback derives the
+conversation and creator from its active execution record, so the runtime
+never supplies ownership.
+
+## Configuration
+
+Preview and Production require `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
+the matching environment. Local development without that pair uses
+`src/.mastra/pilot-runtime.db`; it is a local-only fallback.
+
+`PILOT_LOG_LEVEL` sets the shared logger level (`debug`, `info`, `warn`,
+`error`, `silent`).
+
+Public web search requires `PILOT_ENABLE_RESEARCH=true` and
+`PILOT_ACTIVITY_CALLBACK_URL`. Skill discovery is separately opt-in through
+`PILOT_ENABLE_RUNTIME_SKILLS=true` and runs per request only when the verified
+Pilot OIDC token and activity callback are available; only a validated
+selected-skill label reaches Pilot activity records.
+
+Pilot Work durability is fail-closed: a shared Redis endpoint in
+`PILOT_WORK_REDIS_URL` is required before a Work run can claim reconnectable
+observation across Vercel instances (`rediss://` for managed TLS).
+`PILOT_WORK_CACHE_TTL_SECONDS` defaults to one hour (minimum 60).
+
+All model-controlled public URL fetches are protected by a DNS and redirect
+boundary that rejects loopback, private, link-local, local-name, mixed DNS,
+and credential-bearing targets before any network request.
 
 ## Development
 
-Use Node.js 24 and pnpm. The `dev` and `build` scripts invoke the Mastra CLI.
+Use Node.js 24 and pnpm.
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test
-pnpm knip
-pnpm build
+pnpm check        # lint, typecheck, prettier, knip
+pnpm test         # deterministic unit tests
+pnpm build        # mastra build
+pnpm dev          # Mastra playground
+pnpm dev:full     # playground with the development tool set registered
 ```
 
-`pnpm test` runs deterministic unit tests. The `pnpm eval:*` commands run live
-Kilo/browser evaluation work and are deliberately opt-in.
+`pnpm dev:full` and `pnpm build:full` set `PILOT_ENABLE_DEVELOPMENT_TOOLS=true`
+and register the development agent, subagents, workflows, and scorers. That
+registration requires `MASTRA_DATABASE_URL`, `MASTRA_EDITOR_DATABASE_URL`, and
+`MASTRA_MEMORY_DATABASE_URL` pointing outside `src/` so local data is never
+deployed. The `pnpm eval:*` commands run live Kilo and browser evaluations and
+are deliberately opt-in.
 
-`pnpm verify:memory` is an opt-in live persistence check. Without Turso it
-checks the local LibSQL fallback. Set `TURSO_DATABASE_URL` and
-`TURSO_AUTH_TOKEN` for an isolated, matching-environment Turso database to
-exercise the production storage path; it performs two Kilo Gateway generations
-and deletes its randomized Mastra thread.
+`pnpm verify:memory` is an opt-in live persistence check that performs two
+Kilo Gateway generations across two processes and deletes its randomized
+Mastra thread afterward.
 
-The broad Research Agent is local-development only. It requires explicit
-`MASTRA_DATABASE_URL`, `MASTRA_EDITOR_DATABASE_URL`, and
-`MASTRA_MEMORY_DATABASE_URL` values that point outside `src/`; this prevents
-local research data from being copied into a deployment. The production adapter
-requires `PILOT_ENABLE_RESEARCH=true`, `PILOT_ACTIVITY_CALLBACK_URL`, and the
-same matching-environment Turso configuration as Conversation.
+Before adding Mastra code, read the installed package documentation. Every
+agent is constructed through the base agent, including the shared prompt
+enhancer; agent-specific processors run after that shared context. Never add a
+file-backed database to the deployed runtime path or expose a tool before Pilot
+enforces its capability and approval policy.
 
-Production skill discovery is separately opt-in through
-`PILOT_ENABLE_RUNTIME_SKILLS=true`. It runs per request only when the verified
-Pilot OIDC token and activity callback are available. Pilot stores and displays
-only a validated selected-skill label; discovery queries, downloaded guidance,
-sources, audit details, and failures never leave the runtime as activity data.
-
-All model-controlled public URL fetches are protected by a DNS and redirect
-boundary. The runtime rejects loopback, private, link-local, local-name, mixed
-DNS, and credential-bearing targets before issuing a network request.
-
-`pnpm dev` and `pnpm build` run the normal Pilot configuration. `pnpm
-dev:research` and `pnpm build:research` set
-`PILOT_ENABLE_DEVELOPMENT_RESEARCH=true` and
-register Pilot Research through the same entrypoint. Research is not activated
-for a normal runtime request. Mastra's build still follows the optional
-registration import and packages research dependencies, so it is a local
-development artifact. Vercel deploys the isolated OpenAI-compatible runtime;
-Research remains unavailable there until its production feature flag is set.
-
-Before adding Mastra code, read [AGENTS.md](AGENTS.md) and the current package
-documentation. Every Pilot agent is constructed through the shared BaseAgent
-pipeline, including the generic short-request prompt enhancer; agent-specific
-research policy and verification processors run after that shared context.
-Production runtime storage uses the environment-specific Turso
-LibSQL database through `TURSO_DATABASE_URL`; never add a file-backed
-database to the Pilot Conversation path or expose a tool before Pilot enforces
-its capability and approval policy.
-
-GitHub Actions builds the runtime and checks known high-severity vulnerabilities for pull requests and `main`.
+GitHub Actions builds the runtime and checks known high-severity
+vulnerabilities for pull requests and `main`.

@@ -1,4 +1,4 @@
-import { handleProjectMemoryCleanup } from "../../../src/conversation/api/cleanup-handlers.js";
+import { handleProjectMemoryCleanup } from "../../../src/mastra/server/cleanup.js";
 
 export const config = { runtime: "nodejs" };
 

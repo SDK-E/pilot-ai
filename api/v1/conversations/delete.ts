@@ -1,4 +1,4 @@
-import { handleConversationCleanup } from "../../../src/conversation/api/cleanup-handlers.js";
+import { handleConversationCleanup } from "../../../src/mastra/server/cleanup.js";
 
 export const config = { runtime: "nodejs" };
 

@@ -1,4 +1,4 @@
-import { handleChatCompletion } from "../../../src/conversation/api/chat-completions.js";
+import { handleChatCompletion } from "../../../src/mastra/server/chat-completions.js";
 
 export const config = { runtime: "nodejs" };
 

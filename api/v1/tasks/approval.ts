@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { mastra } from "../../../src/index.js";
-import { verifyPilotRuntimeRequest } from "../../../src/runtime/auth/vercel-oidc.js";
+import { verifyPilotRuntimeRequest } from "../../../src/mastra/auth/vercel-oidc.js";
+import { mastra } from "../../../src/mastra/index.js";
 
 const inputSchema = z
   .object({ taskId: z.uuid(), approvalSummary: z.string().min(1).max(2000) })
