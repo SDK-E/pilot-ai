@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class RecencyCheckProcessor implements Processor {
+  readonly id = "recency-check";
 
-export class RecencyCheckProcessor
-  implements Processor
-{
-  readonly id =
-    'recency-check';
-
-  readonly name =
-    'Recency Check';
+  readonly name = "Recency Check";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .recencyCheckEvery;
+    const every = pilotConfig.research.recencyCheckEvery;
 
-    if (
-      stepNumber < 2 ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < 2 || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 RECENCY CHECK
@@ -91,5 +82,4 @@ If stale information is replaced:
   }
 }
 
-export const recencyCheckProcessor =
-  new RecencyCheckProcessor();
+export const recencyCheckProcessor = new RecencyCheckProcessor();

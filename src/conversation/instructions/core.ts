@@ -1,8 +1,9 @@
-import type { AgentIdentity } from '../../runtime/agent/identity.js';
+import type { AgentIdentity } from "../../runtime/agent/identity.js";
 
-export type { AgentIdentity } from '#runtime/agent/identity';
+export type { AgentIdentity } from "#runtime/agent/identity";
 
-export const conversationCoreInstructions = (identity: AgentIdentity) => `
+export const conversationCoreInstructions = (identity: AgentIdentity) =>
+  `
 You are ${identity.name}.
 
 Date of birth: ${identity.dateOfBirth}

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { PILOT_CONVERSATION_MODEL_ID } from "./contract.js";
+
 import type { GenerateConversationReply } from "./command.js";
 
 const chatMessageSchema = z
@@ -14,7 +15,10 @@ const chatMessageSchema = z
 
 export const chatCompletionRequestSchema = z
   .object({
-    model: z.string().regex(/^kilo\/[a-z0-9][a-z0-9._:-]*(?:\/[a-z0-9][a-z0-9._:-]*)*$/i).max(200),
+    model: z
+      .string()
+      .regex(/^kilo\/[a-z0-9][a-z0-9._:-]*(?:\/[a-z0-9][a-z0-9._:-]*)*$/i)
+      .max(200),
     messages: z.array(chatMessageSchema).min(1).max(2),
     stream: z.boolean().optional(),
     stream_options: z
@@ -144,7 +148,7 @@ export function createUserInputRequiredResponse(result: {
   runId: string;
   toolCallId: string;
   question: string;
-  options?: Array<{ label: string; description?: string }>;
+  options?: { label: string; description?: string }[];
   selectionMode?: "single_select" | "multi_select";
 }) {
   return {
@@ -171,7 +175,7 @@ export function createChatCompletionResponse(result: {
   return {
     id: `chatcmpl_${result.runId ?? randomUUID()}`,
     object: "chat.completion" as const,
-    created: Math.floor(Date.now() / 1_000),
+    created: Math.floor(Date.now() / 1000),
     model: result.modelId,
     choices: [
       {
@@ -192,7 +196,7 @@ export function createChatCompletionResponse(result: {
   };
 }
 
-type StreamingConversationResult = {
+interface StreamingConversationResult {
   runId: string | null;
   textStream: AsyncIterable<string>;
   result(): Promise<
@@ -223,7 +227,7 @@ type StreamingConversationResult = {
         runId: string;
         toolCallId: string;
         question: string;
-        options?: Array<{ label: string; description?: string }>;
+        options?: { label: string; description?: string }[];
         selectionMode?: "single_select" | "multi_select";
         usage: {
           inputTokens: number;
@@ -232,7 +236,7 @@ type StreamingConversationResult = {
         };
       }
   >;
-};
+}
 
 // The deployed function has a 90-second ceiling. Leave enough time for Pilot
 // to emit a structured error and release the runtime before Vercel terminates
@@ -245,7 +249,9 @@ export function waitForStreamingResult<T>(result: Promise<T>): Promise<T> {
       reject(new Error("Pilot Conversation runtime did not complete in time."));
     }, STREAM_RESULT_TIMEOUT_MS);
 
-    void result.then(resolve, reject).finally(() => clearTimeout(timer));
+    void result.then(resolve, reject).finally(() => {
+      clearTimeout(timer);
+    });
   });
 }
 
@@ -259,7 +265,7 @@ export function createChatCompletionStream(
 ) {
   const encoder = new TextEncoder();
   const id = `chatcmpl_${result.runId ?? randomUUID()}`;
-  const created = Math.floor(Date.now() / 1_000);
+  const created = Math.floor(Date.now() / 1000);
 
   const send = (value: unknown) =>
     encoder.encode(`data: ${JSON.stringify(value)}\n\n`);

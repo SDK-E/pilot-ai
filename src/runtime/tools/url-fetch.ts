@@ -3,13 +3,13 @@ import { z } from "zod";
 
 import { assertPublicHttpUrl } from "../security-public-url.js";
 
-export type UrlFetchResult = {
+export interface UrlFetchResult {
   url: string;
   title?: string;
   content: string;
-};
+}
 
-export type UrlFetchConfig = {
+export interface UrlFetchConfig {
   fetchTimeoutMs: number;
   fetchTtlMs: number;
   canRequestDomain: (hostname: string) => boolean;
@@ -23,7 +23,7 @@ export type UrlFetchConfig = {
     ttlMs: number,
   ) => Promise<void>;
   makeCacheKey: (type: string, input: unknown) => string;
-};
+}
 
 let urlFetchConfig: UrlFetchConfig | undefined;
 
@@ -45,47 +45,47 @@ const AGENT_USER_AGENT =
   "SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)";
 
 function extractTitle(html: string): string | undefined {
-  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
 
   if (!match) {
     return undefined;
   }
 
   return match[1]
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&nbsp;", " ")
+    .replaceAll(/\s+/g, " ")
     .trim();
 }
 
 function toMarkdown(html: string, maxCharacters: number): string {
   const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
-    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
-    .replace(/<header[\s\S]*?<\/header>/gi, "")
-    .replace(/<aside[\s\S]*?<\/aside>/gi, "")
-    .replace(/<form[\s\S]*?<\/form>/gi, "")
-    .replace(/<button[\s\S]*?<\/button>/gi, "")
-    .replace(/<svg[\s\S]*?<\/svg>/gi, "")
-    .replace(/<img[^>]*>/gi, "[image]")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<\/tr>/gi, "\n")
-    .replace(/<\/td>/gi, " | ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/(^|\n)-\s*\n/g, "$1")
+    .replaceAll(/<script[\s\S]*?<\/script>/gi, "")
+    .replaceAll(/<style[\s\S]*?<\/style>/gi, "")
+    .replaceAll(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replaceAll(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replaceAll(/<header[\s\S]*?<\/header>/gi, "")
+    .replaceAll(/<aside[\s\S]*?<\/aside>/gi, "")
+    .replaceAll(/<form[\s\S]*?<\/form>/gi, "")
+    .replaceAll(/<button[\s\S]*?<\/button>/gi, "")
+    .replaceAll(/<svg[\s\S]*?<\/svg>/gi, "")
+    .replaceAll(/<img[^>]*>/gi, "[image]")
+    .replaceAll(/<br\s*\/?>/gi, "\n")
+    .replaceAll(/<\/p>/gi, "\n\n")
+    .replaceAll(/<\/li>/gi, "\n")
+    .replaceAll(/<\/tr>/gi, "\n")
+    .replaceAll(/<\/td>/gi, " | ")
+    .replaceAll(/<[^>]+>/g, " ")
+    .replaceAll("&nbsp;", " ")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll(/\n{3,}/g, "\n\n")
+    .replaceAll(/(^|\n)-\s*\n/g, "$1")
     .trim();
 
   if (text.length <= maxCharacters) {
@@ -121,18 +121,19 @@ export async function performUrlFetch(
 
   const timeoutController = new AbortController();
 
-  const timeout = setTimeout(
-    () => timeoutController.abort(),
-    config.fetchTimeoutMs,
-  );
+  const timeout = setTimeout(() => {
+    timeoutController.abort();
+  }, config.fetchTimeoutMs);
 
-  const onAbort = () => timeoutController.abort();
+  const onAbort = () => {
+    timeoutController.abort();
+  };
 
   abortSignal?.addEventListener("abort", onAbort, {
     once: true,
   });
 
-  let failureRecorded = false;
+  const isFailureRecorded = false;
 
   try {
     let response: Response | undefined;
@@ -158,7 +159,7 @@ export async function performUrlFetch(
       if (redirectCount === 5) throw new Error("Too many redirects.");
     }
 
-    if (!response || !response.ok) {
+    if (!response?.ok) {
       throw new Error(`HTTP ${response?.status}: ${response?.statusText}`);
     }
 
@@ -166,15 +167,12 @@ export async function performUrlFetch(
 
     let html: string;
 
-    if (
+    html =
       contentType.includes("text/") ||
       contentType.includes("json") ||
       contentType.includes("xml")
-    ) {
-      html = await response.text();
-    } else {
-      html = await response.text();
-    }
+        ? await response.text()
+        : await response.text();
 
     config.recordDomainSuccess(url.hostname);
 
@@ -196,7 +194,7 @@ export async function performUrlFetch(
 
     return result;
   } catch (error) {
-    if (!failureRecorded && !timeoutController.signal.aborted) {
+    if (!isFailureRecorded && !timeoutController.signal.aborted) {
       config.recordDomainFailure(url.hostname);
     }
 
@@ -208,7 +206,7 @@ export async function performUrlFetch(
   }
 }
 
-let failureRecorded = false;
+const isFailureRecorded = false;
 
 const urlFetch = createTool({
   id: "url-fetch",
@@ -219,7 +217,7 @@ const urlFetch = createTool({
   inputSchema: z.object({
     url: z.string().url(),
 
-    maxCharacters: z.number().int().min(1_000).max(50_000).default(12_000),
+    maxCharacters: z.number().int().min(1000).max(50_000).default(12_000),
   }),
 
   outputSchema: z.object({

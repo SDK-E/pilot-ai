@@ -1,14 +1,14 @@
-import { ToolSearchProcessor } from '@mastra/core/processors';
+import { ToolSearchProcessor } from "@mastra/core/processors";
 
-import { bulkUrlFetch } from '#runtime/tools/bulk-url-fetch';
-import { csvFile } from '#runtime/tools/csv-file';
-import { domainIntelligence } from '#runtime/tools/domain-intelligence';
-import { exportResults } from '#runtime/tools/export-results';
-import { exportValidator } from '#runtime/tools/export-validator';
-import { markdownFile } from '#runtime/tools/markdown-file';
-import { siteDiscovery } from '#runtime/tools/site-discovery';
-import { structuredData } from '#runtime/tools/structured-data';
-import { githubPublic } from '#runtime/research-tools/github-public';
+import { githubPublic } from "#runtime/research-tools/github-public";
+import { bulkUrlFetch } from "#runtime/tools/bulk-url-fetch";
+import { csvFile } from "#runtime/tools/csv-file";
+import { domainIntelligence } from "#runtime/tools/domain-intelligence";
+import { exportResults } from "#runtime/tools/export-results";
+import { exportValidator } from "#runtime/tools/export-validator";
+import { markdownFile } from "#runtime/tools/markdown-file";
+import { siteDiscovery } from "#runtime/tools/site-discovery";
+import { structuredData } from "#runtime/tools/structured-data";
 
 /**
  * Tools deferred from the initial model context. Each agent gets a fresh
@@ -29,6 +29,6 @@ export function createResearchToolSearchProcessor() {
       markdownFile,
     },
     search: { topK: 5, minScore: 0.1 },
-    storage: 'context',
+    storage: "context",
   });
 }

@@ -1,8 +1,9 @@
-import type { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
 
-import { PILOT_CONVERSATION_MODEL_ID } from "../../conversation/contract.js";
 import { conversationRuntimeConfig } from "../../conversation/config.js";
+import { PILOT_CONVERSATION_MODEL_ID } from "../../conversation/contract.js";
+
+import type { LibSQLStore } from "@mastra/libsql";
 
 export function createConversationMemory(storage: LibSQLStore) {
   return new Memory({

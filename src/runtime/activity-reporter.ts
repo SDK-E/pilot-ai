@@ -32,15 +32,12 @@ const skillActivitySchema = z
     kind: z.literal("skill"),
     organizationId: z.string().min(1).max(255),
     executionId: z.string().uuid(),
-    skillId: z
-      .string()
-      .regex(/^[a-z0-9][a-z0-9._/-]{0,120}$/i),
+    skillId: z.string().regex(/^[a-z0-9][a-z0-9._/-]{0,120}$/i),
   })
   .strict();
 
 type ActivityEvent =
-  | z.infer<typeof toolActivitySchema>
-  | z.infer<typeof skillActivitySchema>;
+  z.infer<typeof toolActivitySchema> | z.infer<typeof skillActivitySchema>;
 
 export function runtimeSkillsEnabled(): boolean {
   return process.env.PILOT_ENABLE_RUNTIME_SKILLS === "true";

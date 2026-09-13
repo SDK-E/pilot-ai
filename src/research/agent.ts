@@ -2,22 +2,9 @@ import { ToolSearchProcessor } from "@mastra/core/processors";
 import { TaskSignalProvider } from "@mastra/core/signals";
 import { askUserTool } from "@mastra/core/tools";
 
-import { pilotConfig } from "#runtime/research-config";
-
-import { researchAgentIdentity } from "./identity";
-
-import { coreInstructions } from "./instructions/core";
-import { completionInstructions } from "./instructions/completion";
-import { researchPlanningInstructions } from "./instructions/research-planning";
-import { toolUsageInstructions } from "./instructions/tool-usage";
-import { verificationInstructions } from "./instructions/verification";
-import { orgContext } from "./instructions/org-context";
-
-import { pilotResearchMemory } from "./memory/memory";
-
 import { createBaseAgent } from "#runtime/agent/base-agent";
 import { buildBaseAgentInstructions } from "#runtime/agent/base-instructions";
-
+import { pilotConfig } from "#runtime/research-config";
 import {
   challengeClaimProcessor,
   contradictionCheckProcessor,
@@ -32,25 +19,35 @@ import {
   sourceDiversityProcessor,
   taskDependencyProcessor,
 } from "#runtime/research-processors";
+import { githubPublic } from "#runtime/research-tools/github-public";
+import { skillsMarketplace } from "#runtime/research-tools/skills-marketplace";
+import { stagehandBrowser } from "#runtime/research-tools/stagehand-browser";
+import { bulkUrlFetch } from "#runtime/tools/bulk-url-fetch";
+import { csvFile } from "#runtime/tools/csv-file";
+
+import { completionInstructions } from "./instructions/completion";
+import { researchPlanningInstructions } from "./instructions/research-planning";
+import { toolUsageInstructions } from "./instructions/tool-usage";
+import { verificationInstructions } from "./instructions/verification";
+import { orgContext } from "./instructions/org-context";
+
+import { pilotResearchMemory } from "./memory/memory";
 
 import { discoveryAgent, technicalAgent, verificationAgent } from "./subagents";
 
-import { bulkUrlFetch } from "#runtime/tools/bulk-url-fetch";
-import { csvFile } from "#runtime/tools/csv-file";
 import { domainIntelligence } from "#runtime/tools/domain-intelligence";
 import { exportResults } from "#runtime/tools/export-results";
 import { exportValidator } from "#runtime/tools/export-validator";
-import { githubPublic } from "#runtime/research-tools/github-public";
 import { markdownFile } from "#runtime/tools/markdown-file";
 import { queryPlanner } from "#runtime/tools/query-planner";
 import { researchScratchpad } from "#runtime/tools/research-scratchpad";
 import { resultCollector } from "#runtime/tools/result-collector";
 import { searchDorks } from "#runtime/tools/search/search-dorks";
 import { siteDiscovery } from "#runtime/tools/site-discovery";
-import { skillsMarketplace } from "#runtime/research-tools/skills-marketplace";
-import { stagehandBrowser } from "#runtime/research-tools/stagehand-browser";
 import { structuredData } from "#runtime/tools/structured-data";
 import { webSearch } from "#runtime/tools/search/web-search";
+import { researchAgentIdentity } from "./identity";
+import { coreInstructions } from "./instructions/core";
 
 const toolSearchProcessor = new ToolSearchProcessor({
   tools: {

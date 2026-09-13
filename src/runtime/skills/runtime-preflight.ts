@@ -1,44 +1,46 @@
-type SkillSummary = {
+interface SkillSummary {
   id?: unknown;
   slug?: unknown;
   name?: unknown;
   source?: unknown;
   installs?: unknown;
-};
+}
 
-type SearchResponse = {
+interface SearchResponse {
   data?: unknown;
-};
+}
 
-type DetailResponse = {
+interface DetailResponse {
   id?: unknown;
   slug?: unknown;
   source?: unknown;
   files?: unknown;
-};
+}
 
-type AuditResponse = {
+interface AuditResponse {
   audits?: unknown;
-};
+}
 
-export type RuntimeSkillPreflightResult = {
+export interface RuntimeSkillPreflightResult {
   query: string;
   searched: boolean;
   loaded: boolean;
   skillId?: string;
   instructions?: string;
   error?: string;
-};
+}
 
-export type RuntimePreflightConfig = {
+export interface RuntimePreflightConfig {
   apiUrl?: string;
   maxSkillContext?: number;
   requestTimeoutMs?: number;
-};
+}
 
 let runtimePreflightConfig: RuntimePreflightConfig = {};
 
-export function setRuntimePreflightConfig(config: RuntimePreflightConfig): void {
+export function setRuntimePreflightConfig(
+  config: RuntimePreflightConfig,
+): void {
   runtimePreflightConfig = { ...runtimePreflightConfig, ...config };
 }
 
@@ -46,58 +48,100 @@ export function getRuntimePreflightConfig(): RuntimePreflightConfig {
   return { ...runtimePreflightConfig };
 }
 
-const API = 'https://skills.sh/api/v1';
+const API = "https://skills.sh/api/v1";
 const MAX_SKILL_CONTEXT = 24_000;
-const REQUEST_TIMEOUT_MS = 8_000;
+const REQUEST_TIMEOUT_MS = 8000;
 
 const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'can', 'could',
-  'do', 'for', 'from', 'give', 'help', 'how', 'i', 'if', 'in', 'is', 'it',
-  'me', 'my', 'of', 'on', 'or', 'please', 'the', 'this', 'to', 'use', 'want',
-  'what', 'when', 'where', 'which', 'who', 'with', 'would', 'you', 'your',
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "but",
+  "by",
+  "can",
+  "could",
+  "do",
+  "for",
+  "from",
+  "give",
+  "help",
+  "how",
+  "i",
+  "if",
+  "in",
+  "is",
+  "it",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "please",
+  "the",
+  "this",
+  "to",
+  "use",
+  "want",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "with",
+  "would",
+  "you",
+  "your",
 ]);
 
 function text(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function tokens(value: string): string[] {
-  return [...new Set(
-    value
-      .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[^a-z0-9+#.\-/\s]/g, ' ')
-      .split(/\s+/)
-      .map((item) => item.trim())
-      .filter((item) => item.length > 1 && !STOP_WORDS.has(item)),
-  )];
+  return [
+    ...new Set(
+      value
+        .toLowerCase()
+        .normalize("NFKD")
+        .replaceAll(/[^a-z0-9+#.\-/\s]/g, " ")
+        .split(/\s+/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 1 && !STOP_WORDS.has(item)),
+    ),
+  ];
 }
 
 export function buildSkillCapabilityQuery(request: string): string {
   const selected = tokens(request).slice(0, 12);
-  return selected.join(' ').slice(0, 180) || request.trim().slice(0, 180);
+  return selected.join(" ").slice(0, 180) || request.trim().slice(0, 180);
 }
 
 function authHeaders(): Record<string, string> {
   const token = process.env.VERCEL_OIDC_TOKEN;
   if (!token) {
-    throw new Error('VERCEL_OIDC_TOKEN is missing');
+    throw new Error("VERCEL_OIDC_TOKEN is missing");
   }
 
   return {
     authorization: `Bearer ${token}`,
-    'x-vercel-oidc-token': token,
-    accept: 'application/json',
-    'user-agent': 'SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; Pilot)',
-    'x-agent-name': 'SDK Pilot',
-    'x-agent-purpose': 'runtime-skill-preflight',
+    "x-vercel-oidc-token": token,
+    accept: "application/json",
+    "user-agent": "SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; Pilot)",
+    "x-agent-name": "SDK Pilot",
+    "x-agent-purpose": "runtime-skill-preflight",
   };
 }
 
 async function requestJson<T>(path: string): Promise<T> {
   const config = getRuntimePreflightConfig();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${config.apiUrl ?? API}${path}`, {
@@ -109,10 +153,12 @@ async function requestJson<T>(path: string): Promise<T> {
       throw new Error(`skills.sh ${response.status}: ${await response.text()}`);
     }
 
-    return await response.json() as T;
+    return (await response.json()) as T;
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`skills.sh request timed out after ${config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS}ms`);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `skills.sh request timed out after ${config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS}ms`,
+      );
     }
 
     throw error;
@@ -121,31 +167,49 @@ async function requestJson<T>(path: string): Promise<T> {
   }
 }
 
-function candidateScore(candidate: SkillSummary, query: string, index: number): number {
-  const candidateText = [candidate.id, candidate.slug, candidate.name, candidate.source]
+function candidateScore(
+  candidate: SkillSummary,
+  query: string,
+  index: number,
+): number {
+  const candidateText = [
+    candidate.id,
+    candidate.slug,
+    candidate.name,
+    candidate.source,
+  ]
     .map(text)
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
   const wanted = tokens(query);
   const available = new Set(tokens(candidateText));
-  const overlap = wanted.length === 0
-    ? 0
-    : wanted.filter((token) => available.has(token)).length / wanted.length;
+  const overlap =
+    wanted.length === 0
+      ? 0
+      : wanted.filter((token) => available.has(token)).length / wanted.length;
 
   const position = Math.max(0, 1 - index / 5);
-  const installs = typeof candidate.installs === 'number'
-    ? Math.min(1, Math.log1p(candidate.installs) / Math.log(10_001))
-    : 0;
+  const installs =
+    typeof candidate.installs === "number"
+      ? Math.min(1, Math.log1p(candidate.installs) / Math.log(10_001))
+      : 0;
 
   return overlap * 0.65 + position * 0.3 + installs * 0.05;
 }
 
-function pickCandidate(value: unknown, query: string): SkillSummary | undefined {
+function pickCandidate(
+  value: unknown,
+  query: string,
+): SkillSummary | undefined {
   if (!Array.isArray(value)) return undefined;
 
   const ranked = value
-    .filter((item): item is SkillSummary => Boolean(item && typeof item === 'object' && text((item as SkillSummary).id)))
+    .filter((item): item is SkillSummary =>
+      Boolean(
+        item && typeof item === "object" && text((item as SkillSummary).id),
+      ),
+    )
     .map((item, index) => ({ item, score: candidateScore(item, query, index) }))
     .sort((a, b) => b.score - a.score);
 
@@ -157,11 +221,16 @@ function auditIsUnsafe(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
 
   return value.some((item) => {
-    if (!item || typeof item !== 'object') return false;
+    if (!item || typeof item !== "object") return false;
     const record = item as Record<string, unknown>;
     const status = text(record.status)?.toLowerCase();
     const risk = text(record.riskLevel)?.toLowerCase();
-    return status === 'fail' || status === 'blocked' || risk === 'high' || risk === 'critical';
+    return (
+      status === "fail" ||
+      status === "blocked" ||
+      risk === "high" ||
+      risk === "critical"
+    );
   });
 }
 
@@ -175,22 +244,23 @@ function instructionContext(files: unknown): string | undefined {
   let hasSkill = false;
 
   for (const item of files) {
-    if (!item || typeof item !== 'object') continue;
+    if (!item || typeof item !== "object") continue;
     const record = item as Record<string, unknown>;
     const path = text(record.path);
     const contents = text(record.contents);
     if (!path || !contents) continue;
 
     const lower = path.toLowerCase();
-    const allowed = lower === 'skill.md' || /\.(md|mdx|txt|json|ya?ml)$/.test(lower);
-    if (!allowed) continue;
-    if (lower === 'skill.md') hasSkill = true;
+    const isAllowed =
+      lower === "skill.md" || /\.(md|mdx|txt|json|ya?ml)$/.test(lower);
+    if (!isAllowed) continue;
+    if (lower === "skill.md") hasSkill = true;
 
     accepted.push(`\n--- ${path} ---\n${contents}`);
   }
 
   if (!hasSkill) return undefined;
-  return accepted.join('\n').slice(0, maxContext);
+  return accepted.join("\n").slice(0, maxContext);
 }
 
 export async function runRuntimeSkillPreflight(
@@ -199,8 +269,10 @@ export async function runRuntimeSkillPreflight(
   const query = buildSkillCapabilityQuery(request);
 
   try {
-    const params = new URLSearchParams({ q: query, limit: '5' });
-    const search = await requestJson<SearchResponse>(`/skills/search?${params.toString()}`);
+    const params = new URLSearchParams({ q: query, limit: "5" });
+    const search = await requestJson<SearchResponse>(
+      `/skills/search?${params.toString()}`,
+    );
     const candidate = pickCandidate(search.data, query);
 
     if (!candidate) {
@@ -208,11 +280,13 @@ export async function runRuntimeSkillPreflight(
     }
 
     const id = text(candidate.id)!;
-    const encodedId = id.split('/').map(encodeURIComponent).join('/');
+    const encodedId = id.split("/").map(encodeURIComponent).join("/");
 
     const [detail, audit] = await Promise.all([
       requestJson<DetailResponse>(`/skills/${encodedId}`),
-      requestJson<AuditResponse>(`/skills/audit/${encodedId}`).catch(() => ({ audits: [] })),
+      requestJson<AuditResponse>(`/skills/audit/${encodedId}`).catch(() => ({
+        audits: [],
+      })),
     ]);
 
     if (auditIsUnsafe(audit.audits)) {

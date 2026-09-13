@@ -18,12 +18,12 @@ import {
   staleObjectiveResetProcessor,
 } from "../processors/index.js";
 
-type BaseAgentLimits = {
+interface BaseAgentLimits {
   maxSteps: number;
   tokenLimit: number;
   warningAt: number;
   finalAt: number;
-};
+}
 
 type BaseAgentConfig = Omit<
   AgentConfig,

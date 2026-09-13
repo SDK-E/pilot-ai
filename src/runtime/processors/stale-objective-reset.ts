@@ -2,44 +2,35 @@ import type {
   Processor,
   ProcessInputArgs,
   ProcessInputResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-function getLastUserText(
-  messages: ProcessInputArgs['messages'],
-): string {
-  const message = [...messages]
-    .reverse()
-    .find((item) => item.role === 'user');
+function getLastUserText(messages: ProcessInputArgs["messages"]): string {
+  const message = [...messages].reverse().find((item) => item.role === "user");
 
   if (!message) {
-    return '';
+    return "";
   }
 
   return (
     message.content.parts
-      ?.filter((part) => part.type === 'text')
-      .map((part) =>
-        'text' in part ? part.text : '',
-      )
-      .join('\n')
+      ?.filter((part) => part.type === "text")
+      .map((part) => ("text" in part ? part.text : ""))
+      .join("\n")
       .trim() ||
     message.content.content ||
-    ''
+    ""
   );
 }
 
-export class StaleObjectiveResetProcessor
-  implements Processor
-{
-  readonly id = 'stale-objective-reset';
-  readonly name = 'Stale Objective Reset';
+export class StaleObjectiveResetProcessor implements Processor {
+  readonly id = "stale-objective-reset";
+  readonly name = "Stale Objective Reset";
 
   async processInput({
     messages,
     messageList,
   }: ProcessInputArgs): Promise<ProcessInputResult> {
-    const currentRequest =
-      getLastUserText(messages);
+    const currentRequest = getLastUserText(messages);
 
     if (!currentRequest) {
       return messageList;
@@ -94,12 +85,11 @@ Reset only when the intended objective materially changed.
 
 </OBJECTIVE_CONTINUITY_CHECK>
 `,
-      'stale-objective-reset',
+      "stale-objective-reset",
     );
 
     return messageList;
   }
 }
 
-export const staleObjectiveResetProcessor =
-  new StaleObjectiveResetProcessor();
+export const staleObjectiveResetProcessor = new StaleObjectiveResetProcessor();

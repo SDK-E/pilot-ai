@@ -140,9 +140,9 @@ describe("contract", () => {
     // Self-documenting: contract.ts is pure — imports only "zod".
     // This test asserts the contract is a DTO consumer without
     // @mastra/* or process.env dependencies.
-    const source = require("fs").readFileSync(
-      require("path").resolve(__dirname, "contract.ts"),
-      "utf-8",
+    const source = require("node:fs").readFileSync(
+      require("node:path").resolve(__dirname, "contract.ts"),
+      "utf8",
     );
     expect(source).not.toContain("@mastra");
     expect(source).not.toContain("process.env");

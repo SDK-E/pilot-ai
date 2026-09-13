@@ -1,33 +1,35 @@
 import { Mastra } from "@mastra/core/mastra";
-import type { Agent } from "@mastra/core/agent";
-import type { LibSQLStore } from "@mastra/libsql";
+import { askUserTool } from "@mastra/core/tools";
+import { z } from "zod";
 
-import type { GenerateConversationReply } from "../conversation/command.js";
 import { createMemoryResourceId } from "../conversation/command.js";
 import { conversationRuntimeConfig } from "../conversation/config.js";
-import { createBaseAgent } from "../runtime/agent/base-agent.js";
-import { buildBaseAgentInstructions } from "../runtime/agent/base-instructions.js";
+import { conversationAgentIdentity } from "../conversation/identity.js";
+import { conversationCoreInstructions } from "../conversation/instructions/core.js";
 import {
   createPilotActivityReporter,
   runtimeSkillsEnabled,
 } from "../runtime/activity-reporter.js";
+import { createBaseAgent } from "../runtime/agent/base-agent.js";
+import { buildBaseAgentInstructions } from "../runtime/agent/base-instructions.js";
+import {
+  createConversationMemory,
+  createProjectMemory,
+} from "../runtime/memory/project-memory.js";
 import { createRuntimeSkillResolverProcessor } from "../runtime/research-processors/runtime-skill-resolver.js";
 import { configureProductionResearchTools } from "../runtime/research-tools/production-tools.js";
 import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,
 } from "../runtime/storage/pilot-runtime.js";
-import { webSearch } from "../runtime/tools/search/web-search.js";
 import { createPilotScratchpadTool } from "../runtime/tools/scratchpad.js";
-import { askUserTool } from "@mastra/core/tools";
-import { z } from "zod";
-import { conversationAgentIdentity } from "../conversation/identity.js";
-import { conversationCoreInstructions } from "../conversation/instructions/core.js";
+import { webSearch } from "../runtime/tools/search/web-search.js";
+
 import { researchAgentIdentity } from "./identity.js";
-import {
-  createConversationMemory,
-  createProjectMemory,
-} from "../runtime/memory/project-memory.js";
+
+import type { GenerateConversationReply } from "../conversation/command.js";
+import type { Agent } from "@mastra/core/agent";
+import type { LibSQLStore } from "@mastra/libsql";
 
 const productionToolInstructions = `
 Use only the tools made available for the current request.
@@ -45,32 +47,32 @@ You are Pilot Research, a careful public-web research agent.
 ${productionToolInstructions}
 `.trim();
 
-type SuspendedResult = {
+interface SuspendedResult {
   kind: "suspended";
   runId: string;
   toolCallId: string;
   toolId: "web-search" | "scratchpad";
   usage: { inputTokens: number; outputTokens: number; totalTokens: number };
-};
+}
 
-type UserInputRequiredResult = {
+interface UserInputRequiredResult {
   kind: "user_input_required";
   runId: string;
   toolCallId: string;
   question: string;
-  options?: Array<{ label: string; description?: string }>;
+  options?: { label: string; description?: string }[];
   selectionMode?: "single_select" | "multi_select";
   usage: { inputTokens: number; outputTokens: number; totalTokens: number };
-};
+}
 
-type CompletedResult = {
+interface CompletedResult {
   kind: "completed";
   text: string;
   finishReason: string | undefined;
   modelId: string;
   runId: string | null;
   usage: { inputTokens: number; outputTokens: number; totalTokens: number };
-};
+}
 
 async function reportActivitySafely(
   reportActivity: ReturnType<typeof createPilotActivityReporter>,
@@ -131,7 +133,7 @@ function createProductionToolAgent(
       isResearch
         ? productionResearchInstructions
         : conversationCoreInstructions(conversationAgentIdentity),
-      !isResearch ? productionToolInstructions : undefined,
+      isResearch ? undefined : productionToolInstructions,
       command.worker.instructions,
       ...(command.project?.instructions
         ? [
@@ -150,13 +152,13 @@ function createProductionToolAgent(
     memory,
     inputProcessors: skillProcessor ? [skillProcessor] : [],
     tools: {
-      ...(command.allowedToolIds.includes("web-search") ? { webSearch } : {}),
-      ...(command.allowedToolIds.includes("scratchpad")
-        ? { scratchpad: createPilotScratchpadTool({ command, oidcToken }) }
-        : {}),
-      ...(command.allowedToolIds.includes("ask-user")
-        ? { ask_user: askUserTool }
-        : {}),
+      ...(command.allowedToolIds.includes("web-search") && { webSearch }),
+      ...(command.allowedToolIds.includes("scratchpad") && {
+        scratchpad: createPilotScratchpadTool({ command, oidcToken }),
+      }),
+      ...(command.allowedToolIds.includes("ask-user") && {
+        ask_user: askUserTool,
+      }),
     },
     defaultOptions: {
       hooks: {
@@ -227,7 +229,7 @@ async function suspendedToolId(
 
 const askUserPayloadSchema = z
   .object({
-    question: z.string().trim().min(1).max(1_000),
+    question: z.string().trim().min(1).max(1000),
     options: z
       .array(
         z.object({
@@ -287,9 +289,8 @@ function optionsFor(command: GenerateConversationReply) {
       thread: command.conversationId,
     },
     maxSteps: 5,
-    toolChoice: command.allowedToolIds.length
-      ? ("auto" as const)
-      : ("none" as const),
+    toolChoice:
+      command.allowedToolIds.length > 0 ? ("auto" as const) : ("none" as const),
     requireToolApproval: ({ toolName }: { toolName: string }) => {
       const toolId = productionToolIdFromName(toolName);
       return toolId ? command.approvalRequiredToolIds.includes(toolId) : false;

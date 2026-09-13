@@ -1,26 +1,25 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 const githubActionSchema = z.enum([
-  'repository',
-  'releases',
-  'issues',
-  'contributors',
-  'contents',
-  'search-repositories',
-  'search-code',
+  "repository",
+  "releases",
+  "issues",
+  "contributors",
+  "contents",
+  "search-repositories",
+  "search-code",
 ]);
 
 function githubHeaders(): HeadersInit {
   const headers: Record<string, string> = {
-    accept: 'application/vnd.github+json',
-    'x-github-api-version': '2022-11-28',
-    'user-agent': 'SDK-Pilot',
+    accept: "application/vnd.github+json",
+    "x-github-api-version": "2022-11-28",
+    "user-agent": "SDK-Pilot",
   };
 
   if (process.env.GITHUB_TOKEN) {
-    headers.authorization =
-      `Bearer ${process.env.GITHUB_TOKEN}`;
+    headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
 
   return headers;
@@ -30,28 +29,23 @@ async function githubFetch(
   path: string,
   abortSignal?: AbortSignal,
 ): Promise<unknown> {
-  const response = await fetch(
-    `https://api.github.com${path}`,
-    {
-      headers: githubHeaders(),
-      signal: abortSignal,
-    },
-  );
+  const response = await fetch(`https://api.github.com${path}`, {
+    headers: githubHeaders(),
+    signal: abortSignal,
+  });
 
   if (!response.ok) {
-    throw new Error(
-      `GitHub API ${response.status}: ${await response.text()}`,
-    );
+    throw new Error(`GitHub API ${response.status}: ${await response.text()}`);
   }
 
   return response.json();
 }
 
 export const githubPublic = createTool({
-  id: 'github-public',
+  id: "github-public",
 
   description:
-    'Read public GitHub repositories, releases, issues, contributors, files, repository search, and code search. Read-only.',
+    "Read public GitHub repositories, releases, issues, contributors, files, repository search, and code search. Read-only.",
 
   inputSchema: z.object({
     action: githubActionSchema,
@@ -62,12 +56,7 @@ export const githubPublic = createTool({
     path: z.string().optional(),
     query: z.string().optional(),
 
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .default(20),
+    limit: z.number().int().min(1).max(100).default(20),
   }),
 
   outputSchema: z.object({
@@ -75,21 +64,12 @@ export const githubPublic = createTool({
   }),
 
   execute: async (
-    {
-      action,
-      owner,
-      repo,
-      path,
-      query,
-      limit,
-    },
+    { action, owner, repo, path, query, limit },
     { abortSignal },
   ) => {
     const requireRepository = () => {
       if (!owner || !repo) {
-        throw new Error(
-          'owner and repo are required for this action',
-        );
+        throw new Error("owner and repo are required for this action");
       }
 
       return {
@@ -101,7 +81,7 @@ export const githubPublic = createTool({
     let data: unknown;
 
     switch (action) {
-      case 'repository': {
+      case "repository": {
         const repository = requireRepository();
 
         data = await githubFetch(
@@ -112,7 +92,7 @@ export const githubPublic = createTool({
         break;
       }
 
-      case 'releases': {
+      case "releases": {
         const repository = requireRepository();
 
         data = await githubFetch(
@@ -123,7 +103,7 @@ export const githubPublic = createTool({
         break;
       }
 
-      case 'issues': {
+      case "issues": {
         const repository = requireRepository();
 
         data = await githubFetch(
@@ -134,7 +114,7 @@ export const githubPublic = createTool({
         break;
       }
 
-      case 'contributors': {
+      case "contributors": {
         const repository = requireRepository();
 
         data = await githubFetch(
@@ -145,14 +125,14 @@ export const githubPublic = createTool({
         break;
       }
 
-      case 'contents': {
+      case "contents": {
         const repository = requireRepository();
 
-        const encodedPath = (path ?? '')
-          .split('/')
+        const encodedPath = (path ?? "")
+          .split("/")
           .filter(Boolean)
           .map(encodeURIComponent)
-          .join('/');
+          .join("/");
 
         data = await githubFetch(
           `/repos/${repository.owner}/${repository.repo}/contents/${encodedPath}`,
@@ -162,11 +142,9 @@ export const githubPublic = createTool({
         break;
       }
 
-      case 'search-repositories': {
+      case "search-repositories": {
         if (!query) {
-          throw new Error(
-            'query is required for repository search',
-          );
+          throw new Error("query is required for repository search");
         }
 
         data = await githubFetch(
@@ -177,11 +155,9 @@ export const githubPublic = createTool({
         break;
       }
 
-      case 'search-code': {
+      case "search-code": {
         if (!query) {
-          throw new Error(
-            'query is required for code search',
-          );
+          throw new Error("query is required for code search");
         }
 
         data = await githubFetch(
@@ -197,11 +173,7 @@ export const githubPublic = createTool({
   },
 
   toModelOutput: (output) => ({
-    type: 'text',
-    value: JSON.stringify(
-      output.data,
-      null,
-      2,
-    ).slice(0, 60_000),
+    type: "text",
+    value: JSON.stringify(output.data, null, 2).slice(0, 60_000),
   }),
 });

@@ -1,109 +1,87 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 import {
   researchResultSchema,
   type ResearchResult,
-} from '#runtime/schemas/research-result';
+} from "#runtime/schemas/research-result";
 
 const validationIssueSchema = z.object({
   resultId: z.string().optional(),
 
-  severity: z.enum([
-    'error',
-    'warning',
-  ]),
+  severity: z.enum(["error", "warning"]),
 
   field: z.string().optional(),
 
   message: z.string(),
 });
 
-function isUsefulResult(
-  result: ResearchResult,
-): boolean {
-  return Boolean(
-    result.name ||
-      result.title ||
-      result.summary ||
-      result.url,
-  );
+function isUsefulResult(result: ResearchResult): boolean {
+  return Boolean(result.name || result.title || result.summary || result.url);
 }
 
 function validateResult(
   result: ResearchResult,
-): z.infer<
-  typeof validationIssueSchema
->[] {
-  const issues: z.infer<
-    typeof validationIssueSchema
-  >[] = [];
+): z.infer<typeof validationIssueSchema>[] {
+  const issues: z.infer<typeof validationIssueSchema>[] = [];
 
   if (!isUsefulResult(result)) {
     issues.push({
       resultId: result.id,
-      severity: 'error',
+      severity: "error",
       message:
-        'Result contains no useful identifying or descriptive information.',
+        "Result contains no useful identifying or descriptive information.",
     });
   }
 
   if (
-    result.verificationStatus ===
-      'verified' &&
+    result.verificationStatus === "verified" &&
     !result.sourceUrl &&
     !result.url
   ) {
     issues.push({
       resultId: result.id,
-      severity: 'warning',
-      field: 'verificationStatus',
-      message:
-        'Result is marked verified but has no evidence URL.',
+      severity: "warning",
+      field: "verificationStatus",
+      message: "Result is marked verified but has no evidence URL.",
     });
   }
 
   if (
-    result.confidence === 'HIGH' &&
-    result.verificationStatus ===
-      'unverified'
+    result.confidence === "HIGH" &&
+    result.verificationStatus === "unverified"
   ) {
     issues.push({
       resultId: result.id,
-      severity: 'error',
-      field: 'confidence',
-      message:
-        'HIGH confidence conflicts with unverified status.',
+      severity: "error",
+      field: "confidence",
+      message: "HIGH confidence conflicts with unverified status.",
     });
   }
 
   if (
-    result.verificationStatus ===
-      'contradicted' &&
+    result.verificationStatus === "contradicted" &&
     result.contradictions.length === 0
   ) {
     issues.push({
       resultId: result.id,
-      severity: 'warning',
-      field: 'contradictions',
+      severity: "warning",
+      field: "contradictions",
       message:
-        'Result is marked contradicted but contains no contradiction details.',
+        "Result is marked contradicted but contains no contradiction details.",
     });
   }
 
   return issues;
 }
 
-function duplicateKeys(
-  results: ResearchResult[],
-): string[] {
+function duplicateKeys(results: ResearchResult[]): string[] {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
 
   for (const result of results) {
     const key = (
-      result.url ??
-      `${result.type ?? ''}:${result.name ?? result.title ?? ''}`
+      result.url ?? `${result.type ?? ""}:${result.name ?? result.title ?? ""}`
     )
       .trim()
       .toLowerCase();
@@ -122,11 +100,10 @@ function duplicateKeys(
   return [...duplicates];
 }
 
-export const exportValidator =
-  createTool({
-    id: 'export-validator',
+export const exportValidator = createTool({
+  id: "export-validator",
 
-    description: `
+  description: `
 Validate structured research results before exporting them.
 
 Use before CSV or Markdown export for non-trivial result sets.
@@ -139,107 +116,76 @@ Checks:
 - required fields requested by the user
 `,
 
-    inputSchema: z.object({
-      results: z.array(
-        researchResultSchema,
-      ),
+  inputSchema: z.object({
+    results: z.array(researchResultSchema),
 
-      requiredFields: z
-        .array(z.string())
-        .default([]),
-    }),
+    requiredFields: z.array(z.string()).default([]),
+  }),
 
-    outputSchema: z.object({
-      valid: z.boolean(),
+  outputSchema: z.object({
+    valid: z.boolean(),
 
-      issues: z.array(
-        validationIssueSchema,
-      ),
+    issues: z.array(validationIssueSchema),
 
-      duplicateKeys:
-        z.array(z.string()),
+    duplicateKeys: z.array(z.string()),
 
-      count: z.number().int(),
-    }),
+    count: z.number().int(),
+  }),
 
-    execute: async ({
-      results,
-      requiredFields,
-    }) => {
-      const issues =
-        results.flatMap(
-          validateResult,
-        );
+  execute: async ({ results, requiredFields }) => {
+    const issues = results.flatMap(validateResult);
 
-      for (const result of results) {
-        const record =
-          result as Record<
-            string,
-            unknown
-          >;
+    for (const result of results) {
+      const record = result as Record<string, unknown>;
 
-        for (const field of requiredFields) {
-          const value = record[field];
+      for (const field of requiredFields) {
+        const value = record[field];
 
-          if (
-            value === undefined ||
-            value === null ||
-            value === ''
-          ) {
-            issues.push({
-              resultId: result.id,
-              severity: 'warning',
-              field,
-              message:
-                `Requested field "${field}" is missing.`,
-            });
-          }
+        if (value === undefined || value === null || value === "") {
+          issues.push({
+            resultId: result.id,
+            severity: "warning",
+            field,
+            message: `Requested field "${field}" is missing.`,
+          });
         }
       }
+    }
 
-      const duplicates =
-        duplicateKeys(results);
+    const duplicates = duplicateKeys(results);
 
-      for (const key of duplicates) {
-        issues.push({
-          severity: 'error',
-          message:
-            `Duplicate export entity detected: ${key}`,
-        });
-      }
+    for (const key of duplicates) {
+      issues.push({
+        severity: "error",
+        message: `Duplicate export entity detected: ${key}`,
+      });
+    }
 
-      return {
-        valid: !issues.some(
-          (issue) =>
-            issue.severity ===
-            'error',
-        ),
+    return {
+      valid: issues.every((issue) => issue.severity !== "error"),
 
-        issues,
+      issues,
 
-        duplicateKeys:
-          duplicates,
+      duplicateKeys: duplicates,
 
-        count: results.length,
-      };
-    },
+      count: results.length,
+    };
+  },
 
-    toModelOutput: (output) => ({
-      type: 'text',
+  toModelOutput: (output) => ({
+    type: "text",
 
-      value: output.valid
-        ? `Export validation passed for ${output.count} results.`
-        : [
-            `Export validation failed for ${output.count} results.`,
+    value: output.valid
+      ? `Export validation passed for ${output.count} results.`
+      : [
+          `Export validation failed for ${output.count} results.`,
 
-            ...output.issues.map(
-              (issue) =>
-                `[${issue.severity.toUpperCase()}] ${
-                  issue.resultId
-                    ? `${issue.resultId}: `
-                    : ''
-                }${issue.message}`,
-            ),
-          ].join('\n'),
-    }),
-  });
+          ...output.issues.map(
+            (issue) =>
+              `[${issue.severity.toUpperCase()}] ${
+                issue.resultId ? `${issue.resultId}: ` : ""
+              }${issue.message}`,
+          ),
+        ].join("\n"),
+  }),
+});

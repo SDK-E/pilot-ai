@@ -1,20 +1,16 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 const sitePageSchema = z.object({
   url: z.string(),
-  source: z.enum([
-    'robots',
-    'sitemap',
-    'homepage',
-  ]),
+  source: z.enum(["robots", "sitemap", "homepage"]),
 });
 
 function normalizeBaseUrl(value: string): URL {
   const url = new URL(value);
 
-  if (!['http:', 'https:'].includes(url.protocol)) {
-    throw new Error('Only HTTP(S) URLs are supported');
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("Only HTTP(S) URLs are supported");
   }
 
   return new URL(url.origin);
@@ -26,17 +22,15 @@ async function fetchText(
 ): Promise<string | undefined> {
   const controller = new AbortController();
 
-  const timeout = setTimeout(
-    () => controller.abort(),
-    timeoutMs,
-  );
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
 
   try {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'user-agent':
-          'Mozilla/5.0 (compatible; PilotResearch/1.0)',
+        "user-agent": "Mozilla/5.0 (compatible; PilotResearch/1.0)",
       },
     });
 
@@ -52,18 +46,12 @@ async function fetchText(
   }
 }
 
-function sitemapLocations(
-  robots: string,
-): string[] {
+function sitemapLocations(robots: string): string[] {
   return robots
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) =>
-      line.toLowerCase().startsWith('sitemap:'),
-    )
-    .map((line) =>
-      line.slice(line.indexOf(':') + 1).trim(),
-    )
+    .filter((line) => line.toLowerCase().startsWith("sitemap:"))
+    .map((line) => line.slice(line.indexOf(":") + 1).trim())
     .filter(Boolean);
 }
 
@@ -73,15 +61,10 @@ function xmlLocations(xml: string): string[] {
     .filter((value): value is string => Boolean(value));
 }
 
-function homepageLinks(
-  html: string,
-  base: URL,
-): string[] {
+function homepageLinks(html: string, base: URL): string[] {
   const results = new Set<string>();
 
-  for (const match of html.matchAll(
-    /href=["']([^"'#]+)["']/gi,
-  )) {
+  for (const match of html.matchAll(/href=["']([^"'#]+)["']/gi)) {
     const href = match[1];
 
     if (!href) continue;
@@ -91,9 +74,9 @@ function homepageLinks(
 
       if (
         url.origin === base.origin &&
-        ['http:', 'https:'].includes(url.protocol)
+        ["http:", "https:"].includes(url.protocol)
       ) {
-        url.hash = '';
+        url.hash = "";
         results.add(url.toString());
       }
     } catch {
@@ -105,10 +88,10 @@ function homepageLinks(
 }
 
 export const siteDiscovery = createTool({
-  id: 'site-discovery',
+  id: "site-discovery",
 
   description:
-    'Discover useful pages on a public website through robots.txt, sitemaps, and same-origin homepage links.',
+    "Discover useful pages on a public website through robots.txt, sitemaps, and same-origin homepage links.",
 
   inputSchema: z.object({
     url: z.string().url(),
@@ -123,31 +106,22 @@ export const siteDiscovery = createTool({
   execute: async (inputData) => {
     const base = normalizeBaseUrl(inputData.url);
 
-    const robotsUrl = new URL(
-      '/robots.txt',
-      base,
-    ).toString();
+    const robotsUrl = new URL("/robots.txt", base).href;
 
-    const robots =
-      (await fetchText(robotsUrl)) ?? '';
+    const robots = (await fetchText(robotsUrl)) ?? "";
 
     let sitemaps = sitemapLocations(robots);
 
     if (sitemaps.length === 0) {
-      sitemaps = [
-        new URL('/sitemap.xml', base).toString(),
-      ];
+      sitemaps = [new URL("/sitemap.xml", base).href];
     }
 
-    const pages = new Map<
-      string,
-      z.infer<typeof sitePageSchema>
-    >();
+    const pages = new Map<string, z.infer<typeof sitePageSchema>>();
 
     if (robots) {
       pages.set(robotsUrl, {
         url: robotsUrl,
-        source: 'robots',
+        source: "robots",
       });
     }
 
@@ -166,7 +140,7 @@ export const siteDiscovery = createTool({
 
           pages.set(url.toString(), {
             url: url.toString(),
-            source: 'sitemap',
+            source: "sitemap",
           });
         } catch {
           // Ignore malformed sitemap entries.
@@ -179,14 +153,10 @@ export const siteDiscovery = createTool({
     }
 
     if (pages.size < inputData.maxPages) {
-      const homepage =
-        await fetchText(base.toString());
+      const homepage = await fetchText(base.toString());
 
       if (homepage) {
-        for (const url of homepageLinks(
-          homepage,
-          base,
-        )) {
+        for (const url of homepageLinks(homepage, base)) {
           if (pages.size >= inputData.maxPages) {
             break;
           }
@@ -194,7 +164,7 @@ export const siteDiscovery = createTool({
           if (!pages.has(url)) {
             pages.set(url, {
               url,
-              source: 'homepage',
+              source: "homepage",
             });
           }
         }
@@ -203,10 +173,7 @@ export const siteDiscovery = createTool({
 
     return {
       origin: base.origin,
-      pages: [...pages.values()].slice(
-        0,
-        inputData.maxPages,
-      ),
+      pages: [...pages.values()].slice(0, inputData.maxPages),
     };
   },
 });

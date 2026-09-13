@@ -1,12 +1,12 @@
-import { createStep, createWorkflow } from '@mastra/core/workflows';
-import { z } from 'zod';
+import { createStep, createWorkflow } from "@mastra/core/workflows";
+import { z } from "zod";
 
 import {
   performLangSearch,
   searchResultSchema,
   type SearchResult,
-} from '#runtime/tools/search/langsearch';
-import { performUrlFetch } from '#runtime/tools/url-fetch';
+} from "#runtime/tools/search/langsearch";
+import { performUrlFetch } from "#runtime/tools/url-fetch";
 
 const inputSchema = z.object({
   query: z.string().min(1),
@@ -37,13 +37,13 @@ async function searchMany(queries: string[]): Promise<SearchResult[]> {
 
   return dedupe(
     settled.flatMap((result) =>
-      result.status === 'fulfilled' ? result.value : [],
+      result.status === "fulfilled" ? result.value : [],
     ),
   );
 }
 
 const peopleResearchStep = createStep({
-  id: 'people-research',
+  id: "people-research",
   inputSchema,
   outputSchema,
 
@@ -76,15 +76,12 @@ const peopleResearchStep = createStep({
       }),
     );
 
-    const sources = dedupe([
-      ...enriched,
-      ...discovered.slice(10),
-    ]);
+    const sources = dedupe([...enriched, ...discovered.slice(10)]);
 
-    const agent = mastra?.getAgent('pilotResearchAgent');
+    const agent = mastra?.getAgent("pilotResearchAgent");
 
     if (!agent) {
-      throw new Error('pilotResearchAgent not found');
+      throw new Error("pilotResearchAgent not found");
     }
 
     const result = await agent.generate(`
@@ -121,7 +118,7 @@ Requirements:
 });
 
 export const peopleResearchWorkflow = createWorkflow({
-  id: 'people-research',
+  id: "people-research",
   inputSchema,
   outputSchema,
 })

@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class MemoryHygieneProcessor implements Processor {
+  readonly id = "memory-hygiene";
 
-export class MemoryHygieneProcessor
-  implements Processor
-{
-  readonly id =
-    'memory-hygiene';
-
-  readonly name =
-    'Memory Hygiene';
+  readonly name = "Memory Hygiene";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .memoryHygieneEvery;
+    const every = pilotConfig.research.memoryHygieneEvery;
 
-    if (
-      stepNumber < every ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < every || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 MEMORY HYGIENE
@@ -154,5 +145,4 @@ ACCURACY
   }
 }
 
-export const memoryHygieneProcessor =
-  new MemoryHygieneProcessor();
+export const memoryHygieneProcessor = new MemoryHygieneProcessor();

@@ -2,12 +2,12 @@ import type { createClient } from "@libsql/client";
 
 type Client = ReturnType<typeof createClient>;
 
-type GenericCacheConfig = {
+interface GenericCacheConfig {
   client: Client;
   tableName: string;
-};
+}
 
-type GenericCache = {
+interface GenericCache {
   makeCacheKey: (type: string, input: unknown) => string;
   getCachedValue: <T>(key: string) => Promise<T | undefined>;
   setCachedValue: (
@@ -16,7 +16,7 @@ type GenericCache = {
     value: unknown,
     ttlMs: number,
   ) => Promise<void>;
-};
+}
 
 export function createGenericCache(config: GenericCacheConfig): GenericCache {
   const { client, tableName } = config;
@@ -36,7 +36,7 @@ export function createGenericCache(config: GenericCacheConfig): GenericCache {
         )
       `,
       )
-      .then(() => undefined);
+      .then(() => {});
 
     await initializationPromise;
   }

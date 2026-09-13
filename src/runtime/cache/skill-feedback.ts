@@ -2,15 +2,15 @@ import type { createClient } from "@libsql/client";
 
 type Client = ReturnType<typeof createClient>;
 
-export type SkillFeedbackStats = {
+export interface SkillFeedbackStats {
   skillId: string;
   uses: number;
   helpful: number;
   unhelpful: number;
   learnedScore: number;
-};
+}
 
-export type SkillFeedback = {
+export interface SkillFeedback {
   recordSkillUse: (skillId: string, query?: string) => Promise<void>;
   recordSkillFeedback: (
     skillId: string,
@@ -21,7 +21,7 @@ export type SkillFeedback = {
   getSkillFeedbackMap: (
     skillIds: string[],
   ) => Promise<Map<string, SkillFeedbackStats>>;
-};
+}
 
 function toCount(value: unknown): number {
   return typeof value === "number" ? value : Number(value ?? 0);
@@ -71,7 +71,7 @@ export function createSkillFeedback({
         )
       `,
       )
-      .then(() => undefined);
+      .then(() => {});
 
     await initializationPromise;
   }
@@ -194,7 +194,7 @@ export function createSkillFeedback({
         continue;
       }
 
-      stats.set(skillId, toStats(skillId, row as Record<string, unknown>));
+      stats.set(skillId, toStats(skillId, row));
     }
 
     return stats;

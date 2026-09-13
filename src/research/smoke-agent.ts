@@ -1,33 +1,28 @@
-import {
-  webFetchTool,
-} from '@mastra/core/tools';
+import { webFetchTool } from "@mastra/core/tools";
 
-import {
-  pilotConfig,
-} from '#runtime/research-config';
+import { createBaseAgent } from "#runtime/agent/base-agent";
+import { buildBaseAgentInstructions } from "#runtime/agent/base-instructions";
+import { pilotConfig } from "#runtime/research-config";
 
-import { researchAgentIdentity } from './identity';
-import { createBaseAgent } from '#runtime/agent/base-agent';
-import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
+import { researchAgentIdentity } from "./identity";
 
-export const pilotResearchSmokeAgent =
-  createBaseAgent({
-    base: {
-      maxSteps: 4,
-      tokenLimit: 12_000,
-      warningAt: 2,
-      finalAt: 3,
-    },
-    id: 'pilot-research-smoke',
+export const pilotResearchSmokeAgent = createBaseAgent({
+  base: {
+    maxSteps: 4,
+    tokenLimit: 12_000,
+    warningAt: 2,
+    finalAt: 3,
+  },
+  id: "pilot-research-smoke",
 
-    name: `${researchAgentIdentity.name} Smoke`,
+  name: `${researchAgentIdentity.name} Smoke`,
 
-    description:
-      'Minimal Pilot Research Agent used only for fast persisted smoke experiments.',
+  description:
+    "Minimal Pilot Research Agent used only for fast persisted smoke experiments.",
 
-    instructions: [
-      buildBaseAgentInstructions(researchAgentIdentity),
-      `
+  instructions: [
+    buildBaseAgentInstructions(researchAgentIdentity),
+    `
 You are the fast smoke-test version of ${researchAgentIdentity.name}.
 
 Your job is only to verify that:
@@ -52,18 +47,17 @@ Rules:
 - include the source URL
 - finish immediately after answering
 `.trim(),
-    ].join('\n\n'),
+  ].join("\n\n"),
 
-    model: [
-      {
-        model:
-          pilotConfig.model.id,
+  model: [
+    {
+      model: pilotConfig.model.id,
 
-        maxRetries: 8,
-      },
-    ],
-
-    tools: {
-      webFetchTool,
+      maxRetries: 8,
     },
-  });
+  ],
+
+  tools: {
+    webFetchTool,
+  },
+});

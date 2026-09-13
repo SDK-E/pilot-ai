@@ -1,18 +1,18 @@
-type DomainState = {
+interface DomainState {
   failures: number;
   blockedUntil?: number;
-};
+}
 
-type CircuitBreakerConfig = {
+interface CircuitBreakerConfig {
   failureThreshold: number;
   blockDurationMs: number;
-};
+}
 
-type CircuitBreaker = {
+interface CircuitBreaker {
   canRequestDomain: (hostname: string) => boolean;
   recordDomainSuccess: (hostname: string) => void;
   recordDomainFailure: (hostname: string) => void;
-};
+}
 
 export function createCircuitBreaker(
   config: CircuitBreakerConfig,
@@ -27,17 +27,11 @@ export function createCircuitBreaker(
         return true;
       }
 
-      if (
-        state.blockedUntil &&
-        state.blockedUntil > Date.now()
-      ) {
+      if (state.blockedUntil && state.blockedUntil > Date.now()) {
         return false;
       }
 
-      if (
-        state.blockedUntil &&
-        state.blockedUntil <= Date.now()
-      ) {
+      if (state.blockedUntil && state.blockedUntil <= Date.now()) {
         states.delete(hostname);
       }
 
@@ -55,13 +49,8 @@ export function createCircuitBreaker(
 
       current.failures += 1;
 
-      if (
-        current.failures >=
-        config.failureThreshold
-      ) {
-        current.blockedUntil =
-          Date.now() +
-          config.blockDurationMs;
+      if (current.failures >= config.failureThreshold) {
+        current.blockedUntil = Date.now() + config.blockDurationMs;
       }
 
       states.set(hostname, current);

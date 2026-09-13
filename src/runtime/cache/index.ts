@@ -1,8 +1,6 @@
 import { createGenericCache } from "./generic-cache.js";
-import {
-  createSkillFeedback,
-  type SkillFeedbackStats,
-} from "./skill-feedback.js";
+import { createSkillFeedback } from "./skill-feedback.js";
+
 import type { createClient } from "@libsql/client";
 
 type Client = ReturnType<typeof createClient>;
@@ -10,7 +8,9 @@ type Client = ReturnType<typeof createClient>;
 let researchCache: ReturnType<typeof createGenericCache> | undefined;
 let skillFeedback: ReturnType<typeof createSkillFeedback> | undefined;
 
-/** Configures the cache for the current runtime environment. */
+/**
+Configures the cache for the current runtime environment.
+*/
 export function setRuntimeCache(client: Client): void {
   researchCache = createGenericCache({
     client,
@@ -66,4 +66,5 @@ export const recordSkillFeedback = (
   requireSkillFeedback().recordSkillFeedback(skillId, helpful, query, reason);
 export const recordSkillUse = (skillId: string, query?: string) =>
   requireSkillFeedback().recordSkillUse(skillId, query);
-export type { SkillFeedbackStats };
+
+export { type SkillFeedbackStats } from "./skill-feedback.js";

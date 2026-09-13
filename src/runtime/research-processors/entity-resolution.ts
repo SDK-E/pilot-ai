@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class EntityResolutionProcessor implements Processor {
+  readonly id = "entity-resolution";
 
-export class EntityResolutionProcessor
-  implements Processor
-{
-  readonly id =
-    'entity-resolution';
-
-  readonly name =
-    'Entity Resolution';
+  readonly name = "Entity Resolution";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .entityResolutionEvery;
+    const every = pilotConfig.research.entityResolutionEvery;
 
-    if (
-      stepNumber < 2 ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < 2 || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 ENTITY RESOLUTION
@@ -118,5 +109,4 @@ Do not repeatedly resolve entities that have already been confidently canonicali
   }
 }
 
-export const entityResolutionProcessor =
-  new EntityResolutionProcessor();
+export const entityResolutionProcessor = new EntityResolutionProcessor();

@@ -1,198 +1,136 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 import {
   researchResultSchema,
   type ResearchResult,
-} from '#runtime/schemas/research-result';
+} from "#runtime/schemas/research-result";
 
-function sanitizeFilename(
-  value: string,
-): string {
+function sanitizeFilename(value: string): string {
   return value
     .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+    .replaceAll(/[^a-zA-Z0-9._-]+/g, "-")
+    .replaceAll(/-+/g, "-")
+    .replaceAll(/^-|-$/g, "");
 }
 
-function csvEscape(
-  value: unknown,
-): string {
-  if (
-    value === undefined ||
-    value === null
-  ) {
-    return '';
+function csvEscape(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
   }
 
-  const text =
-    typeof value === 'string'
-      ? value
-      : JSON.stringify(value);
+  const text = typeof value === "string" ? value : JSON.stringify(value);
 
-  if (
-    text.includes(',') ||
-    text.includes('"') ||
-    text.includes('\n')
-  ) {
-    return `"${text.replace(/"/g, '""')}"`;
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replaceAll('"', '""')}"`;
   }
 
   return text;
 }
 
-function csvResults(
-  results: ResearchResult[],
-): string {
+function csvResults(results: ResearchResult[]): string {
   const columns = [
-    'id',
-    'type',
-    'name',
-    'title',
-    'url',
-    'summary',
-    'sourceUrl',
-    'sourceType',
-    'observedAt',
-    'publishedAt',
-    'confidence',
-    'verificationStatus',
-    'score',
-    'contradictions',
-    'metadata',
+    "id",
+    "type",
+    "name",
+    "title",
+    "url",
+    "summary",
+    "sourceUrl",
+    "sourceType",
+    "observedAt",
+    "publishedAt",
+    "confidence",
+    "verificationStatus",
+    "score",
+    "contradictions",
+    "metadata",
   ] as const;
 
-  const lines = [
-    columns.join(','),
-  ];
+  const lines = [columns.join(",")];
 
   for (const result of results) {
-    lines.push(
-      columns
-        .map((column) =>
-          csvEscape(result[column]),
-        )
-        .join(','),
-    );
+    lines.push(columns.map((column) => csvEscape(result[column])).join(","));
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
-function markdownResults(
-  results: ResearchResult[],
-): string {
+function markdownResults(results: ResearchResult[]): string {
   return results
     .map((result) => {
-      const heading =
-        result.name ??
-        result.title ??
-        result.id;
+      const heading = result.name ?? result.title ?? result.id;
 
       return [
         `## ${heading}`,
 
-        result.type
-          ? `**Type:** ${result.type}`
-          : undefined,
+        result.type ? `**Type:** ${result.type}` : undefined,
 
-        result.url
-          ? `**URL:** ${result.url}`
-          : undefined,
+        result.url ? `**URL:** ${result.url}` : undefined,
 
         result.summary,
 
-        result.sourceUrl
-          ? `**Source:** ${result.sourceUrl}`
-          : undefined,
+        result.sourceUrl ? `**Source:** ${result.sourceUrl}` : undefined,
 
-        result.confidence
-          ? `**Confidence:** ${result.confidence}`
-          : undefined,
+        result.confidence ? `**Confidence:** ${result.confidence}` : undefined,
 
         result.verificationStatus
           ? `**Verification:** ${result.verificationStatus}`
           : undefined,
 
-        result.contradictions.length
+        result.contradictions.length > 0
           ? [
-              '**Contradictions:**',
-              ...result.contradictions.map(
-                (item) =>
-                  `- ${item}`,
-              ),
-            ].join('\n')
+              "**Contradictions:**",
+              ...result.contradictions.map((item) => `- ${item}`),
+            ].join("\n")
           : undefined,
       ]
         .filter(Boolean)
-        .join('\n\n');
+        .join("\n\n");
     })
-    .join('\n\n---\n\n');
+    .join("\n\n---\n\n");
 }
 
-export const exportResults =
-  createTool({
-    id: 'export-results',
+export const exportResults = createTool({
+  id: "export-results",
 
-    description:
-      'Export validated structured research results as CSV or Markdown.',
+  description:
+    "Export validated structured research results as CSV or Markdown.",
 
-    inputSchema: z.object({
-      format: z.enum([
-        'csv',
-        'markdown',
-      ]),
+  inputSchema: z.object({
+    format: z.enum(["csv", "markdown"]),
 
-      filename: z
-        .string()
-        .min(1)
-        .default('pilot-research'),
+    filename: z.string().min(1).default("pilot-research"),
 
-      results: z.array(
-        researchResultSchema,
-      ),
-    }),
+    results: z.array(researchResultSchema),
+  }),
 
-    outputSchema: z.object({
-      filename: z.string(),
-      content: z.string(),
-      count: z.number().int(),
-    }),
+  outputSchema: z.object({
+    filename: z.string(),
+    content: z.string(),
+    count: z.number().int(),
+  }),
 
-    execute: async ({
-      format,
-      filename,
-      results,
-    }) => {
-      const base =
-        sanitizeFilename(filename) ||
-        'pilot-research';
+  execute: async ({ format, filename, results }) => {
+    const base = sanitizeFilename(filename) || "pilot-research";
 
-      const extension =
-        format === 'csv'
-          ? 'csv'
-          : 'md';
+    const extension = format === "csv" ? "csv" : "md";
 
-      const content =
-        format === 'csv'
-          ? csvResults(results)
-          : markdownResults(results);
+    const content =
+      format === "csv" ? csvResults(results) : markdownResults(results);
 
-      return {
-        filename:
-          `${base}.${extension}`,
+    return {
+      filename: `${base}.${extension}`,
 
-        content,
+      content,
 
-        count: results.length,
-      };
-    },
+      count: results.length,
+    };
+  },
 
-    toModelOutput: (output) => ({
-      type: 'text',
+  toModelOutput: (output) => ({
+    type: "text",
 
-      value:
-        `Exported ${output.count} results to ${output.filename}.`,
-    }),
-  });
+    value: `Exported ${output.count} results to ${output.filename}.`,
+  }),
+});

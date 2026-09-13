@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class SourceConfidenceProcessor implements Processor {
+  readonly id = "source-confidence";
 
-export class SourceConfidenceProcessor
-  implements Processor
-{
-  readonly id =
-    'source-confidence';
-
-  readonly name =
-    'Source Confidence';
+  readonly name = "Source Confidence";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .sourceConfidenceEvery;
+    const every = pilotConfig.research.sourceConfidenceEvery;
 
-    if (
-      stepNumber < 1 ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < 1 || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 SOURCE CONFIDENCE
@@ -87,5 +78,4 @@ Preserve useful evidence URLs with important findings.
   }
 }
 
-export const sourceConfidenceProcessor =
-  new SourceConfidenceProcessor();
+export const sourceConfidenceProcessor = new SourceConfidenceProcessor();

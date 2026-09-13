@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { generateConversationReplySchema } from "./pilot-conversation";
-
 import {
   createConversationResourceId,
   createMemoryResourceId,
   createProjectResourceId,
 } from "./command";
-
 import { PILOT_CONVERSATION_MODEL_ID } from "./contract";
+import { generateConversationReplySchema } from "./pilot-conversation";
 
 const validCommand = {
   organizationId: "org_01J4QY5F74J9SE3MQS7K0WB2N9",

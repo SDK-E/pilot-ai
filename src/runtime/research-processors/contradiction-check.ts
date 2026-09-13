@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class ContradictionCheckProcessor implements Processor {
+  readonly id = "contradiction-check";
 
-export class ContradictionCheckProcessor
-  implements Processor
-{
-  readonly id =
-    'contradiction-check';
-
-  readonly name =
-    'Contradiction Check';
+  readonly name = "Contradiction Check";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .contradictionCheckEvery;
+    const every = pilotConfig.research.contradictionCheckEvery;
 
-    if (
-      stepNumber < 2 ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < 2 || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 CONTRADICTION CHECK
@@ -76,5 +67,4 @@ Do not silently choose one claim without evidence.
   }
 }
 
-export const contradictionCheckProcessor =
-  new ContradictionCheckProcessor();
+export const contradictionCheckProcessor = new ContradictionCheckProcessor();

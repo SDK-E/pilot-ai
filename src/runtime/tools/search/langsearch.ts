@@ -6,14 +6,13 @@ import {
   makeCacheKey,
   setCachedValue,
 } from "../../cache/index.js";
-
 import { pilotConfig } from "../../research-config/index.js";
 
-export type LangSearchConfig = {
+export interface LangSearchConfig {
   apiKey?: string;
   fetchTimeoutMs?: number;
   searchTtlMs?: number;
-};
+}
 
 let langSearchConfig: LangSearchConfig = {};
 
@@ -38,25 +37,25 @@ export const searchResultSchema = z.object({
 
 export type SearchResult = z.infer<typeof searchResultSchema>;
 
-type LangSearchWebPage = {
+interface LangSearchWebPage {
   name?: unknown;
   url?: unknown;
   snippet?: unknown;
   summary?: unknown;
   datePublished?: unknown;
-};
+}
 
-type LangSearchSearchData = {
+interface LangSearchSearchData {
   webPages?: {
     value?: LangSearchWebPage[];
   };
-};
+}
 
-type LangSearchResponse = {
+interface LangSearchResponse {
   code?: unknown;
   msg?: unknown;
   data?: LangSearchSearchData;
-};
+}
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0
@@ -103,12 +102,16 @@ export async function performLangSearch(
   const controller = new AbortController();
 
   const timeout = setTimeout(
-    () => controller.abort(),
+    () => {
+      controller.abort();
+    },
 
     config.fetchTimeoutMs ?? pilotConfig.network.fetchTimeoutMs,
   );
 
-  const onAbort = () => controller.abort();
+  const onAbort = () => {
+    controller.abort();
+  };
 
   abortSignal?.addEventListener("abort", onAbort, {
     once: true,

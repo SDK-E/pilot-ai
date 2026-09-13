@@ -1,98 +1,64 @@
-import { createScorer } from '@mastra/core/evals';
+import { createScorer } from "@mastra/core/evals";
 
-import {
-  agentOutputToText,
-  uniqueUrls,
-} from './utils';
+import { agentOutputToText, uniqueUrls } from "./utils";
 
-export const sourceCoverageScorer =
-  createScorer({
-    id: 'pilot-source-coverage',
+export const sourceCoverageScorer = createScorer({
+  id: "pilot-source-coverage",
 
-    name: 'Pilot Source Coverage',
+  name: "Pilot Source Coverage",
 
-    description:
-      'Measures whether a research-style Pilot response contains useful source URLs and source diversity.',
+  description:
+    "Measures whether a research-style Pilot response contains useful source URLs and source diversity.",
 
-    type: 'agent',
+  type: "agent",
+})
+  .analyze(({ run }) => {
+    const text = agentOutputToText(run.output);
+
+    const urls = uniqueUrls(text);
+
+    const domains = [
+      ...new Set(
+        urls.flatMap((value) => {
+          try {
+            return [new URL(value).hostname.replace(/^www\./, "")];
+          } catch {
+            return [];
+          }
+        }),
+      ),
+    ];
+
+    return {
+      urlCount: urls.length,
+      domainCount: domains.length,
+    };
   })
-    .analyze(({ run }) => {
-      const text =
-        agentOutputToText(
-          run.output,
-        );
 
-      const urls =
-        uniqueUrls(text);
+  .generateScore(({ results }) => {
+    const { urlCount, domainCount } = results.analyzeStepResult;
 
-      const domains = [
-        ...new Set(
-          urls.flatMap((value) => {
-            try {
-              return [
-                new URL(
-                  value,
-                ).hostname.replace(
-                  /^www\./,
-                  '',
-                ),
-              ];
-            } catch {
-              return [];
-            }
-          }),
-        ),
-      ];
+    if (urlCount === 0) {
+      return 0;
+    }
 
-      return {
-        urlCount: urls.length,
-        domainCount:
-          domains.length,
-      };
-    })
+    if (urlCount === 1) {
+      return 0.4;
+    }
 
-    .generateScore(
-      ({ results }) => {
-        const {
-          urlCount,
-          domainCount,
-        } =
-          results.analyzeStepResult;
+    if (domainCount === 1) {
+      return 0.6;
+    }
 
-        if (urlCount === 0) {
-          return 0;
-        }
+    if (domainCount === 2) {
+      return 0.8;
+    }
 
-        if (
-          urlCount === 1
-        ) {
-          return 0.4;
-        }
+    return 1;
+  })
 
-        if (
-          domainCount === 1
-        ) {
-          return 0.6;
-        }
+  .generateReason(({ results }) => {
+    const { urlCount, domainCount } = results.analyzeStepResult;
 
-        if (
-          domainCount === 2
-        ) {
-          return 0.8;
-        }
-
-        return 1;
-      },
-    )
-
-    .generateReason(
-      ({ results }) => {
-        const {
-          urlCount,
-          domainCount,
-        } =
-          results.analyzeStepResult;
-
-        return `${urlCount} unique source URLs across ${domainCount} unique domains were present in the final response.`;
-      },
-    );
+    return `${urlCount} unique source URLs across ${domainCount} unique domains were present in the final response.`;
+  });

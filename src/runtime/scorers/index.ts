@@ -1,15 +1,7 @@
-export {
-  buildAnswerRelevancyScorer,
-} from './answer-relevancy';
+export { buildAnswerRelevancyScorer } from "./answer-relevancy";
 
-export {
-  completenessScorer,
-} from './completeness';
+export { completenessScorer } from "./completeness";
 
-export {
-  sourceCoverageScorer,
-} from './source-coverage';
+export { sourceCoverageScorer } from "./source-coverage";
 
-export {
-  taskCompletionScorer,
-} from './task-completion';
+export { taskCompletionScorer } from "./task-completion";

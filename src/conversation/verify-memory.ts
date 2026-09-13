@@ -2,9 +2,10 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { createPilotConversationRuntime } from "./pilot-conversation";
-import { PILOT_CONVERSATION_MODEL_ID } from "./contract";
 import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
+
+import { PILOT_CONVERSATION_MODEL_ID } from "./contract";
+import { createPilotConversationRuntime } from "./pilot-conversation";
 
 const storageConfig = getPilotRuntimeStorageConfig();
 

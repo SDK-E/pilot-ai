@@ -1,14 +1,15 @@
 import { registerApiRoute } from "@mastra/core/server";
 import { ZodError } from "zod";
 
+import { createPilotProductionToolRuntime } from "#research/pilot-research";
+import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
+import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
+
 import {
   createPilotConversationRuntime,
   generateConversationReplySchema,
   type GenerateConversationReply,
 } from "../pilot-conversation";
-import { createPilotProductionToolRuntime } from "#research/pilot-research";
-import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
-import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
 
 export const generateRegistration = registerApiRoute(
   "/pilot/conversations/generate",
@@ -48,7 +49,7 @@ export const generateRegistration = registerApiRoute(
         | undefined;
 
       try {
-        if (command.allowedToolIds.length) {
+        if (command.allowedToolIds.length > 0) {
           if (
             command.allowedToolIds.includes("web-search") &&
             process.env.PILOT_ENABLE_RESEARCH !== "true"

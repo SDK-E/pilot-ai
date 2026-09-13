@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { waitForStreamingResult } from "./openai-compatible.js";
 
 const mocks = vi.hoisted(() => {

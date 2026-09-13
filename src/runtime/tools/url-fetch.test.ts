@@ -8,8 +8,8 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   setUrlFetchConfig({
-    fetchTimeoutMs: 1_000,
-    fetchTtlMs: 1_000,
+    fetchTimeoutMs: 1000,
+    fetchTtlMs: 1000,
     canRequestDomain: () => true,
     recordDomainFailure: vi.fn(),
     recordDomainSuccess: vi.fn(),

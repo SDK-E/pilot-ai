@@ -1,6 +1,18 @@
-import type { Agent } from "@mastra/core/agent";
-import type { LibSQLStore } from "@mastra/libsql";
-import type { Memory } from "@mastra/memory";
+import {
+  createPilotActivityReporter,
+  runtimeSkillsEnabled,
+} from "../runtime/activity-reporter.js";
+import { createBaseAgent } from "../runtime/agent/base-agent.js";
+import { buildBaseAgentInstructions } from "../runtime/agent/base-instructions.js";
+import {
+  createConversationMemory,
+  createProjectMemory,
+} from "../runtime/memory/project-memory.js";
+import { createRuntimeSkillResolverProcessor } from "../runtime/research-processors/runtime-skill-resolver.js";
+import {
+  createPilotRuntimeStorage,
+  type PilotRuntimeStorageConfig,
+} from "../runtime/storage/pilot-runtime.js";
 
 import {
   createMemoryResourceId,
@@ -10,22 +22,11 @@ import {
 } from "./command.js";
 import { conversationRuntimeConfig } from "./config.js";
 import { conversationAgentIdentity } from "./identity.js";
+
 import { conversationCoreInstructions } from "./instructions/core.js";
-import { createBaseAgent } from "../runtime/agent/base-agent.js";
-import { buildBaseAgentInstructions } from "../runtime/agent/base-instructions.js";
-import {
-  createPilotActivityReporter,
-  runtimeSkillsEnabled,
-} from "../runtime/activity-reporter.js";
-import { createRuntimeSkillResolverProcessor } from "../runtime/research-processors/runtime-skill-resolver.js";
-import {
-  createPilotRuntimeStorage,
-  type PilotRuntimeStorageConfig,
-} from "../runtime/storage/pilot-runtime.js";
-import {
-  createConversationMemory,
-  createProjectMemory,
-} from "../runtime/memory/project-memory.js";
+import type { Agent } from "@mastra/core/agent";
+import type { LibSQLStore } from "@mastra/libsql";
+import type { Memory } from "@mastra/memory";
 
 export { generateConversationReplySchema } from "./command.js";
 
@@ -75,7 +76,7 @@ function createSkillProcessor(
   command: GenerateConversationReply,
   oidcToken?: string,
 ) {
-  if (!oidcToken || !runtimeSkillsEnabled()) return undefined;
+  if (!oidcToken || !runtimeSkillsEnabled()) return;
   try {
     const reportActivity = createPilotActivityReporter(oidcToken);
     return createRuntimeSkillResolverProcessor({
@@ -90,7 +91,7 @@ function createSkillProcessor(
   } catch {
     // Runtime skills are opt-in and fail closed when the protected callback is
     // not configured. Generation remains available without them.
-    return undefined;
+    return;
   }
 }
 
@@ -108,7 +109,11 @@ export function createPilotConversationRuntime(
   return {
     async generate(rawCommand: unknown) {
       const command = generateConversationReplySchema.parse(rawCommand);
-      const agent = createConversationAgent(command, memoryFor(command), oidcToken);
+      const agent = createConversationAgent(
+        command,
+        memoryFor(command),
+        oidcToken,
+      );
       const result = await agent.generate(command.message, {
         memory: {
           resource: createMemoryResourceId(command),
@@ -133,7 +138,11 @@ export function createPilotConversationRuntime(
     },
     async stream(rawCommand: unknown) {
       const command = generateConversationReplySchema.parse(rawCommand);
-      const agent = createConversationAgent(command, memoryFor(command), oidcToken);
+      const agent = createConversationAgent(
+        command,
+        memoryFor(command),
+        oidcToken,
+      );
       const output = await agent.stream(command.message, {
         memory: {
           resource: createMemoryResourceId(command),

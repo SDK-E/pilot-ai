@@ -1,20 +1,22 @@
-import { Mastra } from '@mastra/core/mastra';
+import { Mastra } from "@mastra/core/mastra";
 
-import { conversationApiRoutes } from './conversation/api';
-import { taskApprovalWorkflow } from './runtime/workflows/task-approval';
 import {
   createPilotRuntimeStorage,
   getPilotRuntimeStorageConfig,
-} from '#runtime/storage/pilot-runtime';
+} from "#runtime/storage/pilot-runtime";
 import {
   createPilotDurableWorkCache,
   getPilotDurableWorkConfig,
-} from '#runtime/work/durable-work';
+} from "#runtime/work/durable-work";
 
-const researchEnabled = process.env.PILOT_ENABLE_DEVELOPMENT_RESEARCH === 'true';
+import { conversationApiRoutes } from "./conversation/api";
+import { taskApprovalWorkflow } from "./runtime/workflows/task-approval";
 
-const researchRuntime = researchEnabled
-  ? await import('./research/registration')
+const isResearchEnabled =
+  process.env.PILOT_ENABLE_DEVELOPMENT_RESEARCH === "true";
+
+const researchRuntime = isResearchEnabled
+  ? await import("./research/registration")
   : undefined;
 
 const runtimeStorageConfig = getPilotRuntimeStorageConfig();
@@ -33,9 +35,7 @@ export const mastra = new Mastra({
     : undefined,
   workflows: { taskApprovalWorkflow },
   server: {
-    apiRoutes: [
-      ...conversationApiRoutes,
-    ],
+    apiRoutes: [...conversationApiRoutes],
     cors: false,
   },
 });

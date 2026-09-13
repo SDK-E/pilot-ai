@@ -2,29 +2,26 @@ import type {
   Processor,
   ProcessInputArgs,
   ProcessInputResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
 type ResearchKind =
-  | 'direct-fact'
-  | 'current-fact'
-  | 'verification'
-  | 'comparison'
-  | 'technical'
-  | 'repository'
-  | 'company'
-  | 'person'
-  | 'market'
-  | 'product'
-  | 'discovery'
-  | 'recommendation'
-  | 'deep-research';
+  | "direct-fact"
+  | "current-fact"
+  | "verification"
+  | "comparison"
+  | "technical"
+  | "repository"
+  | "company"
+  | "person"
+  | "market"
+  | "product"
+  | "discovery"
+  | "recommendation"
+  | "deep-research";
 
-type ResearchDepth =
-  | 'minimal'
-  | 'normal'
-  | 'deep';
+type ResearchDepth = "minimal" | "normal" | "deep";
 
-type ResearchBudget = {
+interface ResearchBudget {
   kind: ResearchKind;
   depth: ResearchDepth;
   targetSources: number;
@@ -34,254 +31,229 @@ type ResearchBudget = {
   requireRecency: boolean;
   requireDiversity: boolean;
   preferPrimarySources: boolean;
-};
+}
 
-function getLatestUserText(
-  messages: ProcessInputArgs['messages'],
-): string {
-  const message = [...messages]
-    .reverse()
-    .find(
-      (item) =>
-        item.role === 'user',
-    );
+function getLatestUserText(messages: ProcessInputArgs["messages"]): string {
+  const message = [...messages].reverse().find((item) => item.role === "user");
 
   if (!message) {
-    return '';
+    return "";
   }
 
   return (
     message.content.parts
-      ?.filter(
-        (part) =>
-          part.type === 'text',
-      )
-      .map((part) =>
-        'text' in part
-          ? part.text
-          : '',
-      )
-      .join('\n')
+      ?.filter((part) => part.type === "text")
+      .map((part) => ("text" in part ? part.text : ""))
+      .join("\n")
       .trim() ||
     message.content.content ||
-    ''
+    ""
   );
 }
 
-function includesAny(
-  text: string,
-  values: string[],
-): boolean {
-  return values.some(
-    (value) =>
-      text.includes(value),
-  );
+function includesAny(text: string, values: string[]): boolean {
+  return values.some((value) => text.includes(value));
 }
 
-function classifyRequest(
-  rawText: string,
-): ResearchKind {
-  const text =
-    rawText.toLowerCase();
+function classifyRequest(rawText: string): ResearchKind {
+  const text = rawText.toLowerCase();
 
   if (
     includesAny(text, [
-      'deep research',
-      'deeply research',
-      'comprehensive research',
-      'exhaustive',
-      'thorough research',
-      'investigate thoroughly',
-      'full investigation',
-      'analyse everything',
-      'analyze everything',
+      "deep research",
+      "deeply research",
+      "comprehensive research",
+      "exhaustive",
+      "thorough research",
+      "investigate thoroughly",
+      "full investigation",
+      "analyse everything",
+      "analyze everything",
     ])
   ) {
-    return 'deep-research';
+    return "deep-research";
   }
 
   if (
     includesAny(text, [
-      'verify',
-      'validate',
-      'confirm',
-      'fact check',
-      'fact-check',
-      'is this true',
-      'prove',
-      'source this',
-      'check whether',
+      "verify",
+      "validate",
+      "confirm",
+      "fact check",
+      "fact-check",
+      "is this true",
+      "prove",
+      "source this",
+      "check whether",
     ])
   ) {
-    return 'verification';
+    return "verification";
   }
 
   if (
     includesAny(text, [
-      'compare',
-      'comparison',
-      'versus',
-      ' vs ',
-      'better than',
-      'difference between',
-      'differences between',
-      'alternatives to',
+      "compare",
+      "comparison",
+      "versus",
+      " vs ",
+      "better than",
+      "difference between",
+      "differences between",
+      "alternatives to",
     ])
   ) {
-    return 'comparison';
+    return "comparison";
   }
 
   if (
     includesAny(text, [
-      'github',
-      'repository',
-      'repo',
-      'codebase',
-      'source code',
-      'commit',
-      'pull request',
-      'release notes',
+      "github",
+      "repository",
+      "repo",
+      "codebase",
+      "source code",
+      "commit",
+      "pull request",
+      "release notes",
     ])
   ) {
-    return 'repository';
+    return "repository";
   }
 
   if (
     includesAny(text, [
-      'documentation',
-      'docs',
-      'api',
-      'sdk',
-      'package',
-      'npm',
-      'pnpm',
-      'library',
-      'framework',
-      'typescript',
-      'javascript',
-      'python',
-      'next.js',
-      'nextjs',
-      'mastra',
+      "documentation",
+      "docs",
+      "api",
+      "sdk",
+      "package",
+      "npm",
+      "pnpm",
+      "library",
+      "framework",
+      "typescript",
+      "javascript",
+      "python",
+      "next.js",
+      "nextjs",
+      "mastra",
     ])
   ) {
-    return 'technical';
+    return "technical";
   }
 
   if (
     includesAny(text, [
-      'company',
-      'business',
-      'startup',
-      'enterprise',
-      'revenue',
-      'employees',
-      'leadership',
-      'funding',
-      'competitor',
+      "company",
+      "business",
+      "startup",
+      "enterprise",
+      "revenue",
+      "employees",
+      "leadership",
+      "funding",
+      "competitor",
     ])
   ) {
-    return 'company';
+    return "company";
   }
 
   if (
     includesAny(text, [
-      'who is',
-      'person',
-      'founder',
-      'ceo',
-      'cto',
-      'profile',
-      'linkedin',
-      'executive',
+      "who is",
+      "person",
+      "founder",
+      "ceo",
+      "cto",
+      "profile",
+      "linkedin",
+      "executive",
     ])
   ) {
-    return 'person';
+    return "person";
   }
 
   if (
     includesAny(text, [
-      'market',
-      'industry',
-      'market size',
-      'market share',
-      'trend',
-      'sector',
+      "market",
+      "industry",
+      "market size",
+      "market share",
+      "trend",
+      "sector",
     ])
   ) {
-    return 'market';
+    return "market";
   }
 
   if (
     includesAny(text, [
-      'product',
-      'pricing',
-      'price',
-      'features',
-      'specifications',
-      'specs',
-      'buy',
-      'purchase',
+      "product",
+      "pricing",
+      "price",
+      "features",
+      "specifications",
+      "specs",
+      "buy",
+      "purchase",
     ])
   ) {
-    return 'product';
+    return "product";
   }
 
   if (
     includesAny(text, [
-      'recommend',
-      'recommendation',
-      'best ',
-      'which should',
-      'what should i use',
-      'what should we use',
-      'suggest',
+      "recommend",
+      "recommendation",
+      "best ",
+      "which should",
+      "what should i use",
+      "what should we use",
+      "suggest",
     ])
   ) {
-    return 'recommendation';
+    return "recommendation";
   }
 
   if (
     includesAny(text, [
-      'find',
-      'discover',
-      'search for',
-      'look for',
-      'list ',
-      'identify',
+      "find",
+      "discover",
+      "search for",
+      "look for",
+      "list ",
+      "identify",
     ])
   ) {
-    return 'discovery';
+    return "discovery";
   }
 
   if (
     includesAny(text, [
-      'latest',
-      'current',
-      'currently',
-      'today',
-      'recent',
-      'this week',
-      'this month',
-      'right now',
-      'newest',
-      'most recent',
+      "latest",
+      "current",
+      "currently",
+      "today",
+      "recent",
+      "this week",
+      "this month",
+      "right now",
+      "newest",
+      "most recent",
     ])
   ) {
-    return 'current-fact';
+    return "current-fact";
   }
 
-  return 'direct-fact';
+  return "direct-fact";
 }
 
-function budgetFor(
-  kind: ResearchKind,
-): ResearchBudget {
+function budgetFor(kind: ResearchKind): ResearchBudget {
   switch (kind) {
-    case 'direct-fact':
+    case "direct-fact": {
       return {
         kind,
-        depth: 'minimal',
+        depth: "minimal",
         targetSources: 1,
         maxSources: 2,
         allowDelegation: false,
@@ -290,11 +262,12 @@ function budgetFor(
         requireDiversity: false,
         preferPrimarySources: true,
       };
+    }
 
-    case 'current-fact':
+    case "current-fact": {
       return {
         kind,
-        depth: 'normal',
+        depth: "normal",
         targetSources: 2,
         maxSources: 3,
         allowDelegation: false,
@@ -303,11 +276,12 @@ function budgetFor(
         requireDiversity: false,
         preferPrimarySources: true,
       };
+    }
 
-    case 'verification':
+    case "verification": {
       return {
         kind,
-        depth: 'normal',
+        depth: "normal",
         targetSources: 2,
         maxSources: 4,
         allowDelegation: false,
@@ -316,11 +290,12 @@ function budgetFor(
         requireDiversity: true,
         preferPrimarySources: true,
       };
+    }
 
-    case 'comparison':
+    case "comparison": {
       return {
         kind,
-        depth: 'normal',
+        depth: "normal",
         targetSources: 3,
         maxSources: 6,
         allowDelegation: true,
@@ -329,12 +304,13 @@ function budgetFor(
         requireDiversity: true,
         preferPrimarySources: true,
       };
+    }
 
-    case 'technical':
-    case 'repository':
+    case "technical":
+    case "repository": {
       return {
         kind,
-        depth: 'normal',
+        depth: "normal",
         targetSources: 2,
         maxSources: 4,
         allowDelegation: false,
@@ -343,13 +319,14 @@ function budgetFor(
         requireDiversity: false,
         preferPrimarySources: true,
       };
+    }
 
-    case 'company':
-    case 'person':
-    case 'product':
+    case "company":
+    case "person":
+    case "product": {
       return {
         kind,
-        depth: 'normal',
+        depth: "normal",
         targetSources: 3,
         maxSources: 6,
         allowDelegation: true,
@@ -358,12 +335,13 @@ function budgetFor(
         requireDiversity: true,
         preferPrimarySources: true,
       };
+    }
 
-    case 'market':
-    case 'recommendation':
+    case "market":
+    case "recommendation": {
       return {
         kind,
-        depth: 'normal',
+        depth: "normal",
         targetSources: 4,
         maxSources: 8,
         allowDelegation: true,
@@ -372,11 +350,12 @@ function budgetFor(
         requireDiversity: true,
         preferPrimarySources: true,
       };
+    }
 
-    case 'discovery':
+    case "discovery": {
       return {
         kind,
-        depth: 'normal',
+        depth: "normal",
         targetSources: 4,
         maxSources: 10,
         allowDelegation: true,
@@ -385,11 +364,12 @@ function budgetFor(
         requireDiversity: true,
         preferPrimarySources: false,
       };
+    }
 
-    case 'deep-research':
+    case "deep-research": {
       return {
         kind,
-        depth: 'deep',
+        depth: "deep",
         targetSources: 8,
         maxSources: 20,
         allowDelegation: true,
@@ -398,12 +378,11 @@ function budgetFor(
         requireDiversity: true,
         preferPrimarySources: true,
       };
+    }
   }
 }
 
-function serializeBudget(
-  budget: ResearchBudget,
-): string {
+function serializeBudget(budget: ResearchBudget): string {
   return `
 <research-budget>
 
@@ -418,11 +397,11 @@ Evidence budget:
 - hard maximum useful sources: ${budget.maxSources}
 
 Execution policy:
-- delegation allowed: ${budget.allowDelegation ? 'yes' : 'no'}
-- verification required: ${budget.requireVerification ? 'yes' : 'no'}
-- recency required: ${budget.requireRecency ? 'yes' : 'no'}
-- source diversity required: ${budget.requireDiversity ? 'yes' : 'no'}
-- prefer primary sources: ${budget.preferPrimarySources ? 'yes' : 'no'}
+- delegation allowed: ${budget.allowDelegation ? "yes" : "no"}
+- verification required: ${budget.requireVerification ? "yes" : "no"}
+- recency required: ${budget.requireRecency ? "yes" : "no"}
+- source diversity required: ${budget.requireDiversity ? "yes" : "no"}
+- prefer primary sources: ${budget.preferPrimarySources ? "yes" : "no"}
 
 Rules:
 
@@ -462,48 +441,29 @@ Do not expose this block to the user.
 `;
 }
 
-export class ResearchBudgetProcessor
-  implements Processor
-{
-  readonly id =
-    'research-budget';
+export class ResearchBudgetProcessor implements Processor {
+  readonly id = "research-budget";
 
-  readonly name =
-    'Research Budget';
+  readonly name = "Research Budget";
 
   async processInput({
     messages,
     messageList,
   }: ProcessInputArgs): Promise<ProcessInputResult> {
-    const request =
-      getLatestUserText(
-        messages,
-      );
+    const request = getLatestUserText(messages);
 
     if (!request) {
       return messageList;
     }
 
-    const kind =
-      classifyRequest(
-        request,
-      );
+    const kind = classifyRequest(request);
 
-    const budget =
-      budgetFor(
-        kind,
-      );
+    const budget = budgetFor(kind);
 
-    messageList.addSystem(
-      serializeBudget(
-        budget,
-      ),
-      'research-budget',
-    );
+    messageList.addSystem(serializeBudget(budget), "research-budget");
 
     return messageList;
   }
 }
 
-export const researchBudgetProcessor =
-  new ResearchBudgetProcessor();
+export const researchBudgetProcessor = new ResearchBudgetProcessor();

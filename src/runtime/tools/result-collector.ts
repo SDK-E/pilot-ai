@@ -1,19 +1,16 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createClient, type Client } from "@libsql/client";
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
-import {
-  researchResultSchema,
-  type ResearchResult,
-} from '#runtime/schemas/research-result';
-
-import { createClient, type Client } from '@libsql/client';
-import {
-  createResultStore,
-} from '#runtime/storage/research-result-store';
 import {
   researchMemoryDatabaseAuthToken,
   researchMemoryDatabaseUrl,
-} from '#runtime/research-config/research-agent/storage';
+} from "#runtime/research-config/research-agent/storage";
+import {
+  researchResultSchema,
+  type ResearchResult,
+} from "#runtime/schemas/research-result";
+import { createResultStore } from "#runtime/storage/research-result-store";
 
 const client: Client = createClient({
   url: researchMemoryDatabaseUrl,
@@ -22,7 +19,7 @@ const client: Client = createClient({
 
 const resultStore = createResultStore({
   client,
-  tableName: 'pilot_research_results',
+  tableName: "pilot_research_results",
 });
 
 const {
@@ -33,9 +30,7 @@ const {
   upsertResearchResult,
 } = resultStore;
 
-function canonicalUrl(
-  value?: string,
-): string | undefined {
+function canonicalUrl(value?: string): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -43,23 +38,22 @@ function canonicalUrl(
   try {
     const url = new URL(value);
 
-    url.hash = '';
+    url.hash = "";
 
     for (const key of [
-      'utm_source',
-      'utm_medium',
-      'utm_campaign',
-      'utm_term',
-      'utm_content',
-      'fbclid',
-      'gclid',
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_term",
+      "utm_content",
+      "fbclid",
+      "gclid",
     ]) {
       url.searchParams.delete(key);
     }
 
-    if (url.pathname !== '/') {
-      url.pathname =
-        url.pathname.replace(/\/+$/, '');
+    if (url.pathname !== "/") {
+      url.pathname = url.pathname.replace(/\/+$/, "");
     }
 
     return url.toString();
@@ -68,62 +62,47 @@ function canonicalUrl(
   }
 }
 
-function normalizeResult(
-  result: ResearchResult,
-): ResearchResult {
+function normalizeResult(result: ResearchResult): ResearchResult {
   return {
     ...result,
 
     url: canonicalUrl(result.url),
 
-    sourceUrl: canonicalUrl(
-      result.sourceUrl,
-    ),
+    sourceUrl: canonicalUrl(result.sourceUrl),
 
-    contradictions: [
-      ...new Set(
-        result.contradictions.filter(Boolean),
-      ),
-    ],
+    contradictions: [...new Set(result.contradictions.filter(Boolean))],
   };
 }
 
-function identityKey(
-  result: ResearchResult,
-): string {
+function identityKey(result: ResearchResult): string {
   if (result.url) {
     return `url:${canonicalUrl(result.url)}`;
   }
 
-  const type =
-    result.type?.trim().toLowerCase() ?? '';
+  const type = result.type?.trim().toLowerCase() ?? "";
 
-  const name = (
-    result.name ??
-    result.title ??
-    ''
-  )
-    .trim()
-    .toLowerCase();
+  const name = (result.name ?? result.title ?? "").trim().toLowerCase();
 
   return `${type}:${name}`;
 }
 
-function confidenceRank(
-  confidence?: ResearchResult['confidence'],
-): number {
+function confidenceRank(confidence?: ResearchResult["confidence"]): number {
   switch (confidence) {
-    case 'HIGH':
+    case "HIGH": {
       return 3;
+    }
 
-    case 'MEDIUM':
+    case "MEDIUM": {
       return 2;
+    }
 
-    case 'LOW':
+    case "LOW": {
       return 1;
+    }
 
-    default:
+    default: {
       return 0;
+    }
   }
 }
 
@@ -131,50 +110,35 @@ function mergeResults(
   current: ResearchResult,
   incoming: ResearchResult,
 ): ResearchResult {
-  const preferIncoming =
-    confidenceRank(incoming.confidence) >=
-    confidenceRank(current.confidence);
+  const isPreferIncoming =
+    confidenceRank(incoming.confidence) >= confidenceRank(current.confidence);
 
   return normalizeResult({
     ...current,
 
-    ...(preferIncoming
+    ...(isPreferIncoming
       ? incoming
       : {
           ...incoming,
 
-          summary:
-            current.summary ??
-            incoming.summary,
+          summary: current.summary ?? incoming.summary,
 
-          sourceUrl:
-            current.sourceUrl ??
-            incoming.sourceUrl,
+          sourceUrl: current.sourceUrl ?? incoming.sourceUrl,
 
-          sourceType:
-            current.sourceType ??
-            incoming.sourceType,
+          sourceType: current.sourceType ?? incoming.sourceType,
 
-          confidence:
-            current.confidence ??
-            incoming.confidence,
+          confidence: current.confidence ?? incoming.confidence,
 
           verificationStatus:
-            current.verificationStatus ??
-            incoming.verificationStatus,
+            current.verificationStatus ?? incoming.verificationStatus,
 
-          score:
-            current.score ??
-            incoming.score,
+          score: current.score ?? incoming.score,
         }),
 
     id: current.id,
 
     contradictions: [
-      ...new Set([
-        ...current.contradictions,
-        ...incoming.contradictions,
-      ]),
+      ...new Set([...current.contradictions, ...incoming.contradictions]),
     ],
 
     metadata: {
@@ -184,14 +148,10 @@ function mergeResults(
   });
 }
 
-async function dedupeResults(
-  threadId: string,
-): Promise<ResearchResult[]> {
-  const results =
-    await listResearchResults(threadId);
+async function dedupeResults(threadId: string): Promise<ResearchResult[]> {
+  const results = await listResearchResults(threadId);
 
-  const canonical =
-    new Map<string, ResearchResult>();
+  const canonical = new Map<string, ResearchResult>();
 
   for (const result of results) {
     const key = identityKey(result);
@@ -199,39 +159,27 @@ async function dedupeResults(
     const existing = canonical.get(key);
 
     if (!existing) {
-      canonical.set(
-        key,
-        normalizeResult(result),
-      );
+      canonical.set(key, normalizeResult(result));
 
       continue;
     }
 
-    const merged = mergeResults(
-      existing,
-      result,
-    );
+    const merged = mergeResults(existing, result);
 
     canonical.set(key, merged);
 
     if (result.id !== merged.id) {
-      await removeResearchResult(
-        threadId,
-        result.id,
-      );
+      await removeResearchResult(threadId, result.id);
     }
 
-    await upsertResearchResult(
-      threadId,
-      merged,
-    );
+    await upsertResearchResult(threadId, merged);
   }
 
   return [...canonical.values()];
 }
 
 export const resultCollector = createTool({
-  id: 'result-collector',
+  id: "result-collector",
 
   description: `
 Persist structured research results for the current Pilot Research Agent thread.
@@ -249,51 +197,40 @@ Do not duplicate large structured result sets into working memory.
 
   inputSchema: z.object({
     action: z.enum([
-      'read',
-      'get',
-      'add',
-      'update',
-      'remove',
-      'dedupe',
-      'clear',
+      "read",
+      "get",
+      "add",
+      "update",
+      "remove",
+      "dedupe",
+      "clear",
     ]),
 
-    result:
-      researchResultSchema.optional(),
+    result: researchResultSchema.optional(),
 
     id: z.string().optional(),
   }),
 
   outputSchema: z.object({
-    results: z.array(
-      researchResultSchema,
-    ),
+    results: z.array(researchResultSchema),
 
-    result:
-      researchResultSchema.optional(),
+    result: researchResultSchema.optional(),
 
     count: z.number().int(),
   }),
 
-  execute: async (
-    inputData,
-    context,
-  ) => {
-    const threadId =
-      context.agent?.threadId;
+  execute: async (inputData, context) => {
+    const threadId = context.agent?.threadId;
 
     if (!threadId) {
       throw new Error(
-        'resultCollector requires an active Mastra memory thread.',
+        "resultCollector requires an active Mastra memory thread.",
       );
     }
 
     switch (inputData.action) {
-      case 'read': {
-        const results =
-          await listResearchResults(
-            threadId,
-          );
+      case "read": {
+        const results = await listResearchResults(threadId);
 
         return {
           results,
@@ -301,23 +238,15 @@ Do not duplicate large structured result sets into working memory.
         };
       }
 
-      case 'get': {
+      case "get": {
         if (!inputData.id) {
-          throw new Error(
-            'id is required for get',
-          );
+          throw new Error("id is required for get");
         }
 
-        const result =
-          await getResearchResult(
-            threadId,
-            inputData.id,
-          );
+        const result = await getResearchResult(threadId, inputData.id);
 
         return {
-          results: result
-            ? [result]
-            : [],
+          results: result ? [result] : [],
 
           result,
 
@@ -325,36 +254,19 @@ Do not duplicate large structured result sets into working memory.
         };
       }
 
-      case 'add':
-      case 'update': {
+      case "add":
+      case "update": {
         if (!inputData.result) {
-          throw new Error(
-            `result is required for ${inputData.action}`,
-          );
+          throw new Error(`result is required for ${inputData.action}`);
         }
 
-        const incoming =
-          normalizeResult(
-            inputData.result,
-          );
+        const incoming = normalizeResult(inputData.result);
 
-        const existing =
-          await getResearchResult(
-            threadId,
-            incoming.id,
-          );
+        const existing = await getResearchResult(threadId, incoming.id);
 
-        const result = existing
-          ? mergeResults(
-              existing,
-              incoming,
-            )
-          : incoming;
+        const result = existing ? mergeResults(existing, incoming) : incoming;
 
-        await upsertResearchResult(
-          threadId,
-          result,
-        );
+        await upsertResearchResult(threadId, result);
 
         return {
           results: [result],
@@ -363,22 +275,14 @@ Do not duplicate large structured result sets into working memory.
         };
       }
 
-      case 'remove': {
+      case "remove": {
         if (!inputData.id) {
-          throw new Error(
-            'id is required for remove',
-          );
+          throw new Error("id is required for remove");
         }
 
-        await removeResearchResult(
-          threadId,
-          inputData.id,
-        );
+        await removeResearchResult(threadId, inputData.id);
 
-        const results =
-          await listResearchResults(
-            threadId,
-          );
+        const results = await listResearchResults(threadId);
 
         return {
           results,
@@ -386,11 +290,8 @@ Do not duplicate large structured result sets into working memory.
         };
       }
 
-      case 'dedupe': {
-        const results =
-          await dedupeResults(
-            threadId,
-          );
+      case "dedupe": {
+        const results = await dedupeResults(threadId);
 
         return {
           results,
@@ -398,10 +299,8 @@ Do not duplicate large structured result sets into working memory.
         };
       }
 
-      case 'clear': {
-        await clearResearchResults(
-          threadId,
-        );
+      case "clear": {
+        await clearResearchResults(threadId);
 
         return {
           results: [],
@@ -412,22 +311,18 @@ Do not duplicate large structured result sets into working memory.
   },
 
   toModelOutput: (output) => ({
-    type: 'text',
+    type: "text",
 
     value:
       output.count === 0
-        ? 'No persisted research results.'
+        ? "No persisted research results."
         : output.results
             .slice(0, 30)
             .map((result) =>
               [
-                result.name ??
-                  result.title ??
-                  result.id,
+                result.name ?? result.title ?? result.id,
 
-                result.type
-                  ? `Type: ${result.type}`
-                  : undefined,
+                result.type ? `Type: ${result.type}` : undefined,
 
                 result.url,
 
@@ -442,8 +337,8 @@ Do not duplicate large structured result sets into working memory.
                   : undefined,
               ]
                 .filter(Boolean)
-                .join('\n'),
+                .join("\n"),
             )
-            .join('\n\n'),
+            .join("\n\n"),
   }),
 });

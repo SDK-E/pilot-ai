@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { createPilotProductionToolRuntime } from "../../research/pilot-research.js";
-import { generateConversationReplySchema } from "../command.js";
-import { createChatCompletionResponse } from "../openai-compatible.js";
 import { verifyPilotRuntimeRequest } from "../../runtime/auth/vercel-oidc.js";
 import { getPilotRuntimeStorageConfig } from "../../runtime/storage/pilot-runtime.js";
+import { generateConversationReplySchema } from "../command.js";
+import { createChatCompletionResponse } from "../openai-compatible.js";
 
 const inputSchema = generateConversationReplySchema
   .extend({
@@ -33,9 +33,7 @@ export async function handleApprovalResume(
   const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
   if (!oidcToken)
     return Response.json({ error: "Unauthorized." }, { status: 401 });
-  const input = inputSchema.safeParse(
-    await request.json().catch(() => undefined),
-  );
+  const input = inputSchema.safeParse(await request.json().catch(() => {}));
   if (!input.success)
     return Response.json(
       { error: "Invalid approval resume command." },

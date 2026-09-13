@@ -1,7 +1,5 @@
 import { ZodError } from "zod";
 
-import { createPilotConversationRuntime } from "../../../src/conversation/pilot-conversation.js";
-import { createPilotProductionToolRuntime } from "../../../src/research/pilot-research.js";
 import {
   createApprovalRequiredResponse,
   createChatCompletionResponse,
@@ -10,6 +8,8 @@ import {
   createUserInputRequiredResponse,
   isStreamingChatCompletionRequest,
 } from "../../../src/conversation/openai-compatible.js";
+import { createPilotConversationRuntime } from "../../../src/conversation/pilot-conversation.js";
+import { createPilotProductionToolRuntime } from "../../../src/research/pilot-research.js";
 import { verifyPilotRuntimeRequest } from "../../../src/runtime/auth/vercel-oidc.js";
 import { getPilotRuntimeStorageConfig } from "../../../src/runtime/storage/pilot-runtime.js";
 
@@ -55,10 +55,10 @@ export default {
         body,
         request.headers,
       );
-    } catch (cause) {
+    } catch (error_) {
       return error(
-        cause instanceof ZodError || cause instanceof Error
-          ? cause.message
+        error_ instanceof ZodError || error_ instanceof Error
+          ? error_.message
           : "Invalid chat completion request.",
         "invalid_request_error",
         400,
@@ -69,9 +69,9 @@ export default {
       | ReturnType<typeof createPilotConversationRuntime>
       | ReturnType<typeof createPilotProductionToolRuntime>
       | undefined;
-    let closeRuntime = true;
+    let isCloseRuntime = true;
     try {
-      if (command.allowedToolIds.length) {
+      if (command.allowedToolIds.length > 0) {
         if (
           command.allowedToolIds.includes("web-search") &&
           process.env.PILOT_ENABLE_RESEARCH !== "true"
@@ -91,7 +91,7 @@ export default {
       }
       if (isStreamingChatCompletionRequest(body)) {
         const stream = await runtime.stream(command);
-        closeRuntime = false;
+        isCloseRuntime = false;
         return new Response(
           createChatCompletionStream(stream, {
             includeUsage:
@@ -125,10 +125,10 @@ export default {
         );
       }
       return Response.json(createChatCompletionResponse(result));
-    } catch (cause) {
+    } catch (error_) {
       console.error(
         "[pilot-conversation] generation failed:",
-        cause instanceof Error ? cause.name : "unknown error",
+        error_ instanceof Error ? error_.name : "unknown error",
       );
       return error(
         "Pilot Conversation could not complete.",
@@ -136,7 +136,7 @@ export default {
         502,
       );
     } finally {
-      if (closeRuntime) await runtime?.close();
+      if (isCloseRuntime) await runtime?.close();
     }
   },
 };

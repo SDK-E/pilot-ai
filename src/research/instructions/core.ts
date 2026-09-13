@@ -1,6 +1,6 @@
-import type { AgentIdentity } from '#runtime/agent/identity';
+import type { AgentIdentity } from "#runtime/agent/identity";
 
-export type { AgentIdentity } from '#runtime/agent/identity';
+export type { AgentIdentity } from "#runtime/agent/identity";
 
 export const coreInstructions = (identity: AgentIdentity) => `
 IDENTITY

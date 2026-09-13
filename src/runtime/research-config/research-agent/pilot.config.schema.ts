@@ -1,14 +1,8 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const pilotProfileSchema = z.enum([
-  'fast',
-  'balanced',
-  'deep',
-  'test',
-]);
+export const pilotProfileSchema = z.enum(["fast", "balanced", "deep", "test"]);
 
-export type PilotProfile =
-  z.infer<typeof pilotProfileSchema>;
+export type PilotProfile = z.infer<typeof pilotProfileSchema>;
 
 export const pilotConfigSchema = z.object({
   profile: pilotProfileSchema,
@@ -62,93 +56,69 @@ export const pilotConfigSchema = z.object({
 
       observation: z.object({
         messageTokens: z.number().int().positive(),
-        previousObserverTokens:
-          z.number().int().nonnegative(),
+        previousObserverTokens: z.number().int().nonnegative(),
         bufferTokens: z.number().min(0),
-        bufferActivation:
-          z.number().min(0).max(1),
+        bufferActivation: z.number().min(0).max(1),
         bufferOnIdle: z.boolean(),
       }),
 
       reflection: z.object({
-        bufferActivation:
-          z.number().min(0).max(1),
+        bufferActivation: z.number().min(0).max(1),
       }),
     }),
   }),
 
   cache: z.object({
-    searchTtlMs:
-      z.number().int().nonnegative(),
+    searchTtlMs: z.number().int().nonnegative(),
 
-    fetchTtlMs:
-      z.number().int().nonnegative(),
+    fetchTtlMs: z.number().int().nonnegative(),
   }),
 
   network: z.object({
-    fetchTimeoutMs:
-      z.number().int().positive(),
+    fetchTimeoutMs: z.number().int().positive(),
 
     circuitBreaker: z.object({
-      failureThreshold:
-        z.number().int().positive(),
+      failureThreshold: z.number().int().positive(),
 
-      blockDurationMs:
-        z.number().int().positive(),
+      blockDurationMs: z.number().int().positive(),
     }),
   }),
 
   research: z.object({
-    sourceConfidenceEvery:
-      z.number().int().positive(),
+    sourceConfidenceEvery: z.number().int().positive(),
 
-    taskDependencyEvery:
-      z.number().int().positive(),
+    taskDependencyEvery: z.number().int().positive(),
 
-    entityResolutionEvery:
-      z.number().int().positive(),
+    entityResolutionEvery: z.number().int().positive(),
 
-    recencyCheckEvery:
-      z.number().int().positive(),
+    recencyCheckEvery: z.number().int().positive(),
 
-    contradictionCheckEvery:
-      z.number().int().positive(),
+    contradictionCheckEvery: z.number().int().positive(),
 
-    sourceDiversityEvery:
-      z.number().int().positive(),
+    sourceDiversityEvery: z.number().int().positive(),
 
-    challengeClaimEvery:
-      z.number().int().positive(),
+    challengeClaimEvery: z.number().int().positive(),
 
-    memoryHygieneEvery:
-      z.number().int().positive(),
+    memoryHygieneEvery: z.number().int().positive(),
   }),
 
   eval: z.object({
-    concurrency:
-      z.number().int().positive(),
+    concurrency: z.number().int().positive(),
 
-    timeoutMs:
-      z.number().int().positive(),
+    timeoutMs: z.number().int().positive(),
 
-    maxRetries:
-      z.number().int().nonnegative(),
+    maxRetries: z.number().int().nonnegative(),
 
     thresholds: z.object({
-      answerRelevancy:
-        z.number().min(0).max(1),
+      answerRelevancy: z.number().min(0).max(1),
 
-      completeness:
-        z.number().min(0).max(1),
+      completeness: z.number().min(0).max(1),
 
-      sourceCoverage:
-        z.number().min(0).max(1),
+      sourceCoverage: z.number().min(0).max(1),
 
-      taskCompletion:
-        z.number().min(0).max(1),
+      taskCompletion: z.number().min(0).max(1),
     }),
   }),
 });
 
-export type PilotConfig =
-  z.infer<typeof pilotConfigSchema>;
+export type PilotConfig = z.infer<typeof pilotConfigSchema>;

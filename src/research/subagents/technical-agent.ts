@@ -1,23 +1,24 @@
-import { pilotConfig } from '#runtime/research-config';
-import { createBaseAgent } from '#runtime/agent/base-agent';
-import { buildBaseAgentInstructions } from '#runtime/agent/base-instructions';
-
+import { createBaseAgent } from "#runtime/agent/base-agent";
+import { buildBaseAgentInstructions } from "#runtime/agent/base-instructions";
+import { pilotConfig } from "#runtime/research-config";
 import {
   challengeClaimProcessor,
   contradictionCheckProcessor,
   recencyCheckProcessor,
   runtimeSkillResolverProcessor,
   sourceConfidenceProcessor,
-} from '#runtime/research-processors';
-import { queryPlanner } from '#runtime/tools/query-planner';
-import { researchScratchpad } from '#runtime/tools/research-scratchpad';
-import { resultCollector } from '#runtime/tools/result-collector';
-import { searchDorks } from '#runtime/tools/search/search-dorks';
-import { skillsMarketplace } from '#runtime/research-tools/skills-marketplace';
-import { stagehandBrowser } from '#runtime/research-tools/stagehand-browser';
-import { webSearch } from '#runtime/tools/search/web-search';
-import { createResearchToolSearchProcessor } from '../tool-search';
-import { technicalAgentIdentity } from './identity';
+} from "#runtime/research-processors";
+import { skillsMarketplace } from "#runtime/research-tools/skills-marketplace";
+import { stagehandBrowser } from "#runtime/research-tools/stagehand-browser";
+import { queryPlanner } from "#runtime/tools/query-planner";
+import { researchScratchpad } from "#runtime/tools/research-scratchpad";
+import { resultCollector } from "#runtime/tools/result-collector";
+import { searchDorks } from "#runtime/tools/search/search-dorks";
+import { webSearch } from "#runtime/tools/search/web-search";
+
+import { createResearchToolSearchProcessor } from "../tool-search";
+
+import { technicalAgentIdentity } from "./identity";
 
 const technicalToolSearch = createResearchToolSearchProcessor();
 
@@ -28,7 +29,7 @@ export const technicalAgent = createBaseAgent({
     warningAt: pilotConfig.agent.subagent.stepBudget.warningAt,
     finalAt: pilotConfig.agent.subagent.stepBudget.finalAt,
   },
-  id: 'pilot-research-technical',
+  id: "pilot-research-technical",
   name: technicalAgentIdentity.name,
   description: technicalAgentIdentity.jobDescription,
 
@@ -97,7 +98,7 @@ OUTPUT
 
 Return concise technical findings with direct answer, relevant versions, implementation facts, evidence URLs, deprecated approaches, contradictions, uncertainty, and confidence.
 `.trim(),
-  ].join('\n\n'),
+  ].join("\n\n"),
 
   model: [
     {

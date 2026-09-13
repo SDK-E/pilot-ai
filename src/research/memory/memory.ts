@@ -1,115 +1,74 @@
-import { fastembed } from '@mastra/fastembed';
-import { Memory } from '@mastra/memory';
+import { fastembed } from "@mastra/fastembed";
+import { Memory } from "@mastra/memory";
 
-import { pilotConfig } from '#runtime/research-config';
+import { pilotConfig } from "#runtime/research-config";
+import { memoryStorage, memoryVector } from "#runtime/research-storage";
 
-import {
-  memoryStorage,
-  memoryVector,
-} from '#runtime/research-storage';
+import { memoryTemplate } from "./memory-template";
 
-import { memoryTemplate } from './memory-template';
+const semanticRecall = pilotConfig.memory.semanticRecall;
 
-const semanticRecall =
-  pilotConfig.memory.semanticRecall;
+const workingMemory = pilotConfig.memory.workingMemory;
 
-const workingMemory =
-  pilotConfig.memory.workingMemory;
+const observationalMemory = pilotConfig.memory.observational;
 
-const observationalMemory =
-  pilotConfig.memory.observational;
-
-const observationalMemoryEnabled =
+const isObservationalMemoryEnabled =
   observationalMemory.enabled &&
-  process.env.PILOT_OBSERVATIONAL_MEMORY === 'true';
+  process.env.PILOT_OBSERVATIONAL_MEMORY === "true";
 
-export const pilotResearchMemory =
-  new Memory({
-    storage: memoryStorage,
-    vector: memoryVector,
-    embedder: fastembed,
+export const pilotResearchMemory = new Memory({
+  storage: memoryStorage,
+  vector: memoryVector,
+  embedder: fastembed,
 
-    options: {
-      lastMessages:
-        pilotConfig.memory.lastMessages,
+  options: {
+    lastMessages: pilotConfig.memory.lastMessages,
 
-      ...(semanticRecall.enabled
-        ? {
-            semanticRecall: {
-              scope:
-                'thread' as const,
+    ...(semanticRecall.enabled && {
+      semanticRecall: {
+        scope: "thread" as const,
 
-              topK:
-                semanticRecall.topK,
+        topK: semanticRecall.topK,
 
-              messageRange: {
-                before:
-                  semanticRecall
-                    .messageRange.before,
+        messageRange: {
+          before: semanticRecall.messageRange.before,
 
-                after:
-                  semanticRecall
-                    .messageRange.after,
-              },
-            },
-          }
-        : {}),
+          after: semanticRecall.messageRange.after,
+        },
+      },
+    }),
 
-      ...(workingMemory.enabled
-        ? {
-            workingMemory: {
-              enabled: true,
+    ...(workingMemory.enabled && {
+      workingMemory: {
+        enabled: true,
 
-              scope:
-                'thread' as const,
+        scope: "thread" as const,
 
-              template:
-                memoryTemplate,
-            },
-          }
-        : {}),
+        template: memoryTemplate,
+      },
+    }),
 
-      ...(observationalMemoryEnabled
-        ? {
-            observationalMemory: {
-              model:
-                pilotConfig.model.id,
+    ...(isObservationalMemoryEnabled && {
+      observationalMemory: {
+        model: pilotConfig.model.id,
 
-              observation: {
-                messageTokens:
-                  observationalMemory
-                    .observation
-                    .messageTokens,
+        observation: {
+          messageTokens: observationalMemory.observation.messageTokens,
 
-                previousObserverTokens:
-                  observationalMemory
-                    .observation
-                    .previousObserverTokens,
+          previousObserverTokens:
+            observationalMemory.observation.previousObserverTokens,
 
-                bufferTokens:
-                  observationalMemory
-                    .observation
-                    .bufferTokens,
+          bufferTokens: observationalMemory.observation.bufferTokens,
 
-                bufferActivation:
-                  observationalMemory
-                    .observation
-                    .bufferActivation,
+          bufferActivation: observationalMemory.observation.bufferActivation,
 
-                bufferOnIdle:
-                  observationalMemory
-                    .observation
-                    .bufferOnIdle,
-              },
+          bufferOnIdle: observationalMemory.observation.bufferOnIdle,
+        },
 
-              reflection: {
-                bufferActivation:
-                  observationalMemory
-                    .reflection
-                    .bufferActivation,
-              },
-            },
-          }
-        : {}),
-    },
-  });
+        reflection: {
+          bufferActivation: observationalMemory.reflection.bufferActivation,
+        },
+      },
+    }),
+  },
+});

@@ -1,29 +1,31 @@
 import { describe, expect, test } from "vitest";
+
 import { verifyPilotRuntimeRequest } from "./vercel-oidc";
 
 describe("runtime OIDC", () => {
   test("rejects requests without a token", async () => {
     const response = new Request("https://pilot.test/api/runtime/activity");
-    const verified = await verifyPilotRuntimeRequest(response);
-    expect(verified).toBe(false);
+    const isVerified = await verifyPilotRuntimeRequest(response);
+    expect(isVerified).toBe(false);
   });
 
   test("rejects requests without environment", async () => {
     const response = new Request("https://pilot.test/api/runtime/activity", {
       headers: { "x-pilot-runtime-oidc-token": "dummy.token.value" },
     });
-    const verified = await verifyPilotRuntimeRequest(response);
-    expect(verified).toBe(false);
+    const isVerified = await verifyPilotRuntimeRequest(response);
+    expect(isVerified).toBe(false);
   });
 
   test("rejects token with unknown issuer", async () => {
     const response = new Request("https://pilot.test/api/runtime/activity", {
       headers: {
-        "x-pilot-runtime-oidc-token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkb25lIn0.sig",
+        "x-pilot-runtime-oidc-token":
+          "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkb25lIn0.sig",
       },
     });
-    const verified = await verifyPilotRuntimeRequest(response);
-    expect(verified).toBe(false);
+    const isVerified = await verifyPilotRuntimeRequest(response);
+    expect(isVerified).toBe(false);
   });
 
   test("rejects expired token", async () => {
@@ -41,8 +43,8 @@ describe("runtime OIDC", () => {
         "content-type": "application/json",
       },
     });
-    const verified = await verifyPilotRuntimeRequest(response);
-    expect(verified).toBe(false);
+    const isVerified = await verifyPilotRuntimeRequest(response);
+    expect(isVerified).toBe(false);
   });
 
   test("rejects token for wrong environment", async () => {
@@ -60,8 +62,8 @@ describe("runtime OIDC", () => {
         "content-type": "application/json",
       },
     });
-    const verified = await verifyPilotRuntimeRequest(response);
-    expect(verified).toBe(false);
+    const isVerified = await verifyPilotRuntimeRequest(response);
+    expect(isVerified).toBe(false);
   });
 });
 

@@ -16,7 +16,10 @@ export const generateConversationReplySchema = z
     worker: z.object({
       id: z.uuid(),
       instructions: z.string().min(1).max(20_000),
-      modelId: z.string().regex(/^kilo\/[a-z0-9][a-z0-9._:-]*(?:\/[a-z0-9][a-z0-9._:-]*)*$/i).max(200),
+      modelId: z
+        .string()
+        .regex(/^kilo\/[a-z0-9][a-z0-9._:-]*(?:\/[a-z0-9][a-z0-9._:-]*)*$/i)
+        .max(200),
     }),
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),

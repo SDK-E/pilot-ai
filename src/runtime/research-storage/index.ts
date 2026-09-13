@@ -1,9 +1,6 @@
 export {
   createResearchDevelopmentObservability,
   createResearchDevelopmentStorage,
-} from './research-development';
+} from "./research-development";
 
-export {
-  memoryStorage,
-  memoryVector,
-} from './research-memory';
+export { memoryStorage, memoryVector } from "./research-memory";

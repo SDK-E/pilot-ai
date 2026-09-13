@@ -1,36 +1,24 @@
-import 'dotenv/config';
+import "dotenv/config";
 
-import {
-  mastra,
-} from '../../index';
+import { mastra } from "../../index";
 
-import {
-  seedPilotDatasets,
-} from './seed-pilot-dataset';
+import { seedPilotDatasets } from "./seed-pilot-dataset";
 
 async function main(): Promise<void> {
-  const datasets =
-    await seedPilotDatasets(
-      mastra,
-    );
+  const datasets = await seedPilotDatasets(mastra);
 
   console.log(
     [
-      'Pilot datasets ready:',
+      "Pilot datasets ready:",
       `- smoke: ${datasets.smoke.id}`,
       `- regression: ${datasets.regression.id}`,
       `- deep: ${datasets.deep.id}`,
-    ].join('\n'),
+    ].join("\n"),
   );
 }
 
-main().catch(
-  (error) => {
-    console.error(
-      'Failed to seed Pilot datasets:',
-      error,
-    );
+main().catch((error) => {
+  console.error("Failed to seed Pilot datasets:", error);
 
-    process.exitCode = 1;
-  },
-);
+  process.exitCode = 1;
+});

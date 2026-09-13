@@ -4,7 +4,7 @@ function requiredResearchStorageUrl(name: string): string {
   if (!value) {
     throw new Error(
       `${name} is required when PILOT_ENABLE_BROWSER_AGENT=true. ` +
-        'Use a development-only database outside this repository source tree.',
+        "Use a development-only database outside this repository source tree.",
     );
   }
 
@@ -12,7 +12,7 @@ function requiredResearchStorageUrl(name: string): string {
 }
 
 export const researchMemoryDatabaseUrl = requiredResearchStorageUrl(
-  'MASTRA_MEMORY_DATABASE_URL',
+  "MASTRA_MEMORY_DATABASE_URL",
 );
 
 export const researchMemoryDatabaseAuthToken =

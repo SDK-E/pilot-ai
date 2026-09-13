@@ -1,33 +1,18 @@
-import 'dotenv/config';
+import "dotenv/config";
 
-import {
-  resolvePilotEvalMode,
-} from './pilot-dataset';
-
-import {
-  runPilotExperiment,
-} from './run-pilot-experiment';
+import { resolvePilotEvalMode } from "./pilot-dataset";
+import { runPilotExperiment } from "./run-pilot-experiment";
 
 async function main(): Promise<void> {
-  const mode =
-    resolvePilotEvalMode();
+  const mode = resolvePilotEvalMode();
 
-  console.log(
-    `Running Pilot ${mode} experiment...`,
-  );
+  console.log(`Running Pilot ${mode} experiment...`);
 
-  const startedAt =
-    Date.now();
+  const startedAt = Date.now();
 
-  const result =
-    await runPilotExperiment();
+  const result = await runPilotExperiment();
 
-  const durationSeconds =
-    (
-      (Date.now() -
-        startedAt) /
-      1000
-    ).toFixed(1);
+  const durationSeconds = ((Date.now() - startedAt) / 1000).toFixed(1);
 
   console.log(
     [
@@ -38,23 +23,16 @@ async function main(): Promise<void> {
       `Failed: ${result.failedCount}`,
       `Duration: ${durationSeconds}s`,
       `Experiment: ${result.experimentId}`,
-    ].join('\n'),
+    ].join("\n"),
   );
 
-  if (
-    result.status ===
-      'failed' ||
-    result.failedCount > 0
-  ) {
+  if (result.status === "failed" || result.failedCount > 0) {
     process.exitCode = 1;
   }
 }
 
 main().catch((error) => {
-  console.error(
-    'Pilot experiment failed:',
-    error,
-  );
+  console.error("Pilot experiment failed:", error);
 
   process.exitCode = 1;
 });

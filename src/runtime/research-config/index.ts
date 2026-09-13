@@ -1,3 +1,1 @@
-export {
-  pilotConfig,
-} from './research-agent/pilot.config.js';
+export { pilotConfig } from "./research-agent/pilot.config.js";

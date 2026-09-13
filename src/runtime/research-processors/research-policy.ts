@@ -2,13 +2,11 @@ import type {
   Processor,
   ProcessInputArgs,
   ProcessInputResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-export class ResearchPolicyProcessor
-  implements Processor
-{
-  readonly id = 'research-policy';
-  readonly name = 'Research Policy';
+export class ResearchPolicyProcessor implements Processor {
+  readonly id = "research-policy";
+  readonly name = "Research Policy";
 
   async processInput({
     messageList,
@@ -80,12 +78,11 @@ Use the existing thread task list and working memory for continuity.
 
 </research-policy>
 `,
-      'research-policy',
+      "research-policy",
     );
 
     return messageList;
   }
 }
 
-export const researchPolicyProcessor =
-  new ResearchPolicyProcessor();
+export const researchPolicyProcessor = new ResearchPolicyProcessor();

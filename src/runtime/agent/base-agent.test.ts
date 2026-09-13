@@ -7,7 +7,7 @@ describe("createBaseAgent", () => {
     const agent = createBaseAgent({
       base: {
         maxSteps: 4,
-        tokenLimit: 1_000,
+        tokenLimit: 1000,
         warningAt: 2,
         finalAt: 3,
       },

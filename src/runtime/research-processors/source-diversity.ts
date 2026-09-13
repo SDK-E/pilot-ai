@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class SourceDiversityProcessor implements Processor {
+  readonly id = "source-diversity";
 
-export class SourceDiversityProcessor
-  implements Processor
-{
-  readonly id =
-    'source-diversity';
-
-  readonly name =
-    'Source Diversity';
+  readonly name = "Source Diversity";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .sourceDiversityEvery;
+    const every = pilotConfig.research.sourceDiversityEvery;
 
-    if (
-      stepNumber < 3 ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < 3 || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 SOURCE DIVERSITY
@@ -81,5 +72,4 @@ Do not sacrifice source quality merely to increase source count.
   }
 }
 
-export const sourceDiversityProcessor =
-  new SourceDiversityProcessor();
+export const sourceDiversityProcessor = new SourceDiversityProcessor();

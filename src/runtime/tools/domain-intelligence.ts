@@ -4,10 +4,10 @@ import {
   resolveMx,
   resolveNs,
   resolveTxt,
-} from 'node:dns/promises';
+} from "node:dns/promises";
 
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 async function safeResolve<T>(
   operation: () => Promise<T>,
@@ -23,21 +23,17 @@ function normalizeDomain(value: string): string {
   const input = value.trim().toLowerCase();
 
   try {
-    return new URL(
-      input.includes('://')
-        ? input
-        : `https://${input}`,
-    ).hostname;
+    return new URL(input.includes("://") ? input : `https://${input}`).hostname;
   } catch {
     return input;
   }
 }
 
 export const domainIntelligence = createTool({
-  id: 'domain-intelligence',
+  id: "domain-intelligence",
 
   description:
-    'Inspect public DNS information for a domain, including A, AAAA, MX, NS, and TXT records. Useful for domain verification, company infrastructure signals, and validating whether a domain can receive email.',
+    "Inspect public DNS information for a domain, including A, AAAA, MX, NS, and TXT records. Useful for domain verification, company infrastructure signals, and validating whether a domain can receive email.",
 
   inputSchema: z.object({
     domain: z.string().min(1),
@@ -59,30 +55,24 @@ export const domainIntelligence = createTool({
   }),
 
   execute: async (inputData) => {
-    const domain = normalizeDomain(
-      inputData.domain,
-    );
+    const domain = normalizeDomain(inputData.domain);
 
-    const [ipv4, ipv6, mx, nameservers, txt] =
-      await Promise.all([
-        safeResolve(() => resolve4(domain)),
-        safeResolve(() => resolve6(domain)),
-        safeResolve(() => resolveMx(domain)),
-        safeResolve(() => resolveNs(domain)),
-        safeResolve(() => resolveTxt(domain)),
-      ]);
+    const [ipv4, ipv6, mx, nameservers, txt] = await Promise.all([
+      safeResolve(() => resolve4(domain)),
+      safeResolve(() => resolve6(domain)),
+      safeResolve(() => resolveMx(domain)),
+      safeResolve(() => resolveNs(domain)),
+      safeResolve(() => resolveTxt(domain)),
+    ]);
 
     return {
       domain,
       ipv4: ipv4 ?? [],
       ipv6: ipv6 ?? [],
-      mx: (mx ?? []).sort(
-        (a, b) => a.priority - b.priority,
-      ),
+      mx: (mx ?? []).sort((a, b) => a.priority - b.priority),
       nameservers: nameservers ?? [],
       txt: txt ?? [],
-      canReceiveEmail:
-        Array.isArray(mx) && mx.length > 0,
+      canReceiveEmail: Array.isArray(mx) && mx.length > 0,
     };
   },
 });

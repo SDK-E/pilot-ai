@@ -1,10 +1,10 @@
-import { createStep, createWorkflow } from '@mastra/core/workflows';
-import { z } from 'zod';
+import { createStep, createWorkflow } from "@mastra/core/workflows";
+import { z } from "zod";
 
 import {
   performLangSearch,
   searchResultSchema,
-} from '#runtime/tools/search/langsearch';
+} from "#runtime/tools/search/langsearch";
 
 const inputSchema = z.object({
   query: z.string().min(1),
@@ -16,17 +16,17 @@ const outputSchema = z.object({
 });
 
 const searchStep = createStep({
-  id: 'web-search-search',
+  id: "web-search-search",
   inputSchema,
   outputSchema,
 
   execute: async ({ inputData, mastra }) => {
     const sources = await performLangSearch(inputData.query, 8);
 
-    const agent = mastra?.getAgent('pilotResearchAgent');
+    const agent = mastra?.getAgent("pilotResearchAgent");
 
     if (!agent) {
-      throw new Error('pilotResearchAgent not found');
+      throw new Error("pilotResearchAgent not found");
     }
 
     const result = await agent.generate(`
@@ -57,7 +57,7 @@ Requirements:
 });
 
 export const webSearchWorkflow = createWorkflow({
-  id: 'web-search',
+  id: "web-search",
   inputSchema,
   outputSchema,
 })

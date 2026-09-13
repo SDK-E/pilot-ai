@@ -1,7 +1,7 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
-import { performUrlFetch } from '#runtime/tools/url-fetch';
+import { performUrlFetch } from "#runtime/tools/url-fetch";
 
 const fetchedPageSchema = z.object({
   url: z.string(),
@@ -13,10 +13,10 @@ const fetchedPageSchema = z.object({
 type FetchedPage = z.infer<typeof fetchedPageSchema>;
 
 export const bulkUrlFetch = createTool({
-  id: 'bulk-url-fetch',
+  id: "bulk-url-fetch",
 
   description:
-    'Fetch several known public URLs concurrently. Prefer this over repeated single-page fetches when multiple pages need reading.',
+    "Fetch several known public URLs concurrently. Prefer this over repeated single-page fetches when multiple pages need reading.",
 
   inputSchema: z.object({
     urls: z.array(z.string().url()).min(1).max(20),
@@ -32,39 +32,27 @@ export const bulkUrlFetch = createTool({
 
     const pages: FetchedPage[] = [];
 
-    for (
-      let index = 0;
-      index < uniqueUrls.length;
-      index += concurrency
-    ) {
-      const batch = uniqueUrls.slice(
-        index,
-        index + concurrency,
+    for (let index = 0; index < uniqueUrls.length; index += concurrency) {
+      const batch = uniqueUrls.slice(index, index + concurrency);
+
+      const results: FetchedPage[] = await Promise.all(
+        batch.map(async (url): Promise<FetchedPage> => {
+          try {
+            const page = await performUrlFetch(url);
+
+            return {
+              url,
+              title: page.title,
+              content: page.content,
+            };
+          } catch (error) {
+            return {
+              url,
+              error: error instanceof Error ? error.message : String(error),
+            };
+          }
+        }),
       );
-
-      const results: FetchedPage[] =
-        await Promise.all(
-          batch.map(async (url): Promise<FetchedPage> => {
-            try {
-              const page =
-                await performUrlFetch(url);
-
-              return {
-                url,
-                title: page.title,
-                content: page.content,
-              };
-            } catch (error) {
-              return {
-                url,
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : String(error),
-              };
-            }
-          }),
-        );
 
       pages.push(...results);
     }
@@ -73,7 +61,7 @@ export const bulkUrlFetch = createTool({
   },
 
   toModelOutput: (output) => ({
-    type: 'text',
+    type: "text",
     value: output.pages
       .map((page) => {
         if (page.error) {
@@ -81,12 +69,10 @@ export const bulkUrlFetch = createTool({
         }
 
         return [
-          page.title
-            ? `${page.title} — ${page.url}`
-            : page.url,
-          page.content?.slice(0, 12_000) ?? '',
-        ].join('\n');
+          page.title ? `${page.title} — ${page.url}` : page.url,
+          page.content?.slice(0, 12_000) ?? "",
+        ].join("\n");
       })
-      .join('\n\n---\n\n'),
+      .join("\n\n---\n\n"),
   }),
 });

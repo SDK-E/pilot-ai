@@ -10,7 +10,8 @@ const original = {
 afterEach(() => {
   if (original.redis === undefined) delete process.env.PILOT_WORK_REDIS_URL;
   else process.env.PILOT_WORK_REDIS_URL = original.redis;
-  if (original.ttl === undefined) delete process.env.PILOT_WORK_CACHE_TTL_SECONDS;
+  if (original.ttl === undefined)
+    delete process.env.PILOT_WORK_CACHE_TTL_SECONDS;
   else process.env.PILOT_WORK_CACHE_TTL_SECONDS = original.ttl;
 });
 
@@ -21,7 +22,8 @@ describe("durable Work configuration", () => {
   });
 
   it("accepts a TLS Redis URL and bounded cache lifetime", () => {
-    process.env.PILOT_WORK_REDIS_URL = "rediss://pilot:secret@example.test:6380";
+    process.env.PILOT_WORK_REDIS_URL =
+      "rediss://pilot:secret@example.test:6380";
     process.env.PILOT_WORK_CACHE_TTL_SECONDS = "900";
     expect(getPilotDurableWorkConfig()).toEqual({
       redisUrl: process.env.PILOT_WORK_REDIS_URL,

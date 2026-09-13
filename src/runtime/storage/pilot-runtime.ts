@@ -1,11 +1,12 @@
-import { LibSQLStore } from "@mastra/libsql";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { join, dirname } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-export type PilotRuntimeStorageConfig = {
+import { LibSQLStore } from "@mastra/libsql";
+
+export interface PilotRuntimeStorageConfig {
   url: string;
   authToken: string;
-};
+}
 
 export function getPilotRuntimeStorageConfig():
   PilotRuntimeStorageConfig | undefined {

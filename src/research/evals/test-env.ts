@@ -1,8 +1,8 @@
-import 'dotenv/config';
+import "dotenv/config";
 
 const requiredEnvironmentVariables = [
-  'KILO_API_KEY',
-  'LANGSEARCH_API_KEY',
+  "KILO_API_KEY",
+  "LANGSEARCH_API_KEY",
 ] as const;
 
 export function assertEvalEnvironment(): void {
@@ -15,6 +15,6 @@ export function assertEvalEnvironment(): void {
   }
 
   throw new Error(
-    `Missing environment variables required for Pilot evals: ${missing.join(', ')}`,
+    `Missing environment variables required for Pilot evals: ${missing.join(", ")}`,
   );
 }

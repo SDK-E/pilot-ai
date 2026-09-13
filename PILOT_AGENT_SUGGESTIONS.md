@@ -33,12 +33,12 @@ The separate `pilot-ai` Vercel project already exists. Its deployed `/api/agents
 
 ## Later profiles, in delivery order
 
-| Profile | When to add it | Required guardrails |
-| --- | --- | --- |
-| Pilot Conversation | Now, for the first persistent two-turn memory slice | No tools; Turso storage; authenticated service call from Pilot |
-| Pilot Execution | After conversations are durable | Mastra durable workflow, persisted execution state, approval suspension/resume and idempotency |
-| Pilot Research | After Pilot Execution | Reuse the existing `pilot-browser`; read-only public research permission; tenant-scoped storage and activity records |
-| Pilot Coding | Only when an ACP-compatible coding integration is selected | Isolated workspace, repository permission, explicit approval for writes, durable execution history |
+| Profile            | When to add it                                             | Required guardrails                                                                                                  |
+| ------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Pilot Conversation | Now, for the first persistent two-turn memory slice        | No tools; Turso storage; authenticated service call from Pilot                                                       |
+| Pilot Execution    | After conversations are durable                            | Mastra durable workflow, persisted execution state, approval suspension/resume and idempotency                       |
+| Pilot Research     | After Pilot Execution                                      | Reuse the existing `pilot-browser`; read-only public research permission; tenant-scoped storage and activity records |
+| Pilot Coding       | Only when an ACP-compatible coding integration is selected | Isolated workspace, repository permission, explicit approval for writes, durable execution history                   |
 
 Do not create separate “business developer”, “marketing”, or other hardcoded agent architectures. Add capabilities as permissions and configurations to the same Pilot Worker platform.
 

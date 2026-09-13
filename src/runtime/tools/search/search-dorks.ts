@@ -13,7 +13,7 @@ const dorkSearchResultSchema = z.object({
 });
 
 function quote(value: string): string {
-  const escaped = value.trim().replaceAll('"', '\\"');
+  const escaped = value.trim().replaceAll('"', String.raw`\"`);
   return `"${escaped}"`;
 }
 
@@ -85,8 +85,8 @@ export function buildDorkQueries(input: {
 
   if (rawSites.length > 1) {
     base = base
-      .replace(/(?:^|\s)site:[^\s)]+/gi, " ")
-      .replace(/\s+/g, " ")
+      .replaceAll(/(?:^|\s)site:[^\s)]+/gi, " ")
+      .replaceAll(/\s+/g, " ")
       .trim();
   }
 
@@ -119,7 +119,7 @@ export async function performDorkSearch(
     maxResultsPerQuery?: number;
   },
   abortSignal?: AbortSignal,
-): Promise<Array<{ query: string; results: SearchResult[] }>> {
+): Promise<{ query: string; results: SearchResult[] }[]> {
   const queries = buildDorkQueries({
     ...input,
     maxQueries: input.maxQueries ?? 5,
@@ -139,7 +139,7 @@ export async function performDorkSearch(
   return settled.map((result, index) =>
     result.status === "fulfilled"
       ? result.value
-      : { query: queries[index]!, results: [] },
+      : { query: queries[index], results: [] },
   );
 }
 

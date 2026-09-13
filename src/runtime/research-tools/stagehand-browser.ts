@@ -3,10 +3,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 let stagehandInstance: Stagehand | null = null;
-let browserHandle:
-  | Awaited<ReturnType<typeof browserbase.launch>>
-  | Awaited<ReturnType<typeof localBrowser.launch>>
-  | null = null;
+let browserHandle: Awaited<ReturnType<typeof browserbase.launch>> | null = null;
 
 async function closeStagehand(): Promise<void> {
   if (stagehandInstance) {
@@ -36,7 +33,7 @@ async function getStagehand(): Promise<Stagehand> {
 
     return stagehandInstance;
   } catch (error) {
-    await closeStagehand().catch(() => undefined);
+    await closeStagehand().catch(() => {});
     throw error;
   }
 }
@@ -46,11 +43,11 @@ async function getCurrentPage(stagehand: Stagehand) {
   return pages?.length ? pages[0] : await stagehand.browser.context.newPage();
 }
 
-export type StagehandSearchResult = {
+export interface StagehandSearchResult {
   title: string;
   url: string;
   snippet?: string;
-};
+}
 
 function isJsonRecord(
   value: unknown,
@@ -91,7 +88,7 @@ function parseSearchExtraction(value: unknown): StagehandSearchResult[] {
     results.push({
       title,
       url,
-      ...(snippet ? { snippet } : {}),
+      ...(snippet && { snippet }),
     });
   }
 
@@ -251,7 +248,7 @@ export const stagehandBrowser = createTool({
           "browser must be created by localBrowser or browserbase",
         )
       ) {
-        await closeStagehand().catch(() => undefined);
+        await closeStagehand().catch(() => {});
       }
 
       return {

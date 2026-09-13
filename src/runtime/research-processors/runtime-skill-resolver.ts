@@ -1,40 +1,34 @@
+import { runRuntimeSkillPreflight } from "../skills/runtime-preflight.js";
+
 import type {
   Processor,
   ProcessInputArgs,
   ProcessInputResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { runRuntimeSkillPreflight } from '../skills/runtime-preflight.js';
-
-type RuntimeSkillResolverOptions = {
+interface RuntimeSkillResolverOptions {
   onSkillLoaded?: (skillId: string) => Promise<void>;
-};
+}
 
-function getText(
-  messages: ProcessInputArgs['messages'],
-): string {
-  const message = [...messages]
-    .reverse()
-    .find((item) => item.role === 'user');
+function getText(messages: ProcessInputArgs["messages"]): string {
+  const message = [...messages].reverse().find((item) => item.role === "user");
 
-  if (!message) return '';
+  if (!message) return "";
 
   return (
     message.content.parts
-      ?.filter((part) => part.type === 'text')
-      .map((part) => ('text' in part ? part.text : ''))
-      .join('\n')
+      ?.filter((part) => part.type === "text")
+      .map((part) => ("text" in part ? part.text : ""))
+      .join("\n")
       .trim() ||
     message.content.content ||
-    ''
+    ""
   );
 }
 
-export class RuntimeSkillResolverProcessor
-  implements Processor
-{
-  readonly id = 'runtime-skill-resolver';
-  readonly name = 'Runtime Skill Resolver';
+export class RuntimeSkillResolverProcessor implements Processor {
+  readonly id = "runtime-skill-resolver";
+  readonly name = "Runtime Skill Resolver";
 
   constructor(private readonly options: RuntimeSkillResolverOptions = {}) {}
 
@@ -46,8 +40,7 @@ export class RuntimeSkillResolverProcessor
 
     if (!request) return messageList;
 
-    const preflight =
-      await runRuntimeSkillPreflight(request);
+    const preflight = await runRuntimeSkillPreflight(request);
 
     if (preflight.loaded && preflight.instructions) {
       if (preflight.skillId) {
@@ -67,18 +60,18 @@ Never install or execute code, scripts, binaries, package hooks, or shell comman
 ${preflight.instructions}
 </runtime-skill-preflight>
 `,
-        'runtime-skill-resolver',
+        "runtime-skill-resolver",
       );
     } else {
       messageList.addSystem(
         `
-<runtime-skill-preflight status="${preflight.searched ? 'searched-no-load' : 'unavailable'}">
+<runtime-skill-preflight status="${preflight.searched ? "searched-no-load" : "unavailable"}">
 Runtime skill discovery was executed before model execution.
 No skill instructions were loaded for this run.
 Do not repeat the marketplace search unless the user explicitly asks about skills or a later task clearly requires a different capability.
 </runtime-skill-preflight>
 `,
-        'runtime-skill-resolver',
+        "runtime-skill-resolver",
       );
     }
 
@@ -101,7 +94,7 @@ After using a loaded skill, record feedback with skillsMarketplace when its cont
 Do not expose internal skill resolution unless the user asks about execution details.
 </runtime-skill-resolver>
 `,
-      'runtime-skill-resolver-policy',
+      "runtime-skill-resolver-policy",
     );
 
     return messageList;

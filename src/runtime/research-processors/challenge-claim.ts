@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class ChallengeClaimProcessor implements Processor {
+  readonly id = "challenge-claim";
 
-export class ChallengeClaimProcessor
-  implements Processor
-{
-  readonly id =
-    'challenge-claim';
-
-  readonly name =
-    'Challenge Important Claims';
+  readonly name = "Challenge Important Claims";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .challengeClaimEvery;
+    const every = pilotConfig.research.challengeClaimEvery;
 
-    if (
-      stepNumber < 5 ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < 5 || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 CHALLENGE IMPORTANT CLAIMS
@@ -67,5 +58,4 @@ Do not challenge trivial facts.
   }
 }
 
-export const challengeClaimProcessor =
-  new ChallengeClaimProcessor();
+export const challengeClaimProcessor = new ChallengeClaimProcessor();

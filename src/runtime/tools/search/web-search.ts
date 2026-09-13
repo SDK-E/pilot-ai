@@ -1,17 +1,18 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
+import { performUrlFetch } from "../url-fetch.js";
+
 import {
   performLangSearch,
   searchResultSchema,
   type SearchResult,
 } from "./langsearch.js";
 import { performDorkSearch } from "./search-dorks.js";
-import { performUrlFetch } from "../url-fetch.js";
 
-export type WebSearchConfig = {
+export interface WebSearchConfig {
   performStagehandSearch?: boolean;
-};
+}
 
 let webSearchConfig: WebSearchConfig = {};
 
@@ -45,10 +46,10 @@ function isHttpUrl(value: string): boolean {
 
 function simplifyQuery(query: string): string {
   return query
-    .replace(/\b(?:site|intitle|inurl|filetype|after|before):[^\s)]+/gi, " ")
-    .replace(/[()"']/g, " ")
-    .replace(/\bOR\b/gi, " ")
-    .replace(/\s+/g, " ")
+    .replaceAll(/\b(?:site|intitle|inurl|filetype|after|before):[^\s)]+/gi, " ")
+    .replaceAll(/[()"']/g, " ")
+    .replaceAll(/\bOR\b/gi, " ")
+    .replaceAll(/\s+/g, " ")
     .trim()
     .split(" ")
     .filter(Boolean)
@@ -72,10 +73,10 @@ async function resilientSearch(
   abortSignal?: AbortSignal,
 ): Promise<{
   results: SearchResult[];
-  fallbackTrace: Array<z.infer<typeof fallbackSchema>>;
+  fallbackTrace: z.infer<typeof fallbackSchema>[];
 }> {
   const config = getWebSearchConfig();
-  const fallbackTrace: Array<z.infer<typeof fallbackSchema>> = [];
+  const fallbackTrace: z.infer<typeof fallbackSchema>[] = [];
 
   const primary = await performLangSearch(query, maxResults, abortSignal);
   fallbackTrace.push({ stage: "primary", query, resultCount: primary.length });
@@ -163,7 +164,7 @@ export const webSearch = createTool({
     maxCharactersPerPage: z
       .number()
       .int()
-      .min(1_000)
+      .min(1000)
       .max(50_000)
       .default(15_000),
   }),

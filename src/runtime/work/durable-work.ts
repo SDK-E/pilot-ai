@@ -1,12 +1,12 @@
-import Redis from "ioredis";
 import { RedisServerCache } from "@mastra/redis";
+import Redis from "ioredis";
 
 const defaultCacheTtlSeconds = 60 * 60;
 
-export type PilotDurableWorkConfig = {
+export interface PilotDurableWorkConfig {
   redisUrl: string;
   cacheTtlSeconds: number;
-};
+}
 
 /**
  * A shared cache is mandatory for a Work run to be observable after a request
@@ -14,8 +14,7 @@ export type PilotDurableWorkConfig = {
  * that would make a run appear durable while losing its event history.
  */
 export function getPilotDurableWorkConfig():
-  | PilotDurableWorkConfig
-  | undefined {
+  PilotDurableWorkConfig | undefined {
   const redisUrl = process.env.PILOT_WORK_REDIS_URL?.trim();
   if (!redisUrl) return undefined;
 
@@ -25,9 +24,13 @@ export function getPilotDurableWorkConfig():
   }
 
   const configuredTtl = process.env.PILOT_WORK_CACHE_TTL_SECONDS?.trim();
-  const cacheTtlSeconds = configuredTtl ? Number(configuredTtl) : defaultCacheTtlSeconds;
+  const cacheTtlSeconds = configuredTtl
+    ? Number(configuredTtl)
+    : defaultCacheTtlSeconds;
   if (!Number.isInteger(cacheTtlSeconds) || cacheTtlSeconds < 60) {
-    throw new Error("PILOT_WORK_CACHE_TTL_SECONDS must be an integer of at least 60.");
+    throw new Error(
+      "PILOT_WORK_CACHE_TTL_SECONDS must be an integer of at least 60.",
+    );
   }
 
   return { redisUrl, cacheTtlSeconds };

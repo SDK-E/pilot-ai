@@ -2,11 +2,11 @@ import type {
   Processor,
   ProcessInputArgs,
   ProcessInputResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
 export class CurrentContextProcessor implements Processor {
-  readonly id = 'current-context';
-  readonly name = 'Current Context';
+  readonly id = "current-context";
+  readonly name = "Current Context";
 
   async processInput({
     messageList,
@@ -14,12 +14,8 @@ export class CurrentContextProcessor implements Processor {
     const now = new Date();
     const iso = now.toISOString();
     const year = now.getUTCFullYear();
-    const month = String(
-      now.getUTCMonth() + 1,
-    ).padStart(2, '0');
-    const day = String(
-      now.getUTCDate(),
-    ).padStart(2, '0');
+    const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(now.getUTCDate()).padStart(2, "0");
 
     messageList.addSystem(
       `
@@ -39,12 +35,11 @@ For current or recent work:
 - when the user says today, current, latest, recent, now, active, or similar, interpret those relative to this runtime date
 </CURRENT_CONTEXT>
 `,
-      'current-context',
+      "current-context",
     );
 
     return messageList;
   }
 }
 
-export const currentContextProcessor =
-  new CurrentContextProcessor();
+export const currentContextProcessor = new CurrentContextProcessor();

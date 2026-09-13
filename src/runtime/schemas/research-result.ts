@@ -1,16 +1,12 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const researchConfidenceSchema = z.enum([
-  'HIGH',
-  'MEDIUM',
-  'LOW',
-]);
+export const researchConfidenceSchema = z.enum(["HIGH", "MEDIUM", "LOW"]);
 
 export const verificationStatusSchema = z.enum([
-  'verified',
-  'partially-verified',
-  'unverified',
-  'contradicted',
+  "verified",
+  "partially-verified",
+  "unverified",
+  "contradicted",
 ]);
 
 export const researchResultSchema = z.object({
@@ -33,20 +29,13 @@ export const researchResultSchema = z.object({
 
   confidence: researchConfidenceSchema.optional(),
 
-  verificationStatus:
-    verificationStatusSchema.optional(),
+  verificationStatus: verificationStatusSchema.optional(),
 
   score: z.number().optional(),
 
-  contradictions: z
-    .array(z.string())
-    .default([]),
+  contradictions: z.array(z.string()).default([]),
 
-  metadata: z
-    .record(z.string(), z.unknown())
-    .default({}),
+  metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
-export type ResearchResult = z.infer<
-  typeof researchResultSchema
->;
+export type ResearchResult = z.infer<typeof researchResultSchema>;

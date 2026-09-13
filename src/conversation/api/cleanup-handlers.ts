@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { createPilotConversationRuntime } from "../pilot-conversation.js";
 import { verifyPilotRuntimeRequest } from "../../runtime/auth/vercel-oidc.js";
 import { getPilotRuntimeStorageConfig } from "../../runtime/storage/pilot-runtime.js";
+import { createPilotConversationRuntime } from "../pilot-conversation.js";
 
 export const conversationCleanupSchema = z
   .object({
@@ -31,7 +31,7 @@ async function authorizeAndParse<T extends z.ZodType>(
     return Response.json({ error: "Method not allowed." }, { status: 405 });
   if (!(await verifyPilotRuntimeRequest(request)))
     return Response.json({ error: "Unauthorized." }, { status: 401 });
-  const command = schema.safeParse(await request.json().catch(() => undefined));
+  const command = schema.safeParse(await request.json().catch(() => {}));
   return command.success
     ? command.data
     : Response.json({ error: "Invalid cleanup command." }, { status: 400 });

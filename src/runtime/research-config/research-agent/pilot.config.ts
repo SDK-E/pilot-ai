@@ -3,17 +3,13 @@ import {
   pilotProfileSchema,
   type PilotConfig,
   type PilotProfile,
-} from './pilot.config.schema.js';
+} from "./pilot.config.schema.js";
 
-const DEFAULT_MODEL =
-  'kilo/kilo-auto/free';
+const DEFAULT_MODEL = "kilo/kilo-auto/free";
 
-const profiles: Record<
-  PilotProfile,
-  PilotConfig
-> = {
+const profiles: Record<PilotProfile, PilotConfig> = {
   fast: {
-    profile: 'fast',
+    profile: "fast",
 
     model: {
       id: DEFAULT_MODEL,
@@ -64,7 +60,7 @@ const profiles: Record<
 
         observation: {
           messageTokens: 18_000,
-          previousObserverTokens: 3_000,
+          previousObserverTokens: 3000,
           bufferTokens: 0.15,
           bufferActivation: 0.75,
           bufferOnIdle: true,
@@ -116,7 +112,7 @@ const profiles: Record<
   },
 
   balanced: {
-    profile: 'balanced',
+    profile: "balanced",
 
     model: {
       id: DEFAULT_MODEL,
@@ -167,7 +163,7 @@ const profiles: Record<
 
         observation: {
           messageTokens: 22_000,
-          previousObserverTokens: 4_000,
+          previousObserverTokens: 4000,
           bufferTokens: 0.2,
           bufferActivation: 0.8,
           bufferOnIdle: true,
@@ -219,7 +215,7 @@ const profiles: Record<
   },
 
   deep: {
-    profile: 'deep',
+    profile: "deep",
 
     model: {
       id: DEFAULT_MODEL,
@@ -270,7 +266,7 @@ const profiles: Record<
 
         observation: {
           messageTokens: 24_000,
-          previousObserverTokens: 4_000,
+          previousObserverTokens: 4000,
           bufferTokens: 0.2,
           bufferActivation: 0.8,
           bufferOnIdle: true,
@@ -322,7 +318,7 @@ const profiles: Record<
   },
 
   test: {
-    profile: 'test',
+    profile: "test",
 
     model: {
       id: DEFAULT_MODEL,
@@ -373,7 +369,7 @@ const profiles: Record<
 
         observation: {
           messageTokens: 12_000,
-          previousObserverTokens: 2_000,
+          previousObserverTokens: 2000,
           bufferTokens: 0.1,
           bufferActivation: 0.7,
           bufferOnIdle: true,
@@ -425,10 +421,7 @@ const profiles: Record<
   },
 };
 
-function numberFromEnv(
-  name: string,
-  fallback: number,
-): number {
+function numberFromEnv(name: string, fallback: number): number {
   const value = process.env[name];
 
   if (!value) {
@@ -438,58 +431,38 @@ function numberFromEnv(
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
-    throw new Error(
-      `${name} must be a number. Received: ${value}`,
-    );
+    throw new TypeError(`${name} must be a number. Received: ${value}`);
   }
 
   return parsed;
 }
 
-function booleanFromEnv(
-  name: string,
-  fallback: boolean,
-): boolean {
+function booleanFromEnv(name: string, fallback: boolean): boolean {
   const value = process.env[name];
 
   if (!value) {
     return fallback;
   }
 
-  if (
-    value === 'true' ||
-    value === '1'
-  ) {
+  if (value === "true" || value === "1") {
     return true;
   }
 
-  if (
-    value === 'false' ||
-    value === '0'
-  ) {
+  if (value === "false" || value === "0") {
     return false;
   }
 
-  throw new Error(
-    `${name} must be true, false, 1, or 0. Received: ${value}`,
-  );
+  throw new Error(`${name} must be true, false, 1, or 0. Received: ${value}`);
 }
 
 function resolveProfile(): PilotProfile {
-  return pilotProfileSchema.parse(
-    process.env.PILOT_PROFILE ??
-      'balanced',
-  );
+  return pilotProfileSchema.parse(process.env.PILOT_PROFILE ?? "balanced");
 }
 
 function resolveConfig(): PilotConfig {
-  const profile =
-    resolveProfile();
+  const profile = resolveProfile();
 
-  const base =
-    structuredClone(
-      profiles[profile],
-    );
+  const base = structuredClone(profiles[profile]);
 
   return pilotConfigSchema.parse({
     ...base,
@@ -497,80 +470,64 @@ function resolveConfig(): PilotConfig {
     model: {
       ...base.model,
 
-      id:
-        process.env
-          .PILOT_MODEL ??
-        base.model.id,
+      id: process.env.PILOT_MODEL ?? base.model.id,
 
-      maxRetries:
-        numberFromEnv(
-          'PILOT_MODEL_MAX_RETRIES',
-          base.model.maxRetries,
-        ),
+      maxRetries: numberFromEnv(
+        "PILOT_MODEL_MAX_RETRIES",
+        base.model.maxRetries,
+      ),
     },
 
     agent: {
       main: {
         ...base.agent.main,
 
-        maxSteps:
-          numberFromEnv(
-            'PILOT_MAIN_MAX_STEPS',
-            base.agent.main.maxSteps,
-          ),
+        maxSteps: numberFromEnv(
+          "PILOT_MAIN_MAX_STEPS",
+          base.agent.main.maxSteps,
+        ),
 
-        tokenLimit:
-          numberFromEnv(
-            'PILOT_MAIN_TOKEN_LIMIT',
-            base.agent.main.tokenLimit,
-          ),
+        tokenLimit: numberFromEnv(
+          "PILOT_MAIN_TOKEN_LIMIT",
+          base.agent.main.tokenLimit,
+        ),
 
         stepBudget: {
-          warningAt:
-            numberFromEnv(
-              'PILOT_MAIN_STEP_WARNING_AT',
-              base.agent.main.stepBudget
-                .warningAt,
-            ),
+          warningAt: numberFromEnv(
+            "PILOT_MAIN_STEP_WARNING_AT",
+            base.agent.main.stepBudget.warningAt,
+          ),
 
-          finalAt:
-            numberFromEnv(
-              'PILOT_MAIN_STEP_FINAL_AT',
-              base.agent.main.stepBudget
-                .finalAt,
-            ),
+          finalAt: numberFromEnv(
+            "PILOT_MAIN_STEP_FINAL_AT",
+            base.agent.main.stepBudget.finalAt,
+          ),
         },
       },
 
       subagent: {
         ...base.agent.subagent,
 
-        maxSteps:
-          numberFromEnv(
-            'PILOT_SUBAGENT_MAX_STEPS',
-            base.agent.subagent.maxSteps,
-          ),
+        maxSteps: numberFromEnv(
+          "PILOT_SUBAGENT_MAX_STEPS",
+          base.agent.subagent.maxSteps,
+        ),
 
-        tokenLimit:
-          numberFromEnv(
-            'PILOT_SUBAGENT_TOKEN_LIMIT',
-            base.agent.subagent.tokenLimit,
-          ),
+        tokenLimit: numberFromEnv(
+          "PILOT_SUBAGENT_TOKEN_LIMIT",
+          base.agent.subagent.tokenLimit,
+        ),
 
         stepBudget: {
-          warningAt:
-            numberFromEnv(
-              'PILOT_SUBAGENT_STEP_WARNING_AT',
-              base.agent.subagent.stepBudget
-                .warningAt,
-            ),
+          warningAt: numberFromEnv(
+            "PILOT_SUBAGENT_STEP_WARNING_AT",
+            base.agent.subagent.stepBudget.warningAt,
+          ),
 
-          finalAt:
-            numberFromEnv(
-              'PILOT_SUBAGENT_STEP_FINAL_AT',
-              base.agent.subagent.stepBudget
-                .finalAt,
-            ),
+          finalAt: numberFromEnv(
+            "PILOT_SUBAGENT_STEP_FINAL_AT",
+            base.agent.subagent.stepBudget.finalAt,
+          ),
         },
       },
     },
@@ -578,153 +535,114 @@ function resolveConfig(): PilotConfig {
     memory: {
       ...base.memory,
 
-      lastMessages:
-        numberFromEnv(
-          'PILOT_MEMORY_LAST_MESSAGES',
-          base.memory.lastMessages,
-        ),
+      lastMessages: numberFromEnv(
+        "PILOT_MEMORY_LAST_MESSAGES",
+        base.memory.lastMessages,
+      ),
 
       semanticRecall: {
         ...base.memory.semanticRecall,
 
-        enabled:
-          booleanFromEnv(
-            'PILOT_SEMANTIC_RECALL',
-            base.memory.semanticRecall
-              .enabled,
-          ),
+        enabled: booleanFromEnv(
+          "PILOT_SEMANTIC_RECALL",
+          base.memory.semanticRecall.enabled,
+        ),
 
-        topK:
-          numberFromEnv(
-            'PILOT_SEMANTIC_RECALL_TOP_K',
-            base.memory.semanticRecall
-              .topK,
-          ),
+        topK: numberFromEnv(
+          "PILOT_SEMANTIC_RECALL_TOP_K",
+          base.memory.semanticRecall.topK,
+        ),
       },
 
       workingMemory: {
-        enabled:
-          booleanFromEnv(
-            'PILOT_WORKING_MEMORY',
-            base.memory.workingMemory
-              .enabled,
-          ),
+        enabled: booleanFromEnv(
+          "PILOT_WORKING_MEMORY",
+          base.memory.workingMemory.enabled,
+        ),
       },
 
       observational: {
         ...base.memory.observational,
 
-        enabled:
-          booleanFromEnv(
-            'PILOT_OBSERVATIONAL_MEMORY',
-            base.memory.observational
-              .enabled,
-          ),
+        enabled: booleanFromEnv(
+          "PILOT_OBSERVATIONAL_MEMORY",
+          base.memory.observational.enabled,
+        ),
 
         observation: {
-          ...base.memory.observational
-            .observation,
+          ...base.memory.observational.observation,
 
-          messageTokens:
-            numberFromEnv(
-              'PILOT_OBSERVATION_MESSAGE_TOKENS',
-              base.memory.observational
-                .observation.messageTokens,
-            ),
+          messageTokens: numberFromEnv(
+            "PILOT_OBSERVATION_MESSAGE_TOKENS",
+            base.memory.observational.observation.messageTokens,
+          ),
 
-          previousObserverTokens:
-            numberFromEnv(
-              'PILOT_OBSERVATION_PREVIOUS_TOKENS',
-              base.memory.observational
-                .observation
-                .previousObserverTokens,
-            ),
+          previousObserverTokens: numberFromEnv(
+            "PILOT_OBSERVATION_PREVIOUS_TOKENS",
+            base.memory.observational.observation.previousObserverTokens,
+          ),
 
-          bufferActivation:
-            numberFromEnv(
-              'PILOT_OBSERVATION_BUFFER_ACTIVATION',
-              base.memory.observational
-                .observation
-                .bufferActivation,
-            ),
+          bufferActivation: numberFromEnv(
+            "PILOT_OBSERVATION_BUFFER_ACTIVATION",
+            base.memory.observational.observation.bufferActivation,
+          ),
         },
 
         reflection: {
-          ...base.memory.observational
-            .reflection,
+          ...base.memory.observational.reflection,
 
-          bufferActivation:
-            numberFromEnv(
-              'PILOT_REFLECTION_BUFFER_ACTIVATION',
-              base.memory.observational
-                .reflection
-                .bufferActivation,
-            ),
+          bufferActivation: numberFromEnv(
+            "PILOT_REFLECTION_BUFFER_ACTIVATION",
+            base.memory.observational.reflection.bufferActivation,
+          ),
         },
       },
     },
 
     cache: {
-      searchTtlMs:
-        numberFromEnv(
-          'PILOT_SEARCH_CACHE_TTL_MS',
-          base.cache.searchTtlMs,
-        ),
+      searchTtlMs: numberFromEnv(
+        "PILOT_SEARCH_CACHE_TTL_MS",
+        base.cache.searchTtlMs,
+      ),
 
-      fetchTtlMs:
-        numberFromEnv(
-          'PILOT_FETCH_CACHE_TTL_MS',
-          base.cache.fetchTtlMs,
-        ),
+      fetchTtlMs: numberFromEnv(
+        "PILOT_FETCH_CACHE_TTL_MS",
+        base.cache.fetchTtlMs,
+      ),
     },
 
     network: {
-      fetchTimeoutMs:
-        numberFromEnv(
-          'PILOT_FETCH_TIMEOUT_MS',
-          base.network.fetchTimeoutMs,
-        ),
+      fetchTimeoutMs: numberFromEnv(
+        "PILOT_FETCH_TIMEOUT_MS",
+        base.network.fetchTimeoutMs,
+      ),
 
       circuitBreaker: {
-        failureThreshold:
-          numberFromEnv(
-            'PILOT_CIRCUIT_BREAKER_FAILURES',
-            base.network.circuitBreaker
-              .failureThreshold,
-          ),
+        failureThreshold: numberFromEnv(
+          "PILOT_CIRCUIT_BREAKER_FAILURES",
+          base.network.circuitBreaker.failureThreshold,
+        ),
 
-        blockDurationMs:
-          numberFromEnv(
-            'PILOT_CIRCUIT_BREAKER_BLOCK_MS',
-            base.network.circuitBreaker
-              .blockDurationMs,
-          ),
+        blockDurationMs: numberFromEnv(
+          "PILOT_CIRCUIT_BREAKER_BLOCK_MS",
+          base.network.circuitBreaker.blockDurationMs,
+        ),
       },
     },
 
     eval: {
       ...base.eval,
 
-      concurrency:
-        numberFromEnv(
-          'PILOT_EVAL_CONCURRENCY',
-          base.eval.concurrency,
-        ),
+      concurrency: numberFromEnv(
+        "PILOT_EVAL_CONCURRENCY",
+        base.eval.concurrency,
+      ),
 
-      timeoutMs:
-        numberFromEnv(
-          'PILOT_EVAL_TIMEOUT_MS',
-          base.eval.timeoutMs,
-        ),
+      timeoutMs: numberFromEnv("PILOT_EVAL_TIMEOUT_MS", base.eval.timeoutMs),
 
-      maxRetries:
-        numberFromEnv(
-          'PILOT_EVAL_MAX_RETRIES',
-          base.eval.maxRetries,
-        ),
+      maxRetries: numberFromEnv("PILOT_EVAL_MAX_RETRIES", base.eval.maxRetries),
     },
   });
 }
 
-export const pilotConfig =
-  resolveConfig();
+export const pilotConfig = resolveConfig();

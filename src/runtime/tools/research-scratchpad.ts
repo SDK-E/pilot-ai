@@ -1,8 +1,8 @@
-import { createTool } from '@mastra/core/tools';
-import { z } from 'zod';
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
 
 export const researchScratchpad = createTool({
-  id: 'research-scratchpad',
+  id: "research-scratchpad",
 
   description: `
 Manage durable research state for the current thread.
@@ -28,21 +28,21 @@ Never create process-local or run-local state.
 
   inputSchema: z.object({
     action: z.enum([
-      'read',
-      'set-objective',
+      "read",
+      "set-objective",
 
-      'complete',
-      'start',
-      'pending',
-      'blocked',
+      "complete",
+      "start",
+      "pending",
+      "blocked",
 
-      'add-query',
-      'add-source',
-      'add-finding',
-      'reject-finding',
-      'add-next-step',
-      'add-decision',
-      'set-continuation',
+      "add-query",
+      "add-source",
+      "add-finding",
+      "reject-finding",
+      "add-next-step",
+      "add-decision",
+      "set-continuation",
     ]),
 
     value: z.string().optional(),
@@ -52,14 +52,11 @@ Never create process-local or run-local state.
     instruction: z.string(),
   }),
 
-  execute: async ({
-    action,
-    value,
-  }) => {
-    const text = value?.trim() ?? '';
+  execute: async ({ action, value }) => {
+    const text = value?.trim() ?? "";
 
     switch (action) {
-      case 'read':
+      case "read": {
         return {
           instruction: `
 Read the existing Pilot Research Agent working memory before continuing.
@@ -88,8 +85,9 @@ Pay particular attention to:
 Continue from existing state instead of rebuilding completed research.
 `,
         };
+      }
 
-      case 'set-objective':
+      case "set-objective": {
         return {
           instruction: `
 Update working memory:
@@ -101,8 +99,9 @@ ${text}
 Preserve unrelated state.
 `,
         };
+      }
 
-      case 'complete':
+      case "complete": {
         return {
           instruction: `
 Move or append this meaningful completed work under:
@@ -115,8 +114,9 @@ ${text}
 Remove the same item from In Progress or Pending when present.
 `,
         };
+      }
 
-      case 'start':
+      case "start": {
         return {
           instruction: `
 Set this meaningful stage under:
@@ -129,8 +129,9 @@ ${text}
 Do not duplicate work already marked Completed.
 `,
         };
+      }
 
-      case 'pending':
+      case "pending": {
         return {
           instruction: `
 Add this remaining work under:
@@ -141,8 +142,9 @@ Add this remaining work under:
 ${text}
 `,
         };
+      }
 
-      case 'blocked':
+      case "blocked": {
         return {
           instruction: `
 Add this blocked work under:
@@ -155,8 +157,9 @@ ${text}
 Include the reason when known.
 `,
         };
+      }
 
-      case 'add-query':
+      case "add-query": {
         return {
           instruction: `
 Append this useful query or query family under:
@@ -169,8 +172,9 @@ ${text}
 Avoid duplicate or trivial variants.
 `,
         };
+      }
 
-      case 'add-source':
+      case "add-source": {
         return {
           instruction: `
 Append this important processed source under:
@@ -183,8 +187,9 @@ ${text}
 Avoid duplicate canonical URLs.
 `,
         };
+      }
 
-      case 'add-finding':
+      case "add-finding": {
         return {
           instruction: `
 Append this durable finding under:
@@ -205,8 +210,9 @@ Preserve when useful:
 - contradiction status
 `,
         };
+      }
 
-      case 'reject-finding':
+      case "reject-finding": {
         return {
           instruction: `
 Append this rejected or invalidated finding under:
@@ -219,8 +225,9 @@ ${text}
 Store it only when remembering the rejection prevents repeated work.
 `,
         };
+      }
 
-      case 'add-next-step':
+      case "add-next-step": {
         return {
           instruction: `
 Append this useful unexplored direction under:
@@ -231,8 +238,9 @@ Append this useful unexplored direction under:
 ${text}
 `,
         };
+      }
 
-      case 'add-decision':
+      case "add-decision": {
         return {
           instruction: `
 Append this important execution decision or assumption under:
@@ -242,8 +250,9 @@ Append this important execution decision or assumption under:
 ${text}
 `,
         };
+      }
 
-      case 'set-continuation':
+      case "set-continuation": {
         return {
           instruction: `
 Update:
@@ -255,6 +264,7 @@ ${text}
 Include enough context for a later execution to continue without restarting.
 `,
         };
+      }
     }
   },
 });

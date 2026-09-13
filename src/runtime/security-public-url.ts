@@ -1,15 +1,14 @@
 import { lookup } from "node:dns/promises";
+
 import * as ipaddr from "ipaddr.js";
 
-type ResolveAddresses = (
-  hostname: string,
-) => Promise<Array<{ address: string }>>;
+type ResolveAddresses = (hostname: string) => Promise<{ address: string }[]>;
 
 const resolveAddresses: ResolveAddresses = (hostname) =>
   lookup(hostname, { all: true, verbatim: true });
 
 function normalizedHostname(hostname: string): string {
-  return hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return hostname.replaceAll(/^\[|\]$/g, "").toLowerCase();
 }
 
 export function isPublicIpAddress(address: string): boolean {
@@ -57,7 +56,7 @@ export async function assertPublicHttpUrl(
     return url;
   }
 
-  let addresses: Array<{ address: string }>;
+  let addresses: { address: string }[];
   try {
     addresses = await resolve(hostname);
   } catch {

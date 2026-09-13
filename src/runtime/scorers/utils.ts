@@ -1,58 +1,41 @@
-type TextLike = {
+interface TextLike {
   text?: unknown;
   content?: unknown;
   output?: unknown;
   message?: unknown;
   messages?: unknown;
   response?: unknown;
-};
+}
 
-function contentToText(
-  value: unknown,
-  seen = new Set<unknown>(),
-): string {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return '';
+function contentToText(value: unknown, seen = new Set<unknown>()): string {
+  if (value === null || value === undefined) {
+    return "";
   }
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value;
   }
 
-  if (
-    typeof value !== 'object'
-  ) {
-    return '';
+  if (typeof value !== "object") {
+    return "";
   }
 
   if (seen.has(value)) {
-    return '';
+    return "";
   }
 
   seen.add(value);
 
   if (Array.isArray(value)) {
     return value
-      .map((item) =>
-        contentToText(
-          item,
-          seen,
-        ),
-      )
+      .map((item) => contentToText(item, seen))
       .filter(Boolean)
-      .join('\n');
+      .join("\n");
   }
 
-  const object =
-    value as TextLike;
+  const object = value as TextLike;
 
-  if (
-    typeof object.text ===
-    'string'
-  ) {
+  if (typeof object.text === "string") {
     return object.text;
   }
 
@@ -64,47 +47,23 @@ function contentToText(
     object.response,
   ];
 
-  for (
-    const candidate of candidates
-  ) {
-    const text =
-      contentToText(
-        candidate,
-        seen,
-      );
+  for (const candidate of candidates) {
+    const text = contentToText(candidate, seen);
 
     if (text) {
       return text;
     }
   }
 
-  return '';
+  return "";
 }
 
-export function agentOutputToText(
-  output: unknown,
-): string {
-  return contentToText(
-    output,
-  ).trim();
+export function agentOutputToText(output: unknown): string {
+  return contentToText(output).trim();
 }
 
-export function uniqueUrls(
-  text: string,
-): string[] {
-  const matches =
-    text.match(
-      /https?:\/\/[^\s)\]}"'<>]+/gi,
-    ) ?? [];
+export function uniqueUrls(text: string): string[] {
+  const matches = text.match(/https?:\/\/[^\s)\]}"'<>]+/gi) ?? [];
 
-  return [
-    ...new Set(
-      matches.map((url) =>
-        url.replace(
-          /[.,;:!?]+$/,
-          '',
-        ),
-      ),
-    ),
-  ];
+  return [...new Set(matches.map((url) => url.replace(/[.,;:!?]+$/, "")))];
 }

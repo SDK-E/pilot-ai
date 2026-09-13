@@ -2,33 +2,25 @@ import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-export type StepBudgetConfig = {
+export interface StepBudgetConfig {
   maxSteps: number;
   warningAt: number;
   finalAt: number;
-};
+}
 
-export class StepBudgetProcessor
-  implements Processor
-{
-  readonly id = 'step-budget';
+export class StepBudgetProcessor implements Processor {
+  readonly id = "step-budget";
 
-  readonly name = 'Step Budget';
+  readonly name = "Step Budget";
 
-  constructor(
-    private readonly config: StepBudgetConfig,
-  ) {}
+  constructor(private readonly config: StepBudgetConfig) {}
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const {
-      maxSteps,
-      warningAt,
-      finalAt,
-    } = this.config;
+    const { maxSteps, warningAt, finalAt } = this.config;
 
     if (stepNumber < warningAt) {
       return {};
@@ -38,7 +30,7 @@ export class StepBudgetProcessor
       return {
         systemMessages: [
           {
-            role: 'system',
+            role: "system",
             content: `
 STEP BUDGET
 
@@ -69,10 +61,10 @@ Use the remaining execution budget to finish the user's actual objective.
     }
 
     return {
-      toolChoice: 'none',
+      toolChoice: "none",
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
           content: `
 FINAL EXECUTION WINDOW
 
@@ -99,8 +91,6 @@ Return the final synthesis now.
   }
 }
 
-export function createStepBudgetProcessor(
-  config: StepBudgetConfig,
-) {
+export function createStepBudgetProcessor(config: StepBudgetConfig) {
   return new StepBudgetProcessor(config);
 }

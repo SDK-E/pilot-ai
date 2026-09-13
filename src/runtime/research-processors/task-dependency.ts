@@ -1,38 +1,29 @@
+import { pilotConfig } from "../research-config";
+
 import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
-import { pilotConfig } from '../research-config';
+export class TaskDependencyProcessor implements Processor {
+  readonly id = "task-dependency";
 
-export class TaskDependencyProcessor
-  implements Processor
-{
-  readonly id =
-    'task-dependency';
-
-  readonly name =
-    'Task Dependency';
+  readonly name = "Task Dependency";
 
   async processInputStep({
     stepNumber,
   }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every =
-      pilotConfig.research
-        .taskDependencyEvery;
+    const every = pilotConfig.research.taskDependencyEvery;
 
-    if (
-      stepNumber < 2 ||
-      stepNumber % every !== 0
-    ) {
+    if (stepNumber < 2 || stepNumber % every !== 0) {
       return {};
     }
 
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
 
           content: `
 TASK DEPENDENCIES
@@ -85,5 +76,4 @@ Keep task state accurate.
   }
 }
 
-export const taskDependencyProcessor =
-  new TaskDependencyProcessor();
+export const taskDependencyProcessor = new TaskDependencyProcessor();

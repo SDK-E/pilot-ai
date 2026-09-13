@@ -1,72 +1,44 @@
-import {
-  beforeAll,
-  describe,
-  expect,
-  it,
-} from 'vitest';
+import { checks } from "@mastra/evals/checks";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import {
-  checks,
-} from '@mastra/evals/checks';
+import { pilotConfig } from "#runtime/research-config";
 
-import { pilotConfig } from '#runtime/research-config';
+import { runPilotEvals } from "./run-with-memory";
+import { assertEvalEnvironment } from "./test-env";
 
-import {
-  runPilotEvals,
-} from './run-with-memory';
+const timeout = pilotConfig.eval.timeoutMs;
 
-import {
-  assertEvalEnvironment,
-} from './test-env';
+describe("Pilot Research Agent tool behavior", () => {
+  beforeAll(() => {
+    assertEvalEnvironment();
+  });
 
-const timeout =
-  pilotConfig.eval.timeoutMs;
+  it(
+    "uses search for broad discovery",
+    async () => {
+      const result = await runPilotEvals({
+        data: [
+          {
+            input:
+              "Find three current official or authoritative sources explaining Mastra memory.",
+          },
+        ],
 
-describe(
-  'Pilot Research Agent tool behavior',
-  () => {
-    beforeAll(() => {
-      assertEvalEnvironment();
-    });
+        gates: [checks.calledTool("lang-search"), checks.noToolErrors()],
+      });
 
-    it(
-      'uses search for broad discovery',
-      async () => {
-        const result =
-          await runPilotEvals({
-            data: [
-              {
-                input:
-                  'Find three current official or authoritative sources explaining Mastra memory.',
-              },
-            ],
+      expect(result.verdict).not.toBe("failed");
+    },
+    timeout,
+  );
 
-            gates: [
-              checks.calledTool(
-                'lang-search',
-              ),
-
-              checks.noToolErrors(),
-            ],
-          });
-
-        expect(
-          result.verdict,
-        ).not.toBe(
-          'failed',
-        );
-      },
-      timeout,
-    );
-
-    it(
-      'recovers from a harmless failed source',
-      async () => {
-        const result =
-          await runPilotEvals({
-            data: [
-              {
-                input: `
+  it(
+    "recovers from a harmless failed source",
+    async () => {
+      const result = await runPilotEvals({
+        data: [
+          {
+            input: `
 Try to inspect this intentionally nonexistent public page once:
 
 https://mastra.ai/docs/this-page-does-not-exist-pilot-test
@@ -75,21 +47,14 @@ Then recover using another valid Mastra source and explain what Mastra Experimen
 
 Do not repeatedly retry the invalid URL.
 `,
-              },
-            ],
+          },
+        ],
 
-            gates: [
-              checks.noToolErrors(),
-            ],
-          });
+        gates: [checks.noToolErrors()],
+      });
 
-        expect(
-          result.verdict,
-        ).not.toBe(
-          'failed',
-        );
-      },
-      timeout,
-    );
-  },
-);
+      expect(result.verdict).not.toBe("failed");
+    },
+    timeout,
+  );
+});

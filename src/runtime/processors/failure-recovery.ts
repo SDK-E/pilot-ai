@@ -2,11 +2,11 @@ import type {
   Processor,
   ProcessInputStepArgs,
   ProcessInputStepResult,
-} from '@mastra/core/processors';
+} from "@mastra/core/processors";
 
 export class FailureRecoveryProcessor implements Processor {
-  readonly id = 'failure-recovery';
-  readonly name = 'Failure Recovery';
+  readonly id = "failure-recovery";
+  readonly name = "Failure Recovery";
 
   async processInputStep({
     stepNumber,
@@ -18,7 +18,7 @@ export class FailureRecoveryProcessor implements Processor {
     return {
       systemMessages: [
         {
-          role: 'system',
+          role: "system",
           content: `
 FAILURE RECOVERY
 
@@ -96,5 +96,4 @@ Do not expose internal error noise in the final answer unless the failure materi
   }
 }
 
-export const failureRecoveryProcessor =
-  new FailureRecoveryProcessor();
+export const failureRecoveryProcessor = new FailureRecoveryProcessor();

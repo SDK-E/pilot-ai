@@ -9,10 +9,11 @@ import {
   createUserInputRequiredResponse,
   isStreamingChatCompletionRequest,
 } from "#conversation/openai-compatible";
-import { createPilotConversationRuntime } from "../pilot-conversation.js";
 import { createPilotProductionToolRuntime } from "#research/pilot-research";
 import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
 import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
+
+import { createPilotConversationRuntime } from "../pilot-conversation.js";
 
 function error(message: string, type: string, status: number): Response {
   return Response.json({ error: { message, type } }, { status });
@@ -59,10 +60,10 @@ export const chatCompletionsRegistration = registerApiRoute(
           body,
           request.headers,
         );
-      } catch (cause) {
+      } catch (error_) {
         return error(
-          cause instanceof ZodError || cause instanceof Error
-            ? cause.message
+          error_ instanceof ZodError || error_ instanceof Error
+            ? error_.message
             : "Invalid chat completion request.",
           "invalid_request_error",
           400,
@@ -73,11 +74,11 @@ export const chatCompletionsRegistration = registerApiRoute(
         | ReturnType<typeof createPilotConversationRuntime>
         | ReturnType<typeof createPilotProductionToolRuntime>
         | undefined;
-      let closeRuntime = true;
+      let isCloseRuntime = true;
 
       try {
         const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
-        if (command.allowedToolIds.length) {
+        if (command.allowedToolIds.length > 0) {
           if (
             command.allowedToolIds.includes("web-search") &&
             process.env.PILOT_ENABLE_RESEARCH !== "true"
@@ -93,19 +94,22 @@ export const chatCompletionsRegistration = registerApiRoute(
           }
           runtime = createPilotProductionToolRuntime(storageConfig, oidcToken);
         } else {
-          runtime = createPilotConversationRuntime(storageConfig, oidcToken ?? undefined);
+          runtime = createPilotConversationRuntime(
+            storageConfig,
+            oidcToken ?? undefined,
+          );
         }
 
         if (isStreamingChatCompletionRequest(body)) {
           const stream = await runtime.stream(command);
-          closeRuntime = false;
-          const includeUsage =
+          isCloseRuntime = false;
+          const isIncludeUsage =
             (body as { stream_options?: { include_usage?: boolean } })
               ?.stream_options?.include_usage === true;
 
           return new Response(
             createChatCompletionStream(stream, {
-              includeUsage,
+              includeUsage: isIncludeUsage,
               onClose: async () => {
                 await runtime?.close();
               },
@@ -135,10 +139,10 @@ export const chatCompletionsRegistration = registerApiRoute(
           );
         }
         return Response.json(createChatCompletionResponse(result));
-      } catch (cause) {
+      } catch (error_) {
         console.error(
           "[pilot-conversation] generation failed:",
-          cause instanceof Error ? cause.name : "unknown error",
+          error_ instanceof Error ? error_.name : "unknown error",
         );
         return error(
           "Pilot Conversation could not complete.",
@@ -146,7 +150,7 @@ export const chatCompletionsRegistration = registerApiRoute(
           502,
         );
       } finally {
-        if (closeRuntime) {
+        if (isCloseRuntime) {
           await runtime?.close();
         }
       }

@@ -4,13 +4,13 @@ import {
 
 import type { ResearchResult } from '../schemas/research-result';
 
-export type ResearchResultStore = {
+export interface ResearchResultStore {
   listResearchResults: (threadId: string) => Promise<ResearchResult[]>;
   getResearchResult: (threadId: string, resultId: string) => Promise<ResearchResult | undefined>;
   upsertResearchResult: (threadId: string, result: ResearchResult) => Promise<void>;
   removeResearchResult: (threadId: string, resultId: string) => Promise<void>;
   clearResearchResults: (threadId: string) => Promise<void>;
-};
+}
 
 export function createResultStore({
   client,
@@ -36,7 +36,7 @@ export function createResultStore({
           PRIMARY KEY (thread_id, result_id)
         )
       `)
-      .then(() => undefined);
+      .then(() => {});
 
     await initializationPromise;
   }

@@ -55,7 +55,7 @@ export function createPilotScratchpadTool(input: {
           organizationId: input.command.organizationId,
           executionId: input.command.executionId,
           action,
-          ...(content === undefined ? {} : { content }),
+          ...(content !== undefined && { content }),
         }),
         cache: "no-store",
       });
