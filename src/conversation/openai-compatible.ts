@@ -234,6 +234,21 @@ type StreamingConversationResult = {
   >;
 };
 
+// The deployed function has a 90-second ceiling. Leave enough time for Pilot
+// to emit a structured error and release the runtime before Vercel terminates
+// the request. A resolved result clears the timer immediately.
+const STREAM_RESULT_TIMEOUT_MS = 80_000;
+
+export function waitForStreamingResult<T>(result: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Pilot Conversation runtime did not complete in time."));
+    }, STREAM_RESULT_TIMEOUT_MS);
+
+    void result.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
 export function isStreamingChatCompletionRequest(rawRequest: unknown) {
   return chatCompletionRequestSchema.parse(rawRequest).stream === true;
 }
@@ -271,7 +286,7 @@ export function createChatCompletionStream(
           );
         }
 
-        const completed = await result.result();
+        const completed = await waitForStreamingResult(result.result());
         if (completed.kind === "suspended") {
           controller.enqueue(
             send({

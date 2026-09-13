@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { waitForStreamingResult } from "./openai-compatible.js";
 
 const mocks = vi.hoisted(() => {
   const generate = vi.fn();
@@ -340,5 +341,19 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     await expect(response.text()).resolves.toContain("data: [DONE]");
     expect(mocks.stream).toHaveBeenCalledOnce();
     expect(mocks.close).toHaveBeenCalledOnce();
+  });
+
+  it("releases the stream when its terminal runtime result does not arrive", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = waitForStreamingResult(new Promise<never>(() => {}));
+      const assertion = expect(pending).rejects.toThrow(
+        "Pilot Conversation runtime did not complete in time.",
+      );
+      await vi.advanceTimersByTimeAsync(80_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
