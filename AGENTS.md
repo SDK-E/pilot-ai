@@ -34,3 +34,5 @@ change between versions.
 
 - [Mastra Documentation](https://mastra.ai/llms.txt)
 - The Vercel `api/v1/approvals/resume` entrypoint and the Mastra custom API route must remain behaviorally identical and reject a non-POST or unauthenticated request before parsing an approval command.
+
+- Durable Pilot Work requires both the environment-specific Turso store and a shared Redis cache. Never fall back to an in-memory cache for a run advertised as reconnectable or durable: a serverless instance change would lose its event history. Keep `PILOT_WORK_REDIS_URL` server-only, and do not enable Work dispatch until owner-scoped run creation, recovery, cancellation, and safe event projection are deployed as one contract.

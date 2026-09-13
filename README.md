@@ -55,6 +55,15 @@ verified through its protected endpoint. Two separate function invocations
 wrote and then recalled a randomized conversation value through Turso.
 Production is now also deployed with its own sensitive `TURSO_AUTH_TOKEN`.
 
+Pilot Work durability is separately fail-closed. A shared Redis endpoint in
+`PILOT_WORK_REDIS_URL` is required before a Work run can claim reconnectable
+observation across Vercel instances; use `rediss://` for a managed TLS endpoint.
+`PILOT_WORK_CACHE_TTL_SECONDS` is optional and defaults to one hour (minimum
+60 seconds). Turso remains the persistent Mastra workflow and memory store;
+Redis holds bounded resumable stream events. Do not enable autonomous Work
+dispatch until this cache, Pilot's owner-scoped run contract, recovery, and
+cancellation paths are all deployed together.
+
 ## Runtime API
 
 The production runtime is `https://ai.pilot.sdk.enterprises`.

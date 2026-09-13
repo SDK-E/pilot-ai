@@ -44,10 +44,12 @@
     "node": "24.x"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@mastra/core": "1.64.0",
     "@mastra/libsql": "^1.22.3",
     "@mastra/memory": "^1.28.2",
-    "@libsql/client": "^0.18.0",
+    "@mastra/redis": "1.4.4",
+    "ioredis": "6.0.0",
     "ipaddr.js": "2.5.0",
     "jose": "6.2.12",
     "mastra": "1.27.3",
