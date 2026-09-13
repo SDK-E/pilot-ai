@@ -21,7 +21,7 @@ import { setRuntimeCache } from '#runtime/cache';
 import { setUrlFetchConfig } from '#runtime/tools/url-fetch';
 import { setLangSearchConfig } from '#runtime/tools/search/langsearch';
 import { setWebSearchConfig } from '#runtime/tools/search/web-search';
-import { setRuntimePreflightConfig } from '../runtime/skills/runtime-preflight';
+import { setRuntimePreflightConfig } from '../runtime/skills/runtime-preflight.js';
 import { createClient } from '@libsql/client';
 import {
   createResultStore,
