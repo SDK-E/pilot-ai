@@ -1,6 +1,11 @@
-import { registerApiRoute } from "@mastra/core/server";
 import { ZodError } from "zod";
 
+import { verifyPilotRuntimeRequest } from "../../runtime/auth/vercel-oidc.js";
+import { logger } from "../../runtime/logger.js";
+import {
+  getPilotRuntimeStorageConfig,
+  type PilotRuntimeStorageConfig,
+} from "../../runtime/storage/pilot-runtime.js";
 import {
   createApprovalRequiredResponse,
   createChatCompletionResponse,
@@ -8,152 +13,150 @@ import {
   createConversationCommandFromChatCompletion,
   createUserInputRequiredResponse,
   isStreamingChatCompletionRequest,
-} from "#conversation/openai-compatible";
-import { createPilotProductionToolRuntime } from "#research/pilot-research";
-import { verifyPilotRuntimeRequest } from "#runtime/auth/vercel-oidc";
-import { getPilotRuntimeStorageConfig } from "#runtime/storage/pilot-runtime";
+} from "../openai-compatible.js";
 
-import { createPilotConversationRuntime } from "../pilot-conversation.js";
+import {
+  selectConversationRuntime,
+  type ConversationRuntime,
+} from "./runtime-selection.js";
+
+import type { GenerateConversationReply } from "../command.js";
+
+const streamHeaders = {
+  "cache-control": "no-cache, no-transform",
+  "content-type": "text/event-stream; charset=utf-8",
+  connection: "keep-alive",
+};
+
+interface ParsedChatCompletion {
+  body: unknown;
+  command: GenerateConversationReply;
+}
 
 function error(message: string, type: string, status: number): Response {
   return Response.json({ error: { message, type } }, { status });
 }
 
-export const chatCompletionsRegistration = registerApiRoute(
-  "/v1/chat/completions",
-  {
-    method: "POST",
-    requiresAuth: false,
-    handler: async (c) => {
-      const request = c.req.raw;
+async function authorize(
+  request: Request,
+): Promise<PilotRuntimeStorageConfig | Response> {
+  if (request.method !== "POST") {
+    return error("Method not allowed.", "invalid_request_error", 405);
+  }
+  if (!(await verifyPilotRuntimeRequest(request))) {
+    return error("Unauthorized.", "authentication_error", 401);
+  }
+  return (
+    getPilotRuntimeStorageConfig() ??
+    error("Pilot Conversation is not configured.", "server_error", 503)
+  );
+}
 
-      if (request.method !== "POST") {
-        return error("Method not allowed.", "invalid_request_error", 405);
-      }
-      if (!(await verifyPilotRuntimeRequest(request))) {
-        return error("Unauthorized.", "authentication_error", 401);
-      }
+async function parseChatCompletion(
+  request: Request,
+): Promise<ParsedChatCompletion | Response> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return error(
+      "Request body must be valid JSON.",
+      "invalid_request_error",
+      400,
+    );
+  }
+  try {
+    const command = createConversationCommandFromChatCompletion(
+      body,
+      request.headers,
+    );
+    return { body, command };
+  } catch (error_) {
+    return error(
+      error_ instanceof ZodError || error_ instanceof Error
+        ? error_.message
+        : "Invalid chat completion request.",
+      "invalid_request_error",
+      400,
+    );
+  }
+}
 
-      const storageConfig = getPilotRuntimeStorageConfig();
-      if (!storageConfig) {
-        return error(
-          "Pilot Conversation is not configured.",
-          "server_error",
-          503,
-        );
-      }
+async function generateCompletion(
+  runtime: ConversationRuntime,
+  command: GenerateConversationReply,
+): Promise<Response> {
+  const result = await runtime.generate(command);
+  if (result.kind === "suspended") {
+    return Response.json(createApprovalRequiredResponse(result));
+  }
+  if (result.kind === "user_input_required") {
+    return Response.json(createUserInputRequiredResponse(result));
+  }
+  if (!("text" in result)) {
+    return error(
+      "Pilot Conversation returned an invalid result.",
+      "server_error",
+      502,
+    );
+  }
+  return Response.json(createChatCompletionResponse(result));
+}
 
-      let body: unknown;
-      try {
-        body = await request.json();
-      } catch {
-        return error(
-          "Request body must be valid JSON.",
-          "invalid_request_error",
-          400,
-        );
-      }
+function streamResponse(
+  stream: Awaited<ReturnType<ConversationRuntime["stream"]>>,
+  body: unknown,
+  runtime: ConversationRuntime,
+): Response {
+  const isIncludeUsage =
+    (body as { stream_options?: { include_usage?: boolean } }).stream_options
+      ?.include_usage === true;
+  return new Response(
+    createChatCompletionStream(stream, {
+      includeUsage: isIncludeUsage,
+      onClose: () => runtime.close(),
+    }),
+    { headers: streamHeaders },
+  );
+}
 
-      let command;
-      try {
-        command = createConversationCommandFromChatCompletion(
-          body,
-          request.headers,
-        );
-      } catch (error_) {
-        return error(
-          error_ instanceof ZodError || error_ instanceof Error
-            ? error_.message
-            : "Invalid chat completion request.",
-          "invalid_request_error",
-          400,
-        );
-      }
+/**
+ * OpenAI-compatible chat completion over the protected Pilot runtime.
+ * A streaming response owns the runtime until the stream closes.
+ */
+export async function handleChatCompletion(
+  request: Request,
+): Promise<Response> {
+  const storageConfig = await authorize(request);
+  if (storageConfig instanceof Response) return storageConfig;
 
-      let runtime:
-        | ReturnType<typeof createPilotConversationRuntime>
-        | ReturnType<typeof createPilotProductionToolRuntime>
-        | undefined;
-      let isCloseRuntime = true;
+  const parsed = await parseChatCompletion(request);
+  if (parsed instanceof Response) return parsed;
 
-      try {
-        const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
-        if (command.allowedToolIds.length > 0) {
-          if (
-            command.allowedToolIds.includes("web-search") &&
-            process.env.PILOT_ENABLE_RESEARCH !== "true"
-          ) {
-            return error(
-              "Pilot public web search is not enabled.",
-              "invalid_request_error",
-              403,
-            );
-          }
-          if (!oidcToken) {
-            return error("Unauthorized.", "authentication_error", 401);
-          }
-          runtime = createPilotProductionToolRuntime(storageConfig, oidcToken);
-        } else {
-          runtime = createPilotConversationRuntime(
-            storageConfig,
-            oidcToken ?? undefined,
-          );
-        }
+  const selection = selectConversationRuntime(
+    parsed.command,
+    request.headers.get("x-pilot-runtime-oidc-token"),
+    storageConfig,
+  );
+  if (!selection.ok) {
+    return error(selection.message, selection.type, selection.status);
+  }
+  const { runtime } = selection;
 
-        if (isStreamingChatCompletionRequest(body)) {
-          const stream = await runtime.stream(command);
-          isCloseRuntime = false;
-          const isIncludeUsage =
-            (body as { stream_options?: { include_usage?: boolean } })
-              ?.stream_options?.include_usage === true;
-
-          return new Response(
-            createChatCompletionStream(stream, {
-              includeUsage: isIncludeUsage,
-              onClose: async () => {
-                await runtime?.close();
-              },
-            }),
-            {
-              headers: {
-                "cache-control": "no-cache, no-transform",
-                "content-type": "text/event-stream; charset=utf-8",
-                connection: "keep-alive",
-              },
-            },
-          );
-        }
-
-        const result = await runtime.generate(command);
-        if (result.kind === "suspended") {
-          return Response.json(createApprovalRequiredResponse(result));
-        }
-        if (result.kind === "user_input_required") {
-          return Response.json(createUserInputRequiredResponse(result));
-        }
-        if (!("text" in result)) {
-          return error(
-            "Pilot Conversation returned an invalid result.",
-            "server_error",
-            502,
-          );
-        }
-        return Response.json(createChatCompletionResponse(result));
-      } catch (error_) {
-        console.error(
-          "[pilot-conversation] generation failed:",
-          error_ instanceof Error ? error_.name : "unknown error",
-        );
-        return error(
-          "Pilot Conversation could not complete.",
-          "server_error",
-          502,
-        );
-      } finally {
-        if (isCloseRuntime) {
-          await runtime?.close();
-        }
-      }
-    },
-  },
-);
+  let isCloseRuntime = true;
+  try {
+    if (!isStreamingChatCompletionRequest(parsed.body)) {
+      return await generateCompletion(runtime, parsed.command);
+    }
+    const stream = await runtime.stream(parsed.command);
+    isCloseRuntime = false;
+    return streamResponse(stream, parsed.body, runtime);
+  } catch (error_) {
+    logger.error("Chat completion failed.", {
+      errorName: error_ instanceof Error ? error_.name : "unknown",
+    });
+    return error("Pilot Conversation could not complete.", "server_error", 502);
+  } finally {
+    if (isCloseRuntime) await runtime.close();
+  }
+}

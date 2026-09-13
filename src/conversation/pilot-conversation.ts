@@ -22,8 +22,8 @@ import {
 } from "./command.js";
 import { conversationRuntimeConfig } from "./config.js";
 import { conversationAgentIdentity } from "./identity.js";
-
 import { conversationCoreInstructions } from "./instructions/core.js";
+
 import type { Agent } from "@mastra/core/agent";
 import type { LibSQLStore } from "@mastra/libsql";
 import type { Memory } from "@mastra/memory";

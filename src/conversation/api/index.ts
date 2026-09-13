@@ -1,13 +1,11 @@
-import { approvalResumeRegistration } from "./approval-resume-route";
-import { chatCompletionsRegistration } from "./chat-completions";
-import { conversationDeleteRegistration } from "./conversation-delete";
-import { generateRegistration } from "./generate";
-import { projectDeleteRegistration } from "./project-delete";
+import { approvalResumeRegistration } from "./approval-resume-route.js";
+import { chatCompletionsRegistration } from "./chat-completions-route.js";
+import { conversationDeleteRegistration } from "./conversation-delete.js";
+import { projectDeleteRegistration } from "./project-delete.js";
 
 export const conversationApiRoutes = [
   approvalResumeRegistration,
   chatCompletionsRegistration,
   conversationDeleteRegistration,
   projectDeleteRegistration,
-  generateRegistration,
 ];
