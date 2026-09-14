@@ -21,10 +21,15 @@ export function isPublicWebSearchEnabled(): boolean {
   return process.env.PILOT_ENABLE_WEB_SEARCH === "true";
 }
 
+export function isCodeSandboxEnabled(): boolean {
+  return process.env.PILOT_ENABLE_CODE_SANDBOX === "true";
+}
+
 /**
  * Opens the runtime for a command. Granted capabilities need the caller's
- * OIDC token for activity callbacks; public web search is additionally gated
- * by the production feature flag.
+ * OIDC token for activity callbacks; public web search and the code sandbox
+ * are additionally gated by their own production feature flags — pilot
+ * checks these too, but a request must not depend on that alone.
  */
 export function selectConversationRuntime(
   command: GenerateConversationReply,
@@ -41,6 +46,17 @@ export function selectConversationRuntime(
       status: 403,
       type: "invalid_request_error",
       message: "Pilot public web search is not enabled.",
+    };
+  }
+  if (
+    command.allowedToolIds.includes("code-sandbox") &&
+    !isCodeSandboxEnabled()
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      type: "invalid_request_error",
+      message: "Pilot code sandbox is not enabled.",
     };
   }
   if (hasCapabilities && !oidcToken) {

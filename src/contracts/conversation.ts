@@ -7,6 +7,7 @@ export const ALLOWED_TOOL_IDS = [
   "scratchpad",
   "ask-user",
   "plan",
+  "code-sandbox",
 ] as const;
 
 export type AllowedToolId = (typeof ALLOWED_TOOL_IDS)[number];
@@ -51,10 +52,10 @@ export const generateConversationReplySchema = z
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
     baseAgentId: baseAgentIdSchema,
-    allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(4).default([]),
+    allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(5).default([]),
     approvalRequiredToolIds: z
       .array(z.enum(ALLOWED_TOOL_IDS))
-      .max(2)
+      .max(3)
       .default([]),
     executionId: z.uuid(),
     project: z

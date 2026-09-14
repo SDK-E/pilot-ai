@@ -14,17 +14,23 @@ describe("capabilities", () => {
     expect(capabilityIdFromToolName("scratchpad")).toBe("scratchpad");
     expect(capabilityIdFromToolName("ask_user")).toBe("ask-user");
     expect(capabilityIdFromToolName("plan")).toBe("plan");
+    expect(capabilityIdFromToolName("sandbox-run")).toBe("code-sandbox");
     expect(capabilityIdFromToolName("stagehandBrowser")).toBeUndefined();
     expect(capabilityIdFromToolName(undefined)).toBeUndefined();
   });
 
   it("only approvable capabilities can sit behind an approval", () => {
-    expect(APPROVABLE_CAPABILITY_IDS).toEqual(["web-search", "scratchpad"]);
+    expect(APPROVABLE_CAPABILITY_IDS).toEqual([
+      "web-search",
+      "scratchpad",
+      "code-sandbox",
+    ]);
     expect(Object.keys(CAPABILITIES)).toEqual([
       "web-search",
       "scratchpad",
       "ask-user",
       "plan",
+      "code-sandbox",
     ]);
   });
 

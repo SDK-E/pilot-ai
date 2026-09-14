@@ -6,6 +6,7 @@ import {
   type GenerateConversationReply,
 } from "../../../../contracts/conversation.js";
 import { githubPublic } from "../../../tools/code/github-public.js";
+import { sandboxRun } from "../../../tools/code/sandbox-run.js";
 import { createPilotPlanTool } from "../../../tools/pilot/plan.js";
 import { createPilotScratchpadTool } from "../../../tools/pilot/scratchpad.js";
 import { webSearch } from "../../../tools/search/web-search.js";
@@ -21,7 +22,11 @@ export type CapabilityId = AllowedToolId;
 /**
  * Capabilities a Pilot may put behind an approval before they run.
  */
-export const APPROVABLE_CAPABILITY_IDS = ["web-search", "scratchpad"] as const;
+export const APPROVABLE_CAPABILITY_IDS = [
+  "web-search",
+  "scratchpad",
+  "code-sandbox",
+] as const;
 
 export type ApprovableCapabilityId = (typeof APPROVABLE_CAPABILITY_IDS)[number];
 
@@ -91,6 +96,13 @@ export const CAPABILITIES: Record<CapabilityId, Capability> = {
     tools: ({ command, oidcToken }) => ({
       plan: createPilotPlanTool({ command, oidcToken }),
     }),
+  },
+  "code-sandbox": {
+    id: "code-sandbox",
+    toolNames: ["sandbox-run"],
+    instructions:
+      "Use sandbox-run to actually execute code — run a script, run tests, reproduce a bug, check that something works — instead of only describing what it would do. Every call gets a fresh, empty sandbox with no memory of earlier calls: write every file a command needs in the same call that runs it.",
+    tools: () => ({ "sandbox-run": sandboxRun }),
   },
 };
 

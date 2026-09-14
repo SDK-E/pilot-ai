@@ -24,7 +24,7 @@ vi.mock("../agents/runtime/runtime.js", () => ({
 }));
 
 vi.mock("../auth/vercel-oidc.js", () => ({
-  isVerifiedPilotRuntimeRequest: mocks.verifyRequest,
+  verifyPilotRuntimeRequest: mocks.verifyRequest,
 }));
 
 const headers = {
@@ -74,7 +74,7 @@ describe("OpenAI-compatible chat completion function", () => {
     mocks.close.mockReset();
     mocks.createRuntime.mockClear();
     mocks.verifyRequest.mockReset();
-    mocks.verifyRequest.mockResolvedValue(true);
+    mocks.verifyRequest.mockResolvedValue({ ok: true, reason: "ok" });
   });
 
   afterEach(() => vi.unstubAllEnvs());
@@ -176,13 +176,19 @@ describe("OpenAI-compatible chat completion function", () => {
   });
 
   it("rejects requests without a valid Vercel OIDC token before initialization", async () => {
-    mocks.verifyRequest.mockResolvedValue(false);
+    mocks.verifyRequest.mockResolvedValue({
+      ok: false,
+      reason: "no-token-header",
+    });
 
     const response = await post({});
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: { message: "Unauthorized.", type: "authentication_error" },
+      error: {
+        message: "Unauthorized: no-token-header",
+        type: "authentication_error",
+      },
     });
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
@@ -205,6 +211,21 @@ describe("OpenAI-compatible chat completion function", () => {
     await expect(response.json()).resolves.toEqual({
       error: {
         message: "Pilot public web search is not enabled.",
+        type: "invalid_request_error",
+      },
+    });
+    expect(mocks.createRuntime).not.toHaveBeenCalled();
+  });
+
+  it("rejects the code sandbox before the production adapter is enabled", async () => {
+    const response = await post({
+      headers: { "x-pilot-allowed-tool-ids": '["code-sandbox"]' },
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        message: "Pilot code sandbox is not enabled.",
         type: "invalid_request_error",
       },
     });

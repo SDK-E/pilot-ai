@@ -39,6 +39,7 @@ describe("contract", () => {
       "scratchpad",
       "ask-user",
       "plan",
+      "code-sandbox",
     ]);
   });
 
