@@ -30,7 +30,7 @@ function deploymentEnvironment(): "preview" | "production" | undefined {
 export async function isVerifiedPilotRuntimeRequest(
   request: Request,
 ): Promise<boolean> {
-  const result = await verifyPilotRuntimeRequestDiag(request);
+  const result = await verifyPilotRuntimeRequest(request);
   return result.ok;
 }
 
@@ -69,10 +69,14 @@ async function verifySignature(
   }
 }
 
-// TEMPORARY diagnostic (2026-09-14): production has been returning 401 for
-// every request on this path. Surfaces exactly which check fails, without
-// ever returning the token itself. Revert once root-caused.
-export async function verifyPilotRuntimeRequestDiag(
+/**
+ * Same check as isVerifiedPilotRuntimeRequest, but with the specific reason
+ * a rejected request failed (never the token itself). Chat completions is
+ * the entry point every runtime request other than a tool callback goes
+ * through, so its 401 is what an operator actually sees when authentication
+ * breaks; the reason is worth the extra response detail there.
+ */
+export async function verifyPilotRuntimeRequest(
   request: Request,
 ): Promise<{ ok: boolean; reason: string }> {
   const token = request.headers.get(tokenHeader);
