@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import handler from "../../../api/v1/chat/completions.js";
 
-import { waitForStreamingResult } from "./openai-compatible.js";
+import { waitForStreamingResult } from "./chat-completion-stream.js";
 
 const mocks = vi.hoisted(() => {
   const generate = vi.fn();
