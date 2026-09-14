@@ -36,6 +36,18 @@ export interface UserInputRequiredResult {
 export type RuntimeResult =
   CompletedResult | SuspendedResult | UserInputRequiredResult;
 
+/**
+ * A model provider outage can return an HTTP error page (a full HTML
+ * document) with a 200 status and no error surfaced anywhere in the stack,
+ * indistinguishable from real completion text to everything upstream of
+ * here. A reply shaped like an HTML document is never a valid answer.
+ */
+const HTML_DOCUMENT_PATTERN = /^\s*<(!doctype\s+html|html[\s>])/i;
+
+export function isHtmlDocumentText(text: string): boolean {
+  return HTML_DOCUMENT_PATTERN.test(text);
+}
+
 export function usageOf(value: {
   totalUsage: {
     inputTokens?: number;

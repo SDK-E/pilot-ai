@@ -30,6 +30,7 @@ import {
   type ActivityReporter,
 } from "./agent-factory.js";
 import {
+  isHtmlDocumentText,
   usageOf,
   type CompletedResult,
   type RuntimeResult,
@@ -101,6 +102,11 @@ async function toResult(
 ): Promise<RuntimeResult> {
   const usage = usageOf(output);
   if (!isSuspended(output)) {
+    if (isHtmlDocumentText(output.text)) {
+      throw new Error(
+        "The model provider returned an unexpected response instead of a completion.",
+      );
+    }
     return {
       kind: "completed",
       text: output.text,
@@ -156,6 +162,11 @@ async function resumeRun(
         ...input,
         reason: "The user declined this tool call.",
       });
+  if (isHtmlDocumentText(output.text)) {
+    throw new Error(
+      "The model provider returned an unexpected response instead of a completion.",
+    );
+  }
   return {
     kind: "completed",
     text: output.text,
