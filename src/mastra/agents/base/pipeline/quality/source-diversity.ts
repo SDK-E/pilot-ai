@@ -1,31 +1,12 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class SourceDiversityProcessor implements Processor {
-  readonly id = "source-diversity";
-
-  readonly name = "Source Diversity";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.sourceDiversityEvery;
-
-    if (stepNumber < 3 || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const sourceDiversityProcessor = createStepReminder({
+  id: "source-diversity",
+  name: "Source Diversity",
+  startAt: 3,
+  every: pilotConfig.pipeline.sourceDiversityEvery,
+  content: `
 SOURCE DIVERSITY
 
 Review whether important conclusions rely on genuinely independent evidence.
@@ -66,10 +47,4 @@ When important claims lack sufficient independent evidence:
 
 Do not sacrifice source quality merely to increase source count.
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const sourceDiversityProcessor = new SourceDiversityProcessor();
+});

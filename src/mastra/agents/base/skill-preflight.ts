@@ -30,75 +30,24 @@ export interface RuntimeSkillPreflightResult {
   error?: string;
 }
 
-export interface RuntimePreflightConfig {
-  apiUrl?: string;
-  maxSkillContext?: number;
-  requestTimeoutMs?: number;
-}
-
-let runtimePreflightConfig: RuntimePreflightConfig = {};
-
-export function setRuntimePreflightConfig(
-  config: RuntimePreflightConfig,
-): void {
-  runtimePreflightConfig = { ...runtimePreflightConfig, ...config };
-}
-
-export function getRuntimePreflightConfig(): RuntimePreflightConfig {
-  return { ...runtimePreflightConfig };
-}
-
 const API = "https://skills.sh/api/v1";
 const MAX_SKILL_CONTEXT = 24_000;
 const REQUEST_TIMEOUT_MS = 8000;
+const MIN_CANDIDATE_SCORE = 0.3;
+const INSTRUCTION_FILE = /\.(md|mdx|txt|json|ya?ml)$/;
 
-const STOP_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "but",
-  "by",
-  "can",
-  "could",
-  "do",
-  "for",
-  "from",
-  "give",
-  "help",
-  "how",
-  "i",
-  "if",
-  "in",
-  "is",
-  "it",
-  "me",
-  "my",
-  "of",
-  "on",
-  "or",
-  "please",
-  "the",
-  "this",
-  "to",
-  "use",
-  "want",
-  "what",
-  "when",
-  "where",
-  "which",
-  "who",
-  "with",
-  "would",
-  "you",
-  "your",
-]);
+const STOP_WORDS = new Set(
+  "a an and are as at be but by can could do for from give help how i if in is it me my of on or please the this to use want what when where which who with would you your".split(
+    " ",
+  ),
+);
 
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function tokens(value: string): string[] {
@@ -137,30 +86,27 @@ function authHeaders(): Record<string, string> {
 }
 
 async function requestJson<T>(path: string): Promise<T> {
-  const config = getRuntimePreflightConfig();
   const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
-  }, config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS);
+  }, REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${config.apiUrl ?? API}${path}`, {
+    const response = await fetch(`${API}${path}`, {
       headers: authHeaders(),
       signal: controller.signal,
     });
-
     if (!response.ok) {
       throw new Error(`skills.sh ${response.status}: ${await response.text()}`);
     }
-
     return (await response.json()) as T;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(
-        `skills.sh request timed out after ${config.requestTimeoutMs ?? REQUEST_TIMEOUT_MS}ms`,
+        `skills.sh request timed out after ${REQUEST_TIMEOUT_MS}ms`,
+        { cause: error },
       );
     }
-
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -178,7 +124,7 @@ function candidateScore(
     candidate.name,
     candidate.source,
   ]
-    .map(text)
+    .map((value) => text(value))
     .filter(Boolean)
     .join(" ");
 
@@ -198,33 +144,30 @@ function candidateScore(
   return overlap * 0.65 + position * 0.3 + installs * 0.05;
 }
 
-function pickCandidate(
-  value: unknown,
-  query: string,
-): SkillSummary | undefined {
+/**
+ * The best-matching skill id from a search result, if any scores well enough.
+ */
+function pickCandidateId(value: unknown, query: string): string | undefined {
   if (!Array.isArray(value)) return undefined;
 
   const ranked = value
-    .filter((item): item is SkillSummary =>
-      Boolean(
-        item && typeof item === "object" && text((item as SkillSummary).id),
-      ),
-    )
+    .filter((item): item is SkillSummary => isRecord(item) && !!text(item.id))
     .map((item, index) => ({ item, score: candidateScore(item, query, index) }))
-    .sort((a, b) => b.score - a.score);
+    .toSorted((a, b) => b.score - a.score);
 
-  const best = ranked[0];
-  return best && best.score >= 0.3 ? best.item : undefined;
+  const best = ranked.at(0);
+  return best && best.score >= MIN_CANDIDATE_SCORE
+    ? text(best.item.id)
+    : undefined;
 }
 
-function auditIsUnsafe(value: unknown): boolean {
+function isAuditUnsafe(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
 
   return value.some((item) => {
-    if (!item || typeof item !== "object") return false;
-    const record = item as Record<string, unknown>;
-    const status = text(record.status)?.toLowerCase();
-    const risk = text(record.riskLevel)?.toLowerCase();
+    if (!isRecord(item)) return false;
+    const status = text(item.status)?.toLowerCase();
+    const risk = text(item.riskLevel)?.toLowerCase();
     return (
       status === "fail" ||
       status === "blocked" ||
@@ -234,33 +177,70 @@ function auditIsUnsafe(value: unknown): boolean {
   });
 }
 
+interface SkillFile {
+  path: string;
+  contents: string;
+}
+
+function instructionFile(item: unknown): SkillFile | undefined {
+  if (!isRecord(item)) return undefined;
+  const path = text(item.path);
+  const contents = text(item.contents);
+  if (!path || !contents) return undefined;
+  const lower = path.toLowerCase();
+  return lower === "skill.md" || INSTRUCTION_FILE.test(lower)
+    ? { path, contents }
+    : undefined;
+}
+
+/**
+ * Joins a skill's instruction files, but only when a SKILL.md is present.
+ */
 function instructionContext(files: unknown): string | undefined {
   if (!Array.isArray(files)) return undefined;
-
-  const config = getRuntimePreflightConfig();
-  const maxContext = config.maxSkillContext ?? MAX_SKILL_CONTEXT;
-
-  const accepted: string[] = [];
-  let hasSkill = false;
-
-  for (const item of files) {
-    if (!item || typeof item !== "object") continue;
-    const record = item as Record<string, unknown>;
-    const path = text(record.path);
-    const contents = text(record.contents);
-    if (!path || !contents) continue;
-
-    const lower = path.toLowerCase();
-    const isAllowed =
-      lower === "skill.md" || /\.(md|mdx|txt|json|ya?ml)$/.test(lower);
-    if (!isAllowed) continue;
-    if (lower === "skill.md") hasSkill = true;
-
-    accepted.push(`\n--- ${path} ---\n${contents}`);
-  }
-
+  const accepted = files
+    .map((item) => instructionFile(item))
+    .filter((file): file is SkillFile => file !== undefined);
+  const hasSkill = accepted.some(
+    (file) => file.path.toLowerCase() === "skill.md",
+  );
   if (!hasSkill) return undefined;
-  return accepted.join("\n").slice(0, maxContext);
+  return accepted
+    .map((file) => `\n--- ${file.path} ---\n${file.contents}`)
+    .join("\n")
+    .slice(0, MAX_SKILL_CONTEXT);
+}
+
+async function auditFor(encodedId: string): Promise<AuditResponse> {
+  try {
+    return await requestJson<AuditResponse>(`/skills/audit/${encodedId}`);
+  } catch {
+    return { audits: [] };
+  }
+}
+
+async function loadSkill(
+  query: string,
+  id: string,
+): Promise<RuntimeSkillPreflightResult> {
+  const encodedId = id
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  const [detail, audit] = await Promise.all([
+    requestJson<DetailResponse>(`/skills/${encodedId}`),
+    auditFor(encodedId),
+  ]);
+  const instructions = isAuditUnsafe(audit.audits)
+    ? undefined
+    : instructionContext(detail.files);
+  return {
+    query,
+    searched: true,
+    loaded: instructions !== undefined,
+    skillId: id,
+    instructions,
+  };
 }
 
 export async function runRuntimeSkillPreflight(
@@ -273,38 +253,9 @@ export async function runRuntimeSkillPreflight(
     const search = await requestJson<SearchResponse>(
       `/skills/search?${params.toString()}`,
     );
-    const candidate = pickCandidate(search.data, query);
-
-    if (!candidate) {
-      return { query, searched: true, loaded: false };
-    }
-
-    const id = text(candidate.id)!;
-    const encodedId = id.split("/").map(encodeURIComponent).join("/");
-
-    const [detail, audit] = await Promise.all([
-      requestJson<DetailResponse>(`/skills/${encodedId}`),
-      requestJson<AuditResponse>(`/skills/audit/${encodedId}`).catch(() => ({
-        audits: [],
-      })),
-    ]);
-
-    if (auditIsUnsafe(audit.audits)) {
-      return { query, searched: true, loaded: false, skillId: id };
-    }
-
-    const instructions = instructionContext(detail.files);
-    if (!instructions) {
-      return { query, searched: true, loaded: false, skillId: id };
-    }
-
-    return {
-      query,
-      searched: true,
-      loaded: true,
-      skillId: id,
-      instructions,
-    };
+    const id = pickCandidateId(search.data, query);
+    if (!id) return { query, searched: true, loaded: false };
+    return await loadSkill(query, id);
   } catch (error) {
     return {
       query,

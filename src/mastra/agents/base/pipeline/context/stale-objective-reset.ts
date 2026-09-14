@@ -1,49 +1,12 @@
+import { latestUserText } from "../latest-user-text.js";
+
 import type {
   Processor,
   ProcessInputArgs,
   ProcessInputResult,
 } from "@mastra/core/processors";
 
-function getLastUserText(messages: ProcessInputArgs["messages"]): string {
-  const message = [...messages].reverse().find((item) => item.role === "user");
-
-  if (!message) {
-    return "";
-  }
-
-  return (
-    message.content.parts
-      ?.filter((part) => part.type === "text")
-      .map((part) => ("text" in part ? part.text : ""))
-      .join("\n")
-      .trim() ||
-    message.content.content ||
-    ""
-  );
-}
-
-export class StaleObjectiveResetProcessor implements Processor {
-  readonly id = "stale-objective-reset";
-  readonly name = "Stale Objective Reset";
-
-  async processInput({
-    messages,
-    messageList,
-  }: ProcessInputArgs): Promise<ProcessInputResult> {
-    const currentRequest = getLastUserText(messages);
-
-    if (!currentRequest) {
-      return messageList;
-    }
-
-    messageList.addSystem(
-      `
-<OBJECTIVE_CONTINUITY_CHECK>
-
-Current user message:
-
-${currentRequest}
-
+const CONTINUITY_RULES = `
 Before reusing persistent thread state, determine whether this message:
 
 A. continues the existing objective
@@ -82,12 +45,30 @@ If it is a genuinely unrelated objective:
 Do not reset state merely because the user's wording changed.
 
 Reset only when the intended objective materially changed.
+`;
 
+export class StaleObjectiveResetProcessor implements Processor {
+  readonly id = "stale-objective-reset";
+  readonly name = "Stale Objective Reset";
+
+  processInput({
+    messages,
+    messageList,
+  }: ProcessInputArgs): ProcessInputResult {
+    const currentRequest = latestUserText(messages);
+    if (!currentRequest) return messageList;
+    messageList.addSystem(
+      `
+<OBJECTIVE_CONTINUITY_CHECK>
+
+Current user message:
+
+${currentRequest}
+${CONTINUITY_RULES}
 </OBJECTIVE_CONTINUITY_CHECK>
 `,
       "stale-objective-reset",
     );
-
     return messageList;
   }
 }

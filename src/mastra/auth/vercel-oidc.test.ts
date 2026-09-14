@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  createRemoteJWKSet: vi.fn((url: URL) => url.toString()),
+  createRemoteJWKSet: vi.fn((url: URL) => url.href),
   decodeJwt: vi.fn(),
   jwtVerify: vi.fn(),
 }));
 
 vi.mock("jose", () => mocks);
 
-import { verifyPilotRuntimeRequest } from "./vercel-oidc.js";
+import { isVerifiedPilotRuntimeRequest } from "./vercel-oidc.js";
 
 const request = new Request("https://ai.pilot.test/v1/chat/completions", {
   headers: { "x-pilot-runtime-oidc-token": "signed-token" },
 });
 
-describe("verifyPilotRuntimeRequest", () => {
+describe("isVerifiedPilotRuntimeRequest", () => {
   beforeEach(() => {
     vi.stubEnv("VERCEL_ENV", "production");
     mocks.decodeJwt.mockReset();
@@ -27,7 +27,7 @@ describe("verifyPilotRuntimeRequest", () => {
       iss: "https://oidc.vercel.com/sdk-enterprises",
     });
 
-    await expect(verifyPilotRuntimeRequest(request)).resolves.toBe(true);
+    await expect(isVerifiedPilotRuntimeRequest(request)).resolves.toBe(true);
     expect(mocks.jwtVerify).toHaveBeenCalledWith(
       "signed-token",
       "https://oidc.vercel.com/sdk-enterprises/.well-known/jwks",
@@ -42,7 +42,7 @@ describe("verifyPilotRuntimeRequest", () => {
   it("accepts the legacy global issuer only with the same strict claims", async () => {
     mocks.decodeJwt.mockReturnValue({ iss: "https://oidc.vercel.com" });
 
-    await expect(verifyPilotRuntimeRequest(request)).resolves.toBe(true);
+    await expect(isVerifiedPilotRuntimeRequest(request)).resolves.toBe(true);
     expect(mocks.jwtVerify).toHaveBeenCalledWith(
       "signed-token",
       "https://oidc.vercel.com/.well-known/jwks",
@@ -57,7 +57,7 @@ describe("verifyPilotRuntimeRequest", () => {
   it("fails closed for an unknown issuer before signature verification", async () => {
     mocks.decodeJwt.mockReturnValue({ iss: "https://attacker.example" });
 
-    await expect(verifyPilotRuntimeRequest(request)).resolves.toBe(false);
+    await expect(isVerifiedPilotRuntimeRequest(request)).resolves.toBe(false);
     expect(mocks.jwtVerify).not.toHaveBeenCalled();
   });
 });

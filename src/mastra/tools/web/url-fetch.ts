@@ -25,74 +25,153 @@ export interface UrlFetchConfig {
   makeCacheKey: (type: string, input: unknown) => string;
 }
 
-let urlFetchConfig: UrlFetchConfig | undefined;
+const configured: { config?: UrlFetchConfig } = {};
 
 export function setUrlFetchConfig(config: UrlFetchConfig): void {
-  urlFetchConfig = config;
+  configured.config = config;
 }
 
 function requireConfig(): UrlFetchConfig {
-  if (!urlFetchConfig) {
+  if (!configured.config) {
     throw new Error(
       "UrlFetch config is not set. Call setUrlFetchConfig() before using performUrlFetch.",
     );
   }
-
-  return urlFetchConfig;
+  return configured.config;
 }
 
-const AGENT_USER_AGENT =
-  "SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)";
+export const AGENT_USER_AGENT =
+  "SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; Pilot agent)";
+
+const MAX_REDIRECTS = 5;
+
+const DROPPED_ELEMENTS = [
+  "script",
+  "style",
+  "nav",
+  "footer",
+  "header",
+  "aside",
+  "form",
+  "button",
+  "svg",
+];
 
 function extractTitle(html: string): string | undefined {
-  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
-
-  if (!match) {
-    return undefined;
-  }
-
-  return match[1]
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&nbsp;", " ")
-    .replaceAll(/\s+/g, " ")
-    .trim();
+  const match = /<title[^>]*>([^<]*)<\/title>/i.exec(html);
+  return match
+    ? decodeEntities(match[1]).replaceAll(/\s+/g, " ").trim()
+    : undefined;
 }
 
-function toMarkdown(html: string, maxCharacters: number): string {
-  const text = html
-    .replaceAll(/<script[\s\S]*?<\/script>/gi, "")
-    .replaceAll(/<style[\s\S]*?<\/style>/gi, "")
-    .replaceAll(/<nav[\s\S]*?<\/nav>/gi, "")
-    .replaceAll(/<footer[\s\S]*?<\/footer>/gi, "")
-    .replaceAll(/<header[\s\S]*?<\/header>/gi, "")
-    .replaceAll(/<aside[\s\S]*?<\/aside>/gi, "")
-    .replaceAll(/<form[\s\S]*?<\/form>/gi, "")
-    .replaceAll(/<button[\s\S]*?<\/button>/gi, "")
-    .replaceAll(/<svg[\s\S]*?<\/svg>/gi, "")
-    .replaceAll(/<img[^>]*>/gi, "[image]")
-    .replaceAll(/<br\s*\/?>/gi, "\n")
-    .replaceAll(/<\/p>/gi, "\n\n")
-    .replaceAll(/<\/li>/gi, "\n")
-    .replaceAll(/<\/tr>/gi, "\n")
-    .replaceAll(/<\/td>/gi, " | ")
-    .replaceAll(/<[^>]+>/g, " ")
+function decodeEntities(value: string): string {
+  return value
     .replaceAll("&nbsp;", " ")
     .replaceAll("&amp;", "&")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
     .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
+    .replaceAll("&#39;", "'");
+}
+
+function toMarkdown(html: string, maxCharacters: number): string {
+  let text = html;
+  for (const element of DROPPED_ELEMENTS) {
+    text = text.replaceAll(
+      new RegExp(`<${element}[^>]*>[^]*?</${element}>`, "gi"),
+      "",
+    );
+  }
+  text = text
+    .replaceAll(/<img[^>]*>/gi, "[image]")
+    .replaceAll(/<br\s*\/?>/gi, "\n")
+    .replaceAll(/<\/p>/gi, "\n\n")
+    .replaceAll(/<\/(?:li|tr)>/gi, "\n")
+    .replaceAll(/<\/td>/gi, " | ")
+    .replaceAll(/<[^<>]*>/g, " ");
+  return decodeEntities(text)
     .replaceAll(/\n{3,}/g, "\n\n")
     .replaceAll(/(^|\n)-\s*\n/g, "$1")
-    .trim();
+    .trim()
+    .slice(0, maxCharacters);
+}
 
-  if (text.length <= maxCharacters) {
-    return text;
+/**
+ * Fetches with manual redirects so every hop passes the public-URL boundary.
+ */
+async function fetchFollowingRedirects(
+  start: URL,
+  config: UrlFetchConfig,
+  signal: AbortSignal,
+): Promise<{ response: Response; url: URL }> {
+  let url = start;
+  for (let redirectCount = 0; ; redirectCount += 1) {
+    if (!config.canRequestDomain(url.hostname)) {
+      throw new Error(`Domain temporarily circuit-broken: ${url.hostname}`);
+    }
+    const response = await fetch(url.href, {
+      signal,
+      redirect: "manual",
+      headers: {
+        "User-Agent": AGENT_USER_AGENT,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    const isRedirect = response.status >= 300 && response.status < 400;
+    if (!isRedirect) return { response, url };
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error("Redirect response did not include a location.");
+    }
+    if (redirectCount === MAX_REDIRECTS) throw new Error("Too many redirects.");
+    url = await assertPublicHttpUrl(new URL(location, url));
   }
+}
 
-  return text.slice(0, maxCharacters);
+async function fetchPage(
+  url: URL,
+  maxCharacters: number,
+  config: UrlFetchConfig,
+  abortSignal?: AbortSignal,
+): Promise<UrlFetchResult> {
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(() => {
+    timeoutController.abort();
+  }, config.fetchTimeoutMs);
+  const onAbort = () => {
+    timeoutController.abort();
+  };
+  abortSignal?.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    const fetched = await fetchFollowingRedirects(
+      url,
+      config,
+      timeoutController.signal,
+    );
+    if (!fetched.response.ok) {
+      throw new Error(
+        `HTTP ${fetched.response.status}: ${fetched.response.statusText}`,
+      );
+    }
+    const html = await fetched.response.text();
+    config.recordDomainSuccess(fetched.url.hostname);
+    return {
+      url: fetched.url.href,
+      title: extractTitle(html),
+      content: toMarkdown(html, maxCharacters),
+    };
+  } catch (error) {
+    if (!timeoutController.signal.aborted) {
+      config.recordDomainFailure(url.hostname);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    abortSignal?.removeEventListener("abort", onAbort);
+  }
 }
 
 export async function performUrlFetch(
@@ -101,130 +180,33 @@ export async function performUrlFetch(
   abortSignal?: AbortSignal,
 ): Promise<UrlFetchResult> {
   const config = requireConfig();
-
-  let url = await assertPublicHttpUrl(value);
-
-  if (!config.canRequestDomain(url.hostname)) {
-    throw new Error(`Domain temporarily circuit-broken: ${url.hostname}`);
-  }
-
+  const url = await assertPublicHttpUrl(value);
   const cacheKey = config.makeCacheKey("url-fetch-markdown-v2", {
-    url: url.toString(),
+    url: url.href,
     maxCharacters,
   });
-
   const cached = await config.getCachedValue<UrlFetchResult>(cacheKey);
+  if (cached) return cached;
 
-  if (cached) {
-    return cached;
-  }
-
-  const timeoutController = new AbortController();
-
-  const timeout = setTimeout(() => {
-    timeoutController.abort();
-  }, config.fetchTimeoutMs);
-
-  const onAbort = () => {
-    timeoutController.abort();
-  };
-
-  abortSignal?.addEventListener("abort", onAbort, {
-    once: true,
-  });
-
-  const isFailureRecorded = false;
-
-  try {
-    let response: Response | undefined;
-    for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
-      if (!config.canRequestDomain(url.hostname)) {
-        throw new Error(`Domain temporarily circuit-broken: ${url.hostname}`);
-      }
-      response = await fetch(url.toString(), {
-        signal: timeoutController.signal,
-        redirect: "manual",
-        headers: {
-          "User-Agent": AGENT_USER_AGENT,
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-      });
-      if (response.status < 300 || response.status >= 400) break;
-      const location = response.headers.get("location");
-      if (!location)
-        throw new Error("Redirect response did not include a location.");
-      url = await assertPublicHttpUrl(new URL(location, url));
-      if (redirectCount === 5) throw new Error("Too many redirects.");
-    }
-
-    if (!response?.ok) {
-      throw new Error(`HTTP ${response?.status}: ${response?.statusText}`);
-    }
-
-    const contentType = response.headers.get("content-type") || "";
-
-    let html: string;
-
-    html =
-      contentType.includes("text/") ||
-      contentType.includes("json") ||
-      contentType.includes("xml")
-        ? await response.text()
-        : await response.text();
-
-    config.recordDomainSuccess(url.hostname);
-
-    const title = extractTitle(html);
-    const content = toMarkdown(html, maxCharacters);
-
-    const result: UrlFetchResult = {
-      url: url.toString(),
-      title,
-      content,
-    };
-
-    await config.setCachedValue(
-      cacheKey,
-      "url-fetch",
-      result,
-      config.fetchTtlMs,
-    );
-
-    return result;
-  } catch (error) {
-    if (!isFailureRecorded && !timeoutController.signal.aborted) {
-      config.recordDomainFailure(url.hostname);
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-
-    abortSignal?.removeEventListener("abort", onAbort);
-  }
+  const result = await fetchPage(url, maxCharacters, config, abortSignal);
+  await config.setCachedValue(cacheKey, "url-fetch", result, config.fetchTtlMs);
+  return result;
 }
 
-const isFailureRecorded = false;
-
-const urlFetch = createTool({
+export const urlFetch = createTool({
   id: "url-fetch",
 
   description:
     "Read a public HTTP(S) URL as Markdown using an explicit SDK Pilot agent identity.",
 
   inputSchema: z.object({
-    url: z.string().url(),
-
+    url: z.url(),
     maxCharacters: z.number().int().min(1000).max(50_000).default(12_000),
   }),
 
   outputSchema: z.object({
     url: z.string(),
-
     title: z.string().optional(),
-
     content: z.string(),
   }),
 

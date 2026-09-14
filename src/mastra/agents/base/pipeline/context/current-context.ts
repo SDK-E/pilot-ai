@@ -8,20 +8,16 @@ export class CurrentContextProcessor implements Processor {
   readonly id = "current-context";
   readonly name = "Current Context";
 
-  async processInput({
-    messageList,
-  }: ProcessInputArgs): Promise<ProcessInputResult> {
+  processInput({ messageList }: ProcessInputArgs): ProcessInputResult {
     const now = new Date();
-    const iso = now.toISOString();
     const year = now.getUTCFullYear();
-    const month = String(now.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(now.getUTCDate()).padStart(2, "0");
+    const utcDate = now.toISOString().slice(0, 10);
 
     messageList.addSystem(
       `
 <CURRENT_CONTEXT>
-Current date and time: ${iso}
-Current UTC date: ${year}-${month}-${day}
+Current date and time: ${now.toISOString()}
+Current UTC date: ${utcDate}
 Current calendar year: ${year}
 Unix timestamp: ${now.getTime()}
 

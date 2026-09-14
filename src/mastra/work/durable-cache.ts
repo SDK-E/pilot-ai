@@ -27,7 +27,7 @@ export function getPilotDurableWorkConfig():
   const cacheTtlSeconds = configuredTtl
     ? Number(configuredTtl)
     : defaultCacheTtlSeconds;
-  if (!Number.isInteger(cacheTtlSeconds) || cacheTtlSeconds < 60) {
+  if (!Number.isSafeInteger(cacheTtlSeconds) || cacheTtlSeconds < 60) {
     throw new Error(
       "PILOT_WORK_CACHE_TTL_SECONDS must be an integer of at least 60.",
     );

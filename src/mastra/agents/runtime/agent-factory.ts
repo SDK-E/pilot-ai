@@ -1,21 +1,25 @@
 import {
   createPilotActivityReporter,
-  runtimeSkillsEnabled,
+  isRuntimeSkillsEnabled,
 } from "../../activity/reporter.js";
 import { createBaseAgent } from "../base/agent.js";
 import {
-  CAPABILITIES,
   capabilityIdFromToolName,
   capabilityInstructions,
+  capabilityTools,
   type CapabilityId,
 } from "../base/capabilities/index.js";
 import { baseAgentLimits } from "../base/limits.js";
-import { createSkillResolverProcessor } from "../base/pipeline/index.js";
+import {
+  createSkillResolverProcessor,
+  evidenceProcessors,
+} from "../base/pipeline/index.js";
 import { buildBaseAgentInstructions } from "../base/shared-instructions.js";
 import { agentKindFor, type AgentKind } from "../kinds.js";
 
 import type { GenerateConversationReply } from "../../../contracts/conversation.js";
 import type { Agent } from "@mastra/core/agent";
+import type { InputProcessorOrWorkflow } from "@mastra/core/processors";
 import type { Memory } from "@mastra/memory";
 
 export type ActivityReporter = ReturnType<typeof createPilotActivityReporter>;
@@ -122,6 +126,34 @@ function activityHooks(
 }
 
 /**
+ * Request-specific processors: evidence discipline when web tools are
+ * granted, and audited skill discovery when Pilot enables it.
+ */
+function requestProcessors(
+  granted: CapabilityId[],
+  command: GenerateConversationReply,
+  reporter: ActivityReporter | undefined,
+): InputProcessorOrWorkflow[] {
+  const processors: InputProcessorOrWorkflow[] = granted.includes("web-search")
+    ? [...evidenceProcessors]
+    : [];
+  if (reporter && isRuntimeSkillsEnabled()) {
+    processors.push(
+      createSkillResolverProcessor({
+        onSkillLoaded: (skillId) =>
+          reportActivitySafely(reporter, {
+            kind: "skill",
+            organizationId: command.organizationId,
+            executionId: command.executionId,
+            skillId,
+          }),
+      }),
+    );
+  }
+  return processors;
+}
+
+/**
 Builds the agent for one request from its kind and granted capabilities.
 */
 export function createAgentForRequest({
@@ -138,18 +170,6 @@ export function createAgentForRequest({
       "Granted capabilities require the Pilot OIDC token and activity callback.",
     );
   }
-  const skillProcessor =
-    reporter && runtimeSkillsEnabled()
-      ? createSkillResolverProcessor({
-          onSkillLoaded: (skillId) =>
-            reportActivitySafely(reporter, {
-              kind: "skill",
-              organizationId: command.organizationId,
-              executionId: command.executionId,
-              skillId,
-            }),
-        })
-      : undefined;
 
   return createBaseAgent({
     base: { ...kind.limits, tokenLimit: baseAgentLimits.tokenLimit },
@@ -161,13 +181,8 @@ export function createAgentForRequest({
       { model: command.worker.modelId, maxRetries: baseAgentLimits.maxRetries },
     ],
     memory,
-    inputProcessors: skillProcessor ? [skillProcessor] : [],
-    tools: Object.fromEntries(
-      granted.map((id) => [
-        CAPABILITIES[id].toolName,
-        CAPABILITIES[id].createTool({ command, oidcToken: oidcToken ?? "" }),
-      ]),
-    ),
+    inputProcessors: requestProcessors(granted, command, reporter),
+    tools: capabilityTools(granted, { command, oidcToken: oidcToken ?? "" }),
     defaultOptions:
       granted.length > 0 ? { hooks: activityHooks(command, reporter) } : {},
   });

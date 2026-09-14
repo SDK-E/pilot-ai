@@ -1,31 +1,12 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class ContradictionCheckProcessor implements Processor {
-  readonly id = "contradiction-check";
-
-  readonly name = "Contradiction Check";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.contradictionCheckEvery;
-
-    if (stepNumber < 2 || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const contradictionCheckProcessor = createStepReminder({
+  id: "contradiction-check",
+  name: "Contradiction Check",
+  startAt: 2,
+  every: pilotConfig.pipeline.contradictionCheckEvery,
+  content: `
 CONTRADICTION CHECK
 
 Review important evidence gathered so far.
@@ -61,10 +42,4 @@ Do not spend additional steps resolving contradictions that are irrelevant to th
 
 Do not silently choose one claim without evidence.
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const contradictionCheckProcessor = new ContradictionCheckProcessor();
+});

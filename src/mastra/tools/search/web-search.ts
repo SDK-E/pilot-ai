@@ -10,27 +10,13 @@ import {
 } from "./langsearch.js";
 import { performDorkSearch } from "./search-dorks.js";
 
-export interface WebSearchConfig {
-  performStagehandSearch?: boolean;
-}
-
-let webSearchConfig: WebSearchConfig = {};
-
-export function setWebSearchConfig(config: WebSearchConfig): void {
-  webSearchConfig = { ...webSearchConfig, ...config };
-}
-
-export function getWebSearchConfig(): WebSearchConfig {
-  return { ...webSearchConfig };
-}
-
 const webSearchResultSchema = searchResultSchema.extend({
   markdown: z.string().optional(),
   fetchError: z.string().optional(),
 });
 
 const fallbackSchema = z.object({
-  stage: z.enum(["primary", "simplified", "dork", "stagehand"]),
+  stage: z.enum(["primary", "simplified", "dork"]),
   query: z.string(),
   resultCount: z.number().int().min(0),
 });
@@ -75,7 +61,6 @@ async function resilientSearch(
   results: SearchResult[];
   fallbackTrace: z.infer<typeof fallbackSchema>[];
 }> {
-  const config = getWebSearchConfig();
   const fallbackTrace: z.infer<typeof fallbackSchema>[] = [];
 
   const primary = await performLangSearch(query, maxResults, abortSignal);
@@ -120,41 +105,68 @@ async function resilientSearch(
     };
   }
 
-  if (config.performStagehandSearch) {
-    try {
-      const stagehandQuery = simplified || query;
-      const { performStagehandSearch } =
-        await import("../browser/stagehand.js");
-      const browserResults = await performStagehandSearch(stagehandQuery);
-      fallbackTrace.push({
-        stage: "stagehand",
-        query: stagehandQuery,
-        resultCount: browserResults.length,
-      });
-
-      return {
-        results: browserResults.slice(0, maxResults),
-        fallbackTrace,
-      };
-    } catch {
-      fallbackTrace.push({
-        stage: "stagehand",
-        query: simplified || query,
-        resultCount: 0,
-      });
-
-      return { results: [], fallbackTrace };
-    }
-  }
-
   return { results: [], fallbackTrace };
+}
+
+type WebSearchResult = z.infer<typeof webSearchResultSchema>;
+
+/**
+ * Reads the first pages of a result list and attaches their Markdown; a
+ * page that fails to load keeps its snippet and records the error.
+ */
+async function withPageContents(
+  results: SearchResult[],
+  limits: { maxPages: number; maxCharactersPerPage: number },
+  abortSignal?: AbortSignal,
+): Promise<WebSearchResult[]> {
+  const pagesToRead = results.slice(0, limits.maxPages);
+  const fetched = await Promise.allSettled(
+    pagesToRead.map((result) =>
+      performUrlFetch(result.url, limits.maxCharactersPerPage, abortSignal),
+    ),
+  );
+  return results.map((result, index) => {
+    const page = fetched.at(index);
+    if (!page) return result;
+    if (page.status === "fulfilled") {
+      return {
+        ...result,
+        title: page.value.title ?? result.title,
+        url: page.value.url,
+        markdown: page.value.content,
+        content: page.value.content,
+      };
+    }
+    const reason: unknown = page.reason;
+    return {
+      ...result,
+      fetchError: reason instanceof Error ? reason.message : String(reason),
+    };
+  });
+}
+
+function describeResult(result: WebSearchResult, index: number): string {
+  return [
+    `${index + 1}. ${result.title}`,
+    result.url,
+    result.publishedAt ? `Published: ${result.publishedAt}` : undefined,
+    result.markdown ?? result.snippet ?? result.content,
+    result.fetchError ? `Page read failed: ${result.fetchError}` : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function describeEmpty(trace: z.infer<typeof fallbackSchema>[]): string {
+  const stages = trace.map((item) => `${item.stage}: ${item.resultCount}`);
+  return `No web results were returned after fallback attempts.\n${stages.join(" | ")}`;
 }
 
 export const webSearch = createTool({
   id: "web-search",
 
   description:
-    "Search the public web or read a public URL. Empty searches automatically retry with a simpler query, then dork-aware search, then Stagehand browser search before returning no results.",
+    "Search the public web or read a public URL. Empty searches automatically retry with a simpler query, then dork-aware search before returning no results.",
 
   inputSchema: z.object({
     query: z.string().min(1),
@@ -184,7 +196,6 @@ export const webSearch = createTool({
         maxCharactersPerPage,
         abortSignal,
       );
-
       return {
         results: [
           {
@@ -199,77 +210,24 @@ export const webSearch = createTool({
     }
 
     const search = await resilientSearch(query, maxResults, abortSignal);
-    const searchResults = search.results;
-
-    if (!readPages || searchResults.length === 0) {
-      return {
-        results: searchResults,
-        fallbackTrace: search.fallbackTrace,
-      };
-    }
-
-    const pagesToRead = searchResults.slice(
-      0,
-      Math.min(maxPages, searchResults.length),
-    );
-
-    const fetched = await Promise.allSettled(
-      pagesToRead.map((result) =>
-        performUrlFetch(result.url, maxCharactersPerPage, abortSignal),
-      ),
-    );
-
-    const results = searchResults.map((result, index) => {
-      if (index >= pagesToRead.length) return result;
-
-      const fetchedResult = fetched[index];
-      if (fetchedResult.status === "fulfilled") {
-        return {
-          ...result,
-          title: fetchedResult.value.title ?? result.title,
-          url: fetchedResult.value.url,
-          markdown: fetchedResult.value.content,
-          content: fetchedResult.value.content,
-        };
-      }
-
-      return {
-        ...result,
-        fetchError:
-          fetchedResult.reason instanceof Error
-            ? fetchedResult.reason.message
-            : String(fetchedResult.reason),
-      };
-    });
-
-    return {
-      results,
-      fallbackTrace: search.fallbackTrace,
-    };
+    const results =
+      readPages && search.results.length > 0
+        ? await withPageContents(
+            search.results,
+            { maxPages, maxCharactersPerPage },
+            abortSignal,
+          )
+        : search.results;
+    return { results, fallbackTrace: search.fallbackTrace };
   },
 
   toModelOutput: (output) => ({
     type: "text",
     value:
       output.results.length === 0
-        ? `No web results were returned after fallback attempts.\n${output.fallbackTrace.map((item: z.infer<typeof fallbackSchema>) => `${item.stage}: ${item.resultCount}`).join(" | ")}`
+        ? describeEmpty(output.fallbackTrace)
         : output.results
-            .map(
-              (result: z.infer<typeof webSearchResultSchema>, index: number) =>
-                [
-                  `${index + 1}. ${result.title}`,
-                  result.url,
-                  result.publishedAt
-                    ? `Published: ${result.publishedAt}`
-                    : undefined,
-                  result.markdown ?? result.snippet ?? result.content,
-                  result.fetchError
-                    ? `Page read failed: ${result.fetchError}`
-                    : undefined,
-                ]
-                  .filter(Boolean)
-                  .join("\n\n"),
-            )
+            .map((result, index) => describeResult(result, index))
             .join("\n\n---\n\n"),
   }),
 });

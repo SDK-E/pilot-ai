@@ -1,12 +1,19 @@
 import { Agent } from "@mastra/core/agent";
 
 import { logger } from "../../../../logger.js";
+import { latestUserText } from "../latest-user-text.js";
 
 import type {
   Processor,
   ProcessInputArgs,
   ProcessInputResult,
 } from "@mastra/core/processors";
+
+/**
+ * Requests longer than this already carry their own detail; enhancing them
+ * costs a model call for little gain.
+ */
+const MAX_ENHANCED_REQUEST_LENGTH = 500;
 
 const promptEnhancerAgent = new Agent({
   id: "pilot-prompt-enhancer",
@@ -36,22 +43,22 @@ Use conversation context when relevant. Return only a compact internal brief.
 `,
 });
 
-function getText(messages: ProcessInputArgs["messages"]): string {
-  const message = [...messages].reverse().find((item) => item.role === "user");
+async function executionBrief(request: string): Promise<string | undefined> {
+  try {
+    const result = await promptEnhancerAgent.generate(`
+User request:
 
-  if (!message) {
-    return "";
+${request}
+
+Create the internal execution brief.
+`);
+    return result.text.trim() || undefined;
+  } catch (error) {
+    logger.warn("Prompt enhancement failed; continuing without a brief.", {
+      errorName: error instanceof Error ? error.name : "unknown",
+    });
+    return undefined;
   }
-
-  return (
-    message.content.parts
-      ?.filter((part) => part.type === "text")
-      .map((part) => ("text" in part ? part.text : ""))
-      .join("\n")
-      .trim() ||
-    message.content.content ||
-    ""
-  );
 }
 
 export class PromptEnhancerProcessor implements Processor {
@@ -62,31 +69,15 @@ export class PromptEnhancerProcessor implements Processor {
     messages,
     messageList,
   }: ProcessInputArgs): Promise<ProcessInputResult> {
-    const request = getText(messages);
-
-    if (!request) {
+    const request = latestUserText(messages);
+    if (!request || request.length > MAX_ENHANCED_REQUEST_LENGTH) {
       return messageList;
     }
+    const brief = await executionBrief(request);
+    if (!brief) return messageList;
 
-    try {
-      if (request.length > 500) return messageList;
-
-      const result = await promptEnhancerAgent.generate(`
-User request:
-
-${request}
-
-Create the internal execution brief.
-`);
-
-      const brief = result.text.trim();
-
-      if (!brief) {
-        return messageList;
-      }
-
-      messageList.addSystem(
-        `
+    messageList.addSystem(
+      `
 <enhanced-user-intent>
 This is internal execution context.
 
@@ -95,14 +86,8 @@ Do not quote or expose this block to the user.
 ${brief}
 </enhanced-user-intent>
 `,
-        "prompt-enhancer",
-      );
-    } catch (error) {
-      logger.warn("Prompt enhancement failed; continuing without a brief.", {
-        errorName: error instanceof Error ? error.name : "unknown",
-      });
-    }
-
+      "prompt-enhancer",
+    );
     return messageList;
   }
 }

@@ -1,36 +1,17 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class SourceConfidenceProcessor implements Processor {
-  readonly id = "source-confidence";
-
-  readonly name = "Source Confidence";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.sourceConfidenceEvery;
-
-    if (stepNumber < 1 || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const sourceConfidenceProcessor = createStepReminder({
+  id: "source-confidence",
+  name: "Source Confidence",
+  startAt: 1,
+  every: pilotConfig.pipeline.sourceConfidenceEvery,
+  content: `
 SOURCE CONFIDENCE
 
 Evaluate important evidence according to the current task.
 
-Do not assume the task is commercial, technical, people, company, or job research.
+Do not assume what kind of task this is; read the objective.
 
 Prioritize:
 
@@ -72,10 +53,4 @@ For public contact information verify that the information is explicitly publish
 
 Preserve useful evidence URLs with important findings.
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const sourceConfidenceProcessor = new SourceConfidenceProcessor();
+});

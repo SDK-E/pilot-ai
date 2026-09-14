@@ -1,25 +1,11 @@
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
+import { createStepReminder } from "../reminders.js";
 
-export class FailureRecoveryProcessor implements Processor {
-  readonly id = "failure-recovery";
-  readonly name = "Failure Recovery";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    if (stepNumber < 1) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-          content: `
+export const failureRecoveryProcessor = createStepReminder({
+  id: "failure-recovery",
+  name: "Failure Recovery",
+  startAt: 1,
+  every: 1,
+  content: `
 FAILURE RECOVERY
 
 Tool or execution failures are recoverable unless evidence shows otherwise.
@@ -90,10 +76,4 @@ When recovery succeeds:
 
 Do not expose internal error noise in the final answer unless the failure materially affected what could be delivered.
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const failureRecoveryProcessor = new FailureRecoveryProcessor();
+});

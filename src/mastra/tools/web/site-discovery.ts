@@ -1,44 +1,36 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
+import { assertPublicHttpUrl } from "../../security/public-url.js";
+
+import { AGENT_USER_AGENT } from "./url-fetch.js";
+
 const sitePageSchema = z.object({
   url: z.string(),
   source: z.enum(["robots", "sitemap", "homepage"]),
 });
 
-function normalizeBaseUrl(value: string): URL {
-  const url = new URL(value);
+type SitePage = z.infer<typeof sitePageSchema>;
 
-  if (!["http:", "https:"].includes(url.protocol)) {
-    throw new Error("Only HTTP(S) URLs are supported");
-  }
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_SITEMAPS = 10;
 
-  return new URL(url.origin);
-}
-
-async function fetchText(
-  url: string,
-  timeoutMs = 15_000,
-): Promise<string | undefined> {
+/**
+ * Fetches a public URL as text; any failure (including a non-public target)
+ * yields `undefined` because discovery is best-effort.
+ */
+async function fetchText(url: string): Promise<string | undefined> {
   const controller = new AbortController();
-
   const timeout = setTimeout(() => {
     controller.abort();
-  }, timeoutMs);
-
+  }, FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const target = await assertPublicHttpUrl(url);
+    const response = await fetch(target.href, {
       signal: controller.signal,
-      headers: {
-        "user-agent": "Mozilla/5.0 (compatible; PilotResearch/1.0)",
-      },
+      headers: { "user-agent": AGENT_USER_AGENT },
     });
-
-    if (!response.ok) {
-      return undefined;
-    }
-
-    return await response.text();
+    return response.ok ? await response.text() : undefined;
   } catch {
     return undefined;
   } finally {
@@ -56,35 +48,86 @@ function sitemapLocations(robots: string): string[] {
 }
 
 function xmlLocations(xml: string): string[] {
-  return [...xml.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)]
-    .map((match) => match[1]?.trim())
-    .filter((value): value is string => Boolean(value));
+  return Array.from(xml.matchAll(/<loc>([^<]*)<\/loc>/gi), (match) =>
+    match[1].trim(),
+  ).filter(Boolean);
 }
 
 function homepageLinks(html: string, base: URL): string[] {
   const results = new Set<string>();
-
   for (const match of html.matchAll(/href=["']([^"'#]+)["']/gi)) {
-    const href = match[1];
-
-    if (!href) continue;
-
     try {
-      const url = new URL(href, base);
-
-      if (
-        url.origin === base.origin &&
-        ["http:", "https:"].includes(url.protocol)
-      ) {
+      const url = new URL(match[1], base);
+      if (url.origin === base.origin) {
         url.hash = "";
-        results.add(url.toString());
+        results.add(url.href);
       }
     } catch {
       // Ignore malformed links.
     }
   }
-
   return [...results];
+}
+
+/**
+ * Collects unique pages up to a limit.
+ */
+class PageCollector {
+  private readonly seen = new Set<string>();
+  private readonly pages: SitePage[] = [];
+
+  constructor(private readonly limit: number) {}
+
+  get isFull(): boolean {
+    return this.pages.length >= this.limit;
+  }
+
+  add(url: string, source: SitePage["source"]): void {
+    if (this.isFull || this.seen.has(url)) return;
+    this.seen.add(url);
+    this.pages.push({ url, source });
+  }
+
+  addAll(urls: Iterable<string>, source: SitePage["source"]): void {
+    for (const url of urls) {
+      if (this.isFull) return;
+      this.add(url, source);
+    }
+  }
+
+  list(): SitePage[] {
+    return [...this.pages];
+  }
+}
+
+function validUrls(candidates: string[]): string[] {
+  return candidates.flatMap((candidate) => {
+    try {
+      return [new URL(candidate).href];
+    } catch {
+      return [];
+    }
+  });
+}
+
+async function collectSitemapPages(
+  collector: PageCollector,
+  sitemaps: string[],
+): Promise<void> {
+  for (const sitemapUrl of sitemaps.slice(0, MAX_SITEMAPS)) {
+    if (collector.isFull) return;
+    const xml = await fetchText(sitemapUrl);
+    if (xml) collector.addAll(validUrls(xmlLocations(xml)), "sitemap");
+  }
+}
+
+async function collectHomepagePages(
+  collector: PageCollector,
+  base: URL,
+): Promise<void> {
+  if (collector.isFull) return;
+  const homepage = await fetchText(base.href);
+  if (homepage) collector.addAll(homepageLinks(homepage, base), "homepage");
 }
 
 export const siteDiscovery = createTool({
@@ -94,7 +137,7 @@ export const siteDiscovery = createTool({
     "Discover useful pages on a public website through robots.txt, sitemaps, and same-origin homepage links.",
 
   inputSchema: z.object({
-    url: z.string().url(),
+    url: z.url(),
     maxPages: z.number().int().min(1).max(200).default(50),
   }),
 
@@ -104,76 +147,21 @@ export const siteDiscovery = createTool({
   }),
 
   execute: async (inputData) => {
-    const base = normalizeBaseUrl(inputData.url);
+    const target = await assertPublicHttpUrl(inputData.url);
+    const base = new URL(target.origin);
+    const collector = new PageCollector(inputData.maxPages);
 
     const robotsUrl = new URL("/robots.txt", base).href;
-
     const robots = (await fetchText(robotsUrl)) ?? "";
+    if (robots) collector.add(robotsUrl, "robots");
 
-    let sitemaps = sitemapLocations(robots);
+    const sitemaps = sitemapLocations(robots);
+    await collectSitemapPages(
+      collector,
+      sitemaps.length > 0 ? sitemaps : [new URL("/sitemap.xml", base).href],
+    );
+    await collectHomepagePages(collector, base);
 
-    if (sitemaps.length === 0) {
-      sitemaps = [new URL("/sitemap.xml", base).href];
-    }
-
-    const pages = new Map<string, z.infer<typeof sitePageSchema>>();
-
-    if (robots) {
-      pages.set(robotsUrl, {
-        url: robotsUrl,
-        source: "robots",
-      });
-    }
-
-    for (const sitemapUrl of sitemaps.slice(0, 10)) {
-      const xml = await fetchText(sitemapUrl);
-
-      if (!xml) continue;
-
-      for (const location of xmlLocations(xml)) {
-        if (pages.size >= inputData.maxPages) {
-          break;
-        }
-
-        try {
-          const url = new URL(location);
-
-          pages.set(url.toString(), {
-            url: url.toString(),
-            source: "sitemap",
-          });
-        } catch {
-          // Ignore malformed sitemap entries.
-        }
-      }
-
-      if (pages.size >= inputData.maxPages) {
-        break;
-      }
-    }
-
-    if (pages.size < inputData.maxPages) {
-      const homepage = await fetchText(base.toString());
-
-      if (homepage) {
-        for (const url of homepageLinks(homepage, base)) {
-          if (pages.size >= inputData.maxPages) {
-            break;
-          }
-
-          if (!pages.has(url)) {
-            pages.set(url, {
-              url,
-              source: "homepage",
-            });
-          }
-        }
-      }
-    }
-
-    return {
-      origin: base.origin,
-      pages: [...pages.values()].slice(0, inputData.maxPages),
-    };
+    return { origin: base.origin, pages: collector.list() };
   },
 });

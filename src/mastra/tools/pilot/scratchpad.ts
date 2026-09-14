@@ -1,22 +1,9 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import type { GenerateConversationReply } from "../../../contracts/conversation.js";
+import { pilotCallbackUrl } from "../../activity/callback-url.js";
 
-const callbackUrlSchema = z
-  .string()
-  .url()
-  .transform((value, context) => {
-    const url = new URL(value);
-    if (url.protocol !== "https:" || url.username || url.password) {
-      context.addIssue({
-        code: "custom",
-        message: "Pilot callback must be a credential-free HTTPS URL.",
-      });
-      return z.NEVER;
-    }
-    return url;
-  });
+import type { GenerateConversationReply } from "../../../contracts/conversation.js";
 
 const responseSchema = z.object({ content: z.string().max(16_000) }).strict();
 
@@ -24,12 +11,9 @@ export function createPilotScratchpadTool(input: {
   command: GenerateConversationReply;
   oidcToken: string;
 }) {
-  const activityCallback = callbackUrlSchema.parse(
-    process.env.PILOT_ACTIVITY_CALLBACK_URL?.trim(),
-  );
   const callbackUrl = new URL(
     "/api/runtime/scratchpad",
-    activityCallback.origin,
+    pilotCallbackUrl().origin,
   );
 
   return createTool({

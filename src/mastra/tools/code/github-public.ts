@@ -11,17 +11,26 @@ const githubActionSchema = z.enum([
   "search-code",
 ]);
 
-function githubHeaders(): HeadersInit {
+type GithubAction = z.infer<typeof githubActionSchema>;
+
+interface GithubInput {
+  action: GithubAction;
+  owner?: string;
+  repo?: string;
+  path?: string;
+  query?: string;
+  limit: number;
+}
+
+function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
     "user-agent": "SDK-Pilot",
   };
-
   if (process.env.GITHUB_TOKEN) {
     headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
-
   return headers;
 }
 
@@ -33,13 +42,48 @@ async function githubFetch(
     headers: githubHeaders(),
     signal: abortSignal,
   });
-
   if (!response.ok) {
     throw new Error(`GitHub API ${response.status}: ${await response.text()}`);
   }
-
   return response.json();
 }
+
+function repositoryPath({ owner, repo }: GithubInput): string {
+  if (!owner || !repo) {
+    throw new Error("owner and repo are required for this action");
+  }
+  return `/repos/${owner}/${repo}`;
+}
+
+function searchQuery({ query }: GithubInput, what: string): string {
+  if (!query) throw new Error(`query is required for ${what}`);
+  return encodeURIComponent(query);
+}
+
+/**
+ * The GitHub REST path for each action.
+ */
+const API_PATHS: Record<GithubAction, (input: GithubInput) => string> = {
+  repository: (input) => repositoryPath(input),
+  releases: (input) =>
+    `${repositoryPath(input)}/releases?per_page=${input.limit}`,
+  issues: (input) =>
+    `${repositoryPath(input)}/issues?state=all&per_page=${input.limit}`,
+  contributors: (input) =>
+    `${repositoryPath(input)}/contributors?per_page=${input.limit}`,
+  contents: (input) => {
+    const encodedPath = (input.path ?? "")
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    return `${repositoryPath(input)}/contents/${encodedPath}`;
+  },
+  "search-repositories": (input) =>
+    `/search/repositories?q=${searchQuery(input, "repository search")}&per_page=${input.limit}`,
+  "search-code": (input) =>
+    `/search/code?q=${searchQuery(input, "code search")}&per_page=${input.limit}`,
+};
 
 export const githubPublic = createTool({
   id: "github-public",
@@ -49,128 +93,18 @@ export const githubPublic = createTool({
 
   inputSchema: z.object({
     action: githubActionSchema,
-
     owner: z.string().optional(),
     repo: z.string().optional(),
-
     path: z.string().optional(),
     query: z.string().optional(),
-
     limit: z.number().int().min(1).max(100).default(20),
   }),
 
-  outputSchema: z.object({
-    data: z.unknown(),
+  outputSchema: z.object({ data: z.unknown() }),
+
+  execute: async (input, { abortSignal }) => ({
+    data: await githubFetch(API_PATHS[input.action](input), abortSignal),
   }),
-
-  execute: async (
-    { action, owner, repo, path, query, limit },
-    { abortSignal },
-  ) => {
-    const requireRepository = () => {
-      if (!owner || !repo) {
-        throw new Error("owner and repo are required for this action");
-      }
-
-      return {
-        owner,
-        repo,
-      };
-    };
-
-    let data: unknown;
-
-    switch (action) {
-      case "repository": {
-        const repository = requireRepository();
-
-        data = await githubFetch(
-          `/repos/${repository.owner}/${repository.repo}`,
-          abortSignal,
-        );
-
-        break;
-      }
-
-      case "releases": {
-        const repository = requireRepository();
-
-        data = await githubFetch(
-          `/repos/${repository.owner}/${repository.repo}/releases?per_page=${limit}`,
-          abortSignal,
-        );
-
-        break;
-      }
-
-      case "issues": {
-        const repository = requireRepository();
-
-        data = await githubFetch(
-          `/repos/${repository.owner}/${repository.repo}/issues?state=all&per_page=${limit}`,
-          abortSignal,
-        );
-
-        break;
-      }
-
-      case "contributors": {
-        const repository = requireRepository();
-
-        data = await githubFetch(
-          `/repos/${repository.owner}/${repository.repo}/contributors?per_page=${limit}`,
-          abortSignal,
-        );
-
-        break;
-      }
-
-      case "contents": {
-        const repository = requireRepository();
-
-        const encodedPath = (path ?? "")
-          .split("/")
-          .filter(Boolean)
-          .map(encodeURIComponent)
-          .join("/");
-
-        data = await githubFetch(
-          `/repos/${repository.owner}/${repository.repo}/contents/${encodedPath}`,
-          abortSignal,
-        );
-
-        break;
-      }
-
-      case "search-repositories": {
-        if (!query) {
-          throw new Error("query is required for repository search");
-        }
-
-        data = await githubFetch(
-          `/search/repositories?q=${encodeURIComponent(query)}&per_page=${limit}`,
-          abortSignal,
-        );
-
-        break;
-      }
-
-      case "search-code": {
-        if (!query) {
-          throw new Error("query is required for code search");
-        }
-
-        data = await githubFetch(
-          `/search/code?q=${encodeURIComponent(query)}&per_page=${limit}`,
-          abortSignal,
-        );
-
-        break;
-      }
-    }
-
-    return { data };
-  },
 
   toModelOutput: (output) => ({
     type: "text",

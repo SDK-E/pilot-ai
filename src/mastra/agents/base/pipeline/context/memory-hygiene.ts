@@ -1,31 +1,12 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class MemoryHygieneProcessor implements Processor {
-  readonly id = "memory-hygiene";
-
-  readonly name = "Memory Hygiene";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.memoryHygieneEvery;
-
-    if (stepNumber < every || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const memoryHygieneProcessor = createStepReminder({
+  id: "memory-hygiene",
+  name: "Memory Hygiene",
+  startAt: pilotConfig.pipeline.memoryHygieneEvery,
+  every: pilotConfig.pipeline.memoryHygieneEvery,
+  content: `
 MEMORY HYGIENE
 
 Review the persistent working memory for the current thread.
@@ -85,7 +66,7 @@ contains only unresolved blockers.
 
 Move entries between sections when their state changes.
 
-RESEARCH PROGRESS
+TASK PROGRESS
 
 For Queries Tried:
 - preserve useful query families
@@ -103,7 +84,7 @@ For Important Findings:
 For Rejected Findings:
 - retain only rejections useful for preventing repeated work
 
-For Remaining Research:
+For Remaining Work:
 - remove completed directions
 - preserve high-value unexplored directions
 
@@ -139,10 +120,4 @@ ACCURACY
 → NON-REPETITION
 → COMPACTNESS
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const memoryHygieneProcessor = new MemoryHygieneProcessor();
+});

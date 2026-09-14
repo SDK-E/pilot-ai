@@ -75,6 +75,12 @@ export default defineConfig([
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      // Numbers read unambiguously inside a template; the default only
+      // allows strings, which forces noisy String() wrappers.
+      "@typescript-eslint/restrict-template-expressions": [
+        "error",
+        { allowNumber: true },
+      ],
 
       complexity: ["error", 10],
       "max-depth": ["error", 3],
@@ -119,6 +125,16 @@ export default defineConfig([
       // Fixtures deliberately hold private and link-local addresses to prove
       // the public-URL guard rejects them.
       "sonarjs/no-hardcoded-ip": "off",
+    },
+  },
+
+  {
+    // The plugins export their flat configs as default-export members; this
+    // is the documented import shape, not an accidental named/default mix.
+    files: ["eslint.config.mjs"],
+    rules: {
+      "import-x/no-named-as-default": "off",
+      "import-x/no-named-as-default-member": "off",
     },
   },
 

@@ -1,4 +1,3 @@
-import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { pilotConfig } from "../../agents/base/profiles/index.js";
@@ -7,55 +6,33 @@ import {
   makeCacheKey,
   setCachedValue,
 } from "../../cache/index.js";
-
-export interface LangSearchConfig {
-  apiKey?: string;
-  fetchTimeoutMs?: number;
-  searchTtlMs?: number;
-}
-
-let langSearchConfig: LangSearchConfig = {};
-
-export function setLangSearchConfig(config: LangSearchConfig): void {
-  langSearchConfig = { ...langSearchConfig, ...config };
-}
-
-export function getLangSearchConfig(): LangSearchConfig {
-  return { ...langSearchConfig };
-}
+import { AGENT_USER_AGENT } from "../web/url-fetch.js";
 
 export const searchResultSchema = z.object({
   title: z.string(),
   url: z.string(),
-
   snippet: z.string().optional(),
-
   content: z.string().optional(),
-
   publishedAt: z.string().optional(),
 });
 
 export type SearchResult = z.infer<typeof searchResultSchema>;
 
-interface LangSearchWebPage {
-  name?: unknown;
-  url?: unknown;
-  snippet?: unknown;
-  summary?: unknown;
-  datePublished?: unknown;
-}
+const langSearchResponseSchema = z.object({
+  code: z.number().optional(),
+  msg: z.string().optional(),
+  data: z
+    .object({
+      webPages: z
+        .object({
+          value: z.array(z.record(z.string(), z.unknown())).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
 
-interface LangSearchSearchData {
-  webPages?: {
-    value?: LangSearchWebPage[];
-  };
-}
-
-interface LangSearchResponse {
-  code?: unknown;
-  msg?: unknown;
-  data?: LangSearchSearchData;
-}
+const MAX_RESULTS = 10;
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0
@@ -63,207 +40,121 @@ function asString(value: unknown): string | undefined {
     : undefined;
 }
 
-function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
+function toSearchResult(page: Record<string, unknown>): SearchResult | null {
+  const url = asString(page.url);
+  if (!url) return null;
+  return {
+    title: asString(page.name) ?? url,
+    url,
+    snippet: asString(page.snippet),
+    content: asString(page.summary) ?? asString(page.snippet),
+    publishedAt: asString(page.datePublished),
+  };
 }
 
+function apiKey(): string {
+  const key = process.env.LANGSEARCH_API_KEY;
+  if (!key) throw new Error("LANGSEARCH_API_KEY is not configured");
+  return key;
+}
+
+function parseSearchResponse(rawText: string, count: number): SearchResult[] {
+  const parsed = langSearchResponseSchema.safeParse(JSON.parse(rawText));
+  if (!parsed.success) throw new Error("LangSearch returned invalid JSON");
+  const { code, msg, data } = parsed.data;
+  if (code !== undefined && code !== 200) {
+    throw new Error(`LangSearch API ${code}: ${msg ?? "Unknown error"}`);
+  }
+  const pages = data?.webPages?.value ?? [];
+  const results = pages
+    .map((page) => toSearchResult(page))
+    .filter((result): result is SearchResult => result !== null)
+    .slice(0, count);
+  if (pages.length > 0 && results.length === 0) {
+    throw new Error(
+      "LangSearch returned pages but Pilot could not parse any valid URLs",
+    );
+  }
+  return results;
+}
+
+async function requestSearch(
+  query: string,
+  count: number,
+  signal: AbortSignal,
+): Promise<SearchResult[]> {
+  const response = await fetch("https://api.langsearch.com/v1/web-search", {
+    method: "POST",
+    signal,
+    headers: {
+      authorization: `Bearer ${apiKey()}`,
+      "content-type": "application/json",
+      "user-agent": AGENT_USER_AGENT,
+    },
+    body: JSON.stringify({ query, freshness: "noLimit", summary: true, count }),
+  });
+  const rawText = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `LangSearch HTTP ${response.status}: ${rawText || response.statusText}`,
+    );
+  }
+
+  return parseSearchResponse(rawText, count);
+}
+
+/**
+ * Searches the public web through LangSearch, with a cached result per
+ * query and a hard timeout from the active profile.
+ */
 export async function performLangSearch(
   query: string,
   maxResults = 5,
   abortSignal?: AbortSignal,
 ): Promise<SearchResult[]> {
-  const config = getLangSearchConfig();
-  const apiKey = config.apiKey ?? process.env.LANGSEARCH_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("LANGSEARCH_API_KEY is not configured");
-  }
-
   const normalizedQuery = query.trim();
-
-  if (!normalizedQuery) {
-    throw new Error("Web search query cannot be empty");
-  }
-
-  const count = Math.min(Math.max(maxResults, 1), 10);
+  if (!normalizedQuery) throw new Error("Web search query cannot be empty");
+  const count = Math.min(Math.max(maxResults, 1), MAX_RESULTS);
 
   const cacheKey = makeCacheKey("lang-search", {
     query: normalizedQuery.toLowerCase(),
-
     count,
   });
-
   const cached = await getCachedValue<SearchResult[]>(cacheKey);
+  if (cached) return cached;
 
-  if (cached) {
-    return cached;
-  }
-
+  const { fetchTimeoutMs } = pilotConfig.network;
   const controller = new AbortController();
-
-  const timeout = setTimeout(
-    () => {
-      controller.abort();
-    },
-
-    config.fetchTimeoutMs ?? pilotConfig.network.fetchTimeoutMs,
-  );
-
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, fetchTimeoutMs);
   const onAbort = () => {
     controller.abort();
   };
-
-  abortSignal?.addEventListener("abort", onAbort, {
-    once: true,
-  });
+  abortSignal?.addEventListener("abort", onAbort, { once: true });
 
   try {
-    const response = await fetch("https://api.langsearch.com/v1/web-search", {
-      method: "POST",
-
-      signal: controller.signal,
-
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-
-        "content-type": "application/json",
-
-        "user-agent":
-          "SDK-Pilot-Agent/1.0 (+https://sdk.enterprises; autonomous research agent)",
-      },
-
-      body: JSON.stringify({
-        query: normalizedQuery,
-
-        freshness: "noLimit",
-
-        summary: true,
-
-        count,
-      }),
-    });
-
-    const rawText = await response.text();
-
-    if (!response.ok) {
-      throw new Error(
-        `LangSearch HTTP ${response.status}: ${rawText || response.statusText}`,
-      );
-    }
-
-    let data: LangSearchResponse;
-
-    try {
-      data = JSON.parse(rawText) as LangSearchResponse;
-    } catch {
-      throw new Error("LangSearch returned invalid JSON");
-    }
-
-    const code = asNumber(data.code);
-
-    if (code !== undefined && code !== 200) {
-      throw new Error(
-        `LangSearch API ${code}: ${asString(data.msg) ?? "Unknown error"}`,
-      );
-    }
-
-    const pages = Array.isArray(data.data?.webPages?.value)
-      ? data.data.webPages.value
-      : [];
-
-    const results = pages
-      .map((page): SearchResult | null => {
-        const url = asString(page.url);
-
-        if (!url) {
-          return null;
-        }
-
-        return {
-          title: asString(page.name) ?? url,
-
-          url,
-
-          snippet: asString(page.snippet),
-
-          content: asString(page.summary) ?? asString(page.snippet),
-
-          publishedAt: asString(page.datePublished),
-        };
-      })
-      .filter((result): result is SearchResult => result !== null)
-      .slice(0, count);
-
-    if (pages.length > 0 && results.length === 0) {
-      throw new Error(
-        "LangSearch returned pages but Pilot could not parse any valid URLs",
-      );
-    }
-
+    const results = await requestSearch(
+      normalizedQuery,
+      count,
+      controller.signal,
+    );
     await setCachedValue(
       cacheKey,
       "lang-search",
       results,
-
-      config.searchTtlMs ?? pilotConfig.cache.searchTtlMs,
+      pilotConfig.cache.searchTtlMs,
     );
-
     return results;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(
-        `LangSearch timed out after ${config.fetchTimeoutMs ?? pilotConfig.network.fetchTimeoutMs}ms`,
-      );
+      throw new Error(`LangSearch timed out after ${fetchTimeoutMs}ms`, {
+        cause: error,
+      });
     }
-
     throw error;
   } finally {
     clearTimeout(timeout);
-
     abortSignal?.removeEventListener("abort", onAbort);
   }
 }
-
-const langSearch = createTool({
-  id: "lang-search",
-
-  description:
-    "Search the public web using LangSearch. Throws explicit API/configuration errors instead of silently returning empty results when the upstream response is invalid.",
-
-  inputSchema: z.object({
-    query: z.string().min(1),
-
-    maxResults: z.number().int().min(1).max(10).default(5),
-  }),
-
-  outputSchema: z.object({
-    results: z.array(searchResultSchema),
-  }),
-
-  execute: async ({ query, maxResults }, { abortSignal }) => ({
-    results: await performLangSearch(query, maxResults, abortSignal),
-  }),
-
-  toModelOutput: (output) => ({
-    type: "text",
-
-    value:
-      output.results.length === 0
-        ? "No relevant web search results were returned for this query."
-        : output.results
-            .map((result: SearchResult, index: number) =>
-              [
-                `${index + 1}. ${result.title}`,
-                result.url,
-                result.snippet,
-
-                result.publishedAt
-                  ? `Published: ${result.publishedAt}`
-                  : undefined,
-              ]
-                .filter(Boolean)
-                .join("\n"),
-            )
-            .join("\n\n"),
-  }),
-});

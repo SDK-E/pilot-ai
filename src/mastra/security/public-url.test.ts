@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { assertPublicHttpUrl, isPublicIpAddress } from "./public-url.js";
 
-const publicResolver = async () => [{ address: "93.184.216.34" }];
+const publicResolver = () => Promise.resolve([{ address: "93.184.216.34" }]);
 
 describe("public URL boundary", () => {
   it.each([
@@ -34,10 +34,12 @@ describe("public URL boundary", () => {
 
   it("rejects a hostname when any DNS answer is private", async () => {
     await expect(
-      assertPublicHttpUrl("https://example.com", async () => [
-        { address: "93.184.216.34" },
-        { address: "10.0.0.5" },
-      ]),
+      assertPublicHttpUrl("https://example.com", () =>
+        Promise.resolve([
+          { address: "93.184.216.34" },
+          { address: "10.0.0.5" },
+        ]),
+      ),
     ).rejects.toThrow("publicly routable");
   });
 

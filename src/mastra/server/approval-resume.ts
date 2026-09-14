@@ -3,10 +3,11 @@ import { z } from "zod";
 import { generateConversationReplySchema } from "../../contracts/conversation.js";
 import { APPROVABLE_CAPABILITY_IDS } from "../agents/base/capabilities/index.js";
 import { createPilotRuntime } from "../agents/runtime/runtime.js";
-import { verifyPilotRuntimeRequest } from "../auth/vercel-oidc.js";
+import { isVerifiedPilotRuntimeRequest } from "../auth/vercel-oidc.js";
 import { getPilotRuntimeStorageConfig } from "../storage/runtime.js";
 
 import { createChatCompletionResponse } from "./openai-compatible.js";
+import { readJsonBody } from "./request-body.js";
 import { isPublicWebSearchEnabled } from "./runtime-selection.js";
 
 const inputSchema = generateConversationReplySchema
@@ -22,11 +23,10 @@ function error(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
 }
 
-export async function handleApprovalResume(
-  request: Request,
-): Promise<Response> {
+// Returns the caller's OIDC token, or the response that ends the request.
+async function authorizeApproval(request: Request): Promise<string | Response> {
   if (request.method !== "POST") return error("Method not allowed.", 405);
-  if (!(await verifyPilotRuntimeRequest(request))) {
+  if (!(await isVerifiedPilotRuntimeRequest(request))) {
     return error("Unauthorized.", 401);
   }
   if (
@@ -35,10 +35,19 @@ export async function handleApprovalResume(
   ) {
     return error("Pilot public web search is not enabled.", 403);
   }
-  const oidcToken = request.headers.get("x-pilot-runtime-oidc-token");
-  if (!oidcToken) return error("Unauthorized.", 401);
+  return (
+    request.headers.get("x-pilot-runtime-oidc-token") ??
+    error("Unauthorized.", 401)
+  );
+}
 
-  const input = inputSchema.safeParse(await request.json().catch(() => {}));
+export async function handleApprovalResume(
+  request: Request,
+): Promise<Response> {
+  const oidcToken = await authorizeApproval(request);
+  if (oidcToken instanceof Response) return oidcToken;
+
+  const input = inputSchema.safeParse(await readJsonBody(request));
   if (!input.success) return error("Invalid approval resume command.", 400);
 
   const storageConfig = getPilotRuntimeStorageConfig();

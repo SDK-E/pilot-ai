@@ -1,4 +1,4 @@
-import { join, dirname } from "node:path";
+import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { LibSQLStore } from "@mastra/libsql";
@@ -20,8 +20,8 @@ export function getPilotRuntimeStorageConfig():
     ) {
       return undefined;
     }
-    const localPath = join(
-      dirname(fileURLToPath(new URL(import.meta.url))),
+    const localPath = path.join(
+      path.dirname(fileURLToPath(new URL(import.meta.url))),
       "..",
       "..",
       ".mastra",

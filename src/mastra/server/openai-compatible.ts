@@ -110,7 +110,7 @@ export function createConversationCommandFromChatCompletion(
     (item) => item.role === "system" || item.role === "developer",
   );
 
-  if (message?.role !== "user" || !instructions) {
+  if (!instructions || message?.role !== "user") {
     throw new Error(
       "A system or developer instruction and a final user message are required.",
     );

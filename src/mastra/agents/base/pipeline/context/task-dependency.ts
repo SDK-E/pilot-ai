@@ -1,31 +1,12 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class TaskDependencyProcessor implements Processor {
-  readonly id = "task-dependency";
-
-  readonly name = "Task Dependency";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.taskDependencyEvery;
-
-    if (stepNumber < 2 || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const taskDependencyProcessor = createStepReminder({
+  id: "task-dependency",
+  name: "Task Dependency",
+  startAt: 2,
+  every: pilotConfig.pipeline.taskDependencyEvery,
+  content: `
 TASK DEPENDENCIES
 
 Review the current task list before selecting the next meaningful task.
@@ -70,10 +51,4 @@ Do not create unnecessary dependency chains for simple requests.
 
 Keep task state accurate.
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const taskDependencyProcessor = new TaskDependencyProcessor();
+});

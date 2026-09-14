@@ -27,7 +27,7 @@ function deploymentEnvironment(): "preview" | "production" | undefined {
  * in the matching Vercel environment. Pilot forwards this token after its
  * WorkOS session and tenant authorization checks have completed.
  */
-export async function verifyPilotRuntimeRequest(
+export async function isVerifiedPilotRuntimeRequest(
   request: Request,
 ): Promise<boolean> {
   const token = request.headers.get(tokenHeader);

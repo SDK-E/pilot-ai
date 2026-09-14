@@ -1,31 +1,12 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class EntityResolutionProcessor implements Processor {
-  readonly id = "entity-resolution";
-
-  readonly name = "Entity Resolution";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.entityResolutionEvery;
-
-    if (stepNumber < 2 || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const entityResolutionProcessor = createStepReminder({
+  id: "entity-resolution",
+  name: "Entity Resolution",
+  startAt: 2,
+  every: pilotConfig.pipeline.entityResolutionEvery,
+  content: `
 ENTITY RESOLUTION
 
 Review entities discovered so far and resolve duplicate or ambiguous identities.
@@ -103,10 +84,4 @@ If entity resolution changes accepted results:
 
 Do not repeatedly resolve entities that have already been confidently canonicalized.
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const entityResolutionProcessor = new EntityResolutionProcessor();
+});

@@ -69,7 +69,7 @@ export const domainIntelligence = createTool({
       domain,
       ipv4: ipv4 ?? [],
       ipv6: ipv6 ?? [],
-      mx: (mx ?? []).sort((a, b) => a.priority - b.priority),
+      mx: (mx ?? []).toSorted((a, b) => a.priority - b.priority),
       nameservers: nameservers ?? [],
       txt: txt ?? [],
       canReceiveEmail: Array.isArray(mx) && mx.length > 0,

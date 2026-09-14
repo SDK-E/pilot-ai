@@ -1,31 +1,12 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class ChallengeClaimProcessor implements Processor {
-  readonly id = "challenge-claim";
-
-  readonly name = "Challenge Important Claims";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.challengeClaimEvery;
-
-    if (stepNumber < 5 || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const challengeClaimProcessor = createStepReminder({
+  id: "challenge-claim",
+  name: "Challenge Important Claims",
+  startAt: 5,
+  every: pilotConfig.pipeline.challengeClaimEvery,
+  content: `
 CHALLENGE IMPORTANT CLAIMS
 
 Identify the most important conclusion currently being relied upon.
@@ -52,10 +33,4 @@ If conflicting evidence appears:
 
 Do not challenge trivial facts.
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const challengeClaimProcessor = new ChallengeClaimProcessor();
+});

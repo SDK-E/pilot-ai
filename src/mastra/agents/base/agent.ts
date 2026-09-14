@@ -27,9 +27,14 @@ interface BaseAgentLimits {
 
 type BaseAgentConfig = Omit<
   AgentConfig,
-  "inputProcessors" | "errorProcessors"
+  "inputProcessors" | "errorProcessors" | "defaultOptions"
 > & {
   base: BaseAgentLimits;
+  // Only the object form: the shared pipeline needs to merge `maxSteps` in.
+  defaultOptions?: Exclude<
+    AgentConfig["defaultOptions"],
+    (...args: never) => unknown
+  >;
   inputProcessors?: InputProcessorOrWorkflow[];
   errorProcessors?: ErrorProcessorOrWorkflow[];
 };

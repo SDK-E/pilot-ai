@@ -1,16 +1,18 @@
-import { createTool } from "@mastra/core/tools";
-import { z } from "zod";
+import { performLangSearch, type SearchResult } from "./langsearch.js";
 
-import {
-  performLangSearch,
-  searchResultSchema,
-  type SearchResult,
-} from "./langsearch.js";
-
-const dorkSearchResultSchema = z.object({
-  query: z.string(),
-  results: z.array(searchResultSchema),
-});
+export interface DorkQueryInput {
+  rawQuery?: string;
+  terms?: string[];
+  exactPhrases?: string[];
+  anyOf?: string[];
+  exclude?: string[];
+  sites?: string[];
+  inTitle?: string[];
+  inUrl?: string[];
+  fileTypes?: string[];
+  after?: string;
+  before?: string;
+}
 
 function quote(value: string): string {
   const escaped = value.trim().replaceAll('"', String.raw`\"`);
@@ -23,101 +25,58 @@ function normalize(values?: string[]): string[] {
   ];
 }
 
-function buildBaseQuery(input: {
-  terms?: string[];
-  exactPhrases?: string[];
-  anyOf?: string[];
-  exclude?: string[];
-  inTitle?: string[];
-  inUrl?: string[];
-  fileTypes?: string[];
-  after?: string;
-  before?: string;
-}): string {
-  const parts: string[] = [];
-
-  parts.push(...normalize(input.terms));
-  parts.push(...normalize(input.exactPhrases).map(quote));
-
+function buildBaseQuery(input: DorkQueryInput): string {
   const anyOf = normalize(input.anyOf);
-  if (anyOf.length > 0) {
-    parts.push(`(${anyOf.map(quote).join(" OR ")})`);
-  }
-
-  parts.push(...normalize(input.exclude).map((value) => `-${quote(value)}`));
-  parts.push(
+  const parts = [
+    ...normalize(input.terms),
+    ...normalize(input.exactPhrases).map((value) => quote(value)),
+    ...(anyOf.length > 0
+      ? [`(${anyOf.map((value) => quote(value)).join(" OR ")})`]
+      : []),
+    ...normalize(input.exclude).map((value) => `-${quote(value)}`),
     ...normalize(input.inTitle).map((value) => `intitle:${quote(value)}`),
-  );
-  parts.push(...normalize(input.inUrl).map((value) => `inurl:${quote(value)}`));
-  parts.push(
+    ...normalize(input.inUrl).map((value) => `inurl:${quote(value)}`),
     ...normalize(input.fileTypes).map(
       (value) => `filetype:${value.replace(/^\./, "")}`,
     ),
-  );
-
-  if (input.after) parts.push(`after:${input.after}`);
-  if (input.before) parts.push(`before:${input.before}`);
-
+    ...(input.after ? [`after:${input.after}`] : []),
+    ...(input.before ? [`before:${input.before}`] : []),
+  ];
   return parts.join(" ").trim();
 }
 
-export function buildDorkQueries(input: {
-  rawQuery?: string;
-  terms?: string[];
-  exactPhrases?: string[];
-  anyOf?: string[];
-  exclude?: string[];
-  sites?: string[];
-  inTitle?: string[];
-  inUrl?: string[];
-  fileTypes?: string[];
-  after?: string;
-  before?: string;
-  maxQueries: number;
-}): string[] {
-  let base = input.rawQuery?.trim() || buildBaseQuery(input);
+const SITE_OPERATOR = /(?:^|\s)site:([^\s)]+)/gi;
 
+/**
+ * Turns one search intent into search-engine queries. Several `site:`
+ * operators become one query per site.
+ */
+export function buildDorkQueries(
+  input: DorkQueryInput & { maxQueries: number },
+): string[] {
+  let base = input.rawQuery?.trim() ?? "";
+  if (base === "") base = buildBaseQuery(input);
   if (!base) return [];
 
-  const rawSites = [...base.matchAll(/(?:^|\s)site:([^\s)]+)/gi)]
-    .map((match) => match[1]?.trim())
-    .filter((site): site is string => Boolean(site));
-
+  const rawSites = Array.from(base.matchAll(SITE_OPERATOR), (match) =>
+    match[1].trim(),
+  ).filter(Boolean);
   if (rawSites.length > 1) {
-    base = base
-      .replaceAll(/(?:^|\s)site:[^\s)]+/gi, " ")
-      .replaceAll(/\s+/g, " ")
-      .trim();
+    base = base.replaceAll(SITE_OPERATOR, " ").replaceAll(/\s+/g, " ").trim();
   }
 
   const sites = normalize([
     ...(rawSites.length > 1 ? rawSites : []),
     ...normalize(input.sites),
   ]);
-
   if (sites.length === 0) return [base];
-
   return sites
     .map((site) => `${base} site:${site}`.trim())
     .slice(0, input.maxQueries);
 }
 
 export async function performDorkSearch(
-  input: {
-    rawQuery?: string;
-    terms?: string[];
-    exactPhrases?: string[];
-    anyOf?: string[];
-    exclude?: string[];
-    sites?: string[];
-    inTitle?: string[];
-    inUrl?: string[];
-    fileTypes?: string[];
-    after?: string;
-    before?: string;
-    maxQueries?: number;
-    maxResultsPerQuery?: number;
-  },
+  input: DorkQueryInput & { maxQueries?: number; maxResultsPerQuery?: number },
   abortSignal?: AbortSignal,
 ): Promise<{ query: string; results: SearchResult[] }[]> {
   const queries = buildDorkQueries({
@@ -142,67 +101,3 @@ export async function performDorkSearch(
       : { query: queries[index], results: [] },
   );
 }
-
-export const searchDorks = createTool({
-  id: "search-dorks",
-
-  description:
-    "Build and execute precise public-web search dorks. Use for targeted discovery with site:, intitle:, inurl:, filetype:, exact phrases, exclusions, OR groups, and date bounds. Multiple site: operators are split into independent searches automatically.",
-
-  inputSchema: z.object({
-    rawQuery: z.string().min(1).optional(),
-    terms: z.array(z.string().min(1)).default([]),
-    exactPhrases: z.array(z.string().min(1)).default([]),
-    anyOf: z.array(z.string().min(1)).default([]),
-    exclude: z.array(z.string().min(1)).default([]),
-    sites: z.array(z.string().min(1)).default([]),
-    inTitle: z.array(z.string().min(1)).default([]),
-    inUrl: z.array(z.string().min(1)).default([]),
-    fileTypes: z.array(z.string().min(1)).default([]),
-    after: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
-    before: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
-    maxQueries: z.number().int().min(1).max(10).default(5),
-    maxResultsPerQuery: z.number().int().min(1).max(10).default(5),
-  }),
-
-  outputSchema: z.object({
-    queries: z.array(z.string()),
-    searches: z.array(dorkSearchResultSchema),
-  }),
-
-  execute: async (input, { abortSignal }) => {
-    const searches = await performDorkSearch(input, abortSignal);
-    if (searches.length === 0) {
-      throw new Error("At least one searchable condition is required.");
-    }
-    return {
-      queries: searches.map((item) => item.query),
-      searches,
-    };
-  },
-
-  toModelOutput: (output) => ({
-    type: "text",
-    value: output.searches
-      .map((search: { query: string; results: SearchResult[] }) =>
-        [
-          `Query: ${search.query}`,
-          search.results.length === 0
-            ? "No results."
-            : search.results
-                .map(
-                  (result: SearchResult, index: number) =>
-                    `${index + 1}. ${result.title}\n${result.url}\n${result.snippet ?? result.content ?? ""}`,
-                )
-                .join("\n\n"),
-        ].join("\n"),
-      )
-      .join("\n\n---\n\n"),
-  }),
-});

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import handler from "../../../api/v1/chat/completions.js";
+
 import { waitForStreamingResult } from "./openai-compatible.js";
 
 const mocks = vi.hoisted(() => {
@@ -22,10 +24,8 @@ vi.mock("../agents/runtime/runtime.js", () => ({
 }));
 
 vi.mock("../auth/vercel-oidc.js", () => ({
-  verifyPilotRuntimeRequest: mocks.verifyRequest,
+  isVerifiedPilotRuntimeRequest: mocks.verifyRequest,
 }));
-
-import handler from "../../../api/v1/chat/completions.js";
 
 const headers = {
   "content-type": "application/json",
@@ -266,7 +266,10 @@ describe("OpenAI-compatible chat completion function", () => {
   it("releases the stream when its terminal runtime result does not arrive", async () => {
     vi.useFakeTimers();
     try {
-      const pending = waitForStreamingResult(new Promise<never>(() => {}));
+      const never = new Promise<never>(() => {
+        // never settles
+      });
+      const pending = waitForStreamingResult(never);
       const assertion = expect(pending).rejects.toThrow(
         "Pilot Conversation runtime did not complete in time.",
       );

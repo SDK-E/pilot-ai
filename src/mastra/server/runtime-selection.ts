@@ -18,7 +18,7 @@ export type RuntimeSelection =
     };
 
 export function isPublicWebSearchEnabled(): boolean {
-  return process.env.PILOT_ENABLE_RESEARCH === "true";
+  return process.env.PILOT_ENABLE_WEB_SEARCH === "true";
 }
 
 /**

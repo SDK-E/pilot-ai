@@ -10,28 +10,7 @@ export interface StepBudgetConfig {
   finalAt: number;
 }
 
-export class StepBudgetProcessor implements Processor {
-  readonly id = "step-budget";
-
-  readonly name = "Step Budget";
-
-  constructor(private readonly config: StepBudgetConfig) {}
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const { maxSteps, warningAt, finalAt } = this.config;
-
-    if (stepNumber < warningAt) {
-      return {};
-    }
-
-    if (stepNumber < finalAt) {
-      return {
-        systemMessages: [
-          {
-            role: "system",
-            content: `
+const warning = (maxSteps: number) => `
 STEP BUDGET
 
 The run is entering its final execution window.
@@ -54,18 +33,9 @@ Now:
 Do not restart completed work.
 
 Use the remaining execution budget to finish the user's actual objective.
-`,
-          },
-        ],
-      };
-    }
+`;
 
-    return {
-      toolChoice: "none",
-      systemMessages: [
-        {
-          role: "system",
-          content: `
+const finalWindow = (maxSteps: number) => `
 FINAL EXECUTION WINDOW
 
 The run is close to the configured ${maxSteps}-step limit.
@@ -84,9 +54,32 @@ Before answering:
 - provide the strongest complete answer possible
 
 Return the final synthesis now.
-`,
-        },
-      ],
+`;
+
+/**
+ * Warns the model as it approaches the step limit, then forbids further tool
+ * calls so the last steps go to the answer instead of more exploration.
+ */
+export class StepBudgetProcessor implements Processor {
+  readonly id = "step-budget";
+
+  readonly name = "Step Budget";
+
+  constructor(private readonly config: StepBudgetConfig) {}
+
+  processInputStep({
+    stepNumber,
+  }: ProcessInputStepArgs): ProcessInputStepResult {
+    const { maxSteps, warningAt, finalAt } = this.config;
+    if (stepNumber < warningAt) return {};
+    if (stepNumber < finalAt) {
+      return {
+        systemMessages: [{ role: "system", content: warning(maxSteps) }],
+      };
+    }
+    return {
+      toolChoice: "none",
+      systemMessages: [{ role: "system", content: finalWindow(maxSteps) }],
     };
   }
 }

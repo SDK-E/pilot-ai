@@ -16,12 +16,13 @@ const approvalStep = createStep({
   outputSchema,
   resumeSchema: z.object({ approved: z.boolean() }),
   suspendSchema: z.object({ taskId: z.uuid(), summary: z.string() }),
-  execute: async ({ inputData, resumeData, suspend, bail }) => {
+  execute: async (step) => {
+    const { inputData, resumeData } = step;
     if (resumeData?.approved === false) {
-      return bail({ result: "The protected task action was rejected." });
+      return step.bail({ result: "The protected task action was rejected." });
     }
     if (!resumeData?.approved) {
-      return await suspend({
+      return await step.suspend({
         taskId: inputData.taskId,
         summary: inputData.approvalSummary,
       });
@@ -35,5 +36,6 @@ export const taskApprovalWorkflow = createWorkflow({
   inputSchema,
   outputSchema,
 })
+  // eslint-disable-next-line unicorn/prefer-top-level-await -- workflow builder, not a promise
   .then(approvalStep)
   .commit();

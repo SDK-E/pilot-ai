@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 
-import { verifyPilotRuntimeRequest } from "../auth/vercel-oidc.js";
+import { isVerifiedPilotRuntimeRequest } from "../auth/vercel-oidc.js";
 import { logger } from "../logger.js";
 import {
   getPilotRuntimeStorageConfig,
@@ -43,7 +43,7 @@ async function authorize(
   if (request.method !== "POST") {
     return error("Method not allowed.", "invalid_request_error", 405);
   }
-  if (!(await verifyPilotRuntimeRequest(request))) {
+  if (!(await isVerifiedPilotRuntimeRequest(request))) {
     return error("Unauthorized.", "authentication_error", 401);
   }
   return (

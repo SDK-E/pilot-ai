@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { verifyPilotRuntimeRequest } from "./vercel-oidc.js";
+import { isVerifiedPilotRuntimeRequest } from "./vercel-oidc.js";
 
 describe("runtime OIDC", () => {
   test("rejects requests without a token", async () => {
     const response = new Request("https://pilot.test/api/runtime/activity");
-    const isVerified = await verifyPilotRuntimeRequest(response);
+    const isVerified = await isVerifiedPilotRuntimeRequest(response);
     expect(isVerified).toBe(false);
   });
 
@@ -13,7 +13,7 @@ describe("runtime OIDC", () => {
     const response = new Request("https://pilot.test/api/runtime/activity", {
       headers: { "x-pilot-runtime-oidc-token": "dummy.token.value" },
     });
-    const isVerified = await verifyPilotRuntimeRequest(response);
+    const isVerified = await isVerifiedPilotRuntimeRequest(response);
     expect(isVerified).toBe(false);
   });
 
@@ -24,7 +24,7 @@ describe("runtime OIDC", () => {
           "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkb25lIn0.sig",
       },
     });
-    const isVerified = await verifyPilotRuntimeRequest(response);
+    const isVerified = await isVerifiedPilotRuntimeRequest(response);
     expect(isVerified).toBe(false);
   });
 
@@ -43,7 +43,7 @@ describe("runtime OIDC", () => {
         "content-type": "application/json",
       },
     });
-    const isVerified = await verifyPilotRuntimeRequest(response);
+    const isVerified = await isVerifiedPilotRuntimeRequest(response);
     expect(isVerified).toBe(false);
   });
 
@@ -62,7 +62,7 @@ describe("runtime OIDC", () => {
         "content-type": "application/json",
       },
     });
-    const isVerified = await verifyPilotRuntimeRequest(response);
+    const isVerified = await isVerifiedPilotRuntimeRequest(response);
     expect(isVerified).toBe(false);
   });
 });

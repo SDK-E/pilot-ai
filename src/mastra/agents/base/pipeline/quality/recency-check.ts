@@ -1,31 +1,12 @@
 import { pilotConfig } from "../../profiles/index.js";
+import { createStepReminder } from "../reminders.js";
 
-import type {
-  Processor,
-  ProcessInputStepArgs,
-  ProcessInputStepResult,
-} from "@mastra/core/processors";
-
-export class RecencyCheckProcessor implements Processor {
-  readonly id = "recency-check";
-
-  readonly name = "Recency Check";
-
-  async processInputStep({
-    stepNumber,
-  }: ProcessInputStepArgs): Promise<ProcessInputStepResult> {
-    const every = pilotConfig.research.recencyCheckEvery;
-
-    if (stepNumber < 2 || stepNumber % every !== 0) {
-      return {};
-    }
-
-    return {
-      systemMessages: [
-        {
-          role: "system",
-
-          content: `
+export const recencyCheckProcessor = createStepReminder({
+  id: "recency-check",
+  name: "Recency Check",
+  startAt: 2,
+  every: pilotConfig.pipeline.recencyCheckEvery,
+  content: `
 RECENCY CHECK
 
 Determine whether important information gathered so far is time-sensitive.
@@ -68,7 +49,7 @@ When freshness cannot be verified:
 - preserve the observed date when known
 - communicate uncertainty when relevant
 
-Do not waste research steps checking recency for timeless facts.
+Do not waste steps checking recency for timeless facts.
 
 If stale information is replaced:
 - update working memory
@@ -76,10 +57,4 @@ If stale information is replaced:
 - preserve the stronger current evidence
 - remove obsolete state when appropriate
 `,
-        },
-      ],
-    };
-  }
-}
-
-export const recencyCheckProcessor = new RecencyCheckProcessor();
+});

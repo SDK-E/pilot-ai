@@ -2,9 +2,9 @@
 
 The Mastra runtime behind [Pilot](https://github.com/SDK-E/pilot). Pilot owns
 authentication, organization authorization, agents, conversations, execution
-records, and approvals. This service owns agent construction, memory,
-workflows, and the protected runtime API; it never makes authorization
-decisions and never stores Pilot domain records.
+records, and approvals. This service owns agent construction, memory, the
+task-approval workflow, and the protected runtime API; it never makes
+authorization decisions and never stores Pilot domain records.
 
 ## Agent kinds
 
@@ -19,9 +19,21 @@ use, and step limits. Everything reusable belongs to the base agent.
 | `code` | Reads, explains, and proposes code changes as reviewable diffs. |
 
 Pilot sends the kind as `baseAgentId` together with the capabilities it grants
-(`web-search`, `scratchpad`, `ask-user`) and which of those need an approval.
-The legacy ids `conversational` and `research` are accepted and mapped to
-`chat` until Pilot migrates.
+and which of those need an approval. The legacy ids `conversational` and
+`research` are accepted and mapped to `chat` until Pilot migrates.
+
+### Capabilities
+
+| Capability   | Tools registered on the agent                                                                  |
+| ------------ | ---------------------------------------------------------------------------------------------- |
+| `web-search` | `webSearch`, `urlFetch`, `bulkUrlFetch`, `siteDiscovery`, `domainIntelligence`, `githubPublic` |
+| `scratchpad` | `scratchpad` (private per-chat working state through the Pilot callback)                       |
+| `ask-user`   | `ask_user` (Mastra clarification suspension)                                                   |
+
+When `web-search` is granted the base agent also attaches the evidence
+processors (source confidence, recency, contradiction, diversity, entity
+resolution, memory hygiene) so long tool-using runs stay honest about their
+sources. A plain chat turn pays nothing for them.
 
 ## Project structure
 
@@ -37,37 +49,32 @@ api/v1/                     Vercel Functions. Each file is a thin wrapper over a
 src/contracts/              Pure request/response contract shared with Pilot.
                             Zero @mastra imports, zero process.env.
 src/mastra/
-  index.ts                  Mastra instance: storage, logger, routes, workflows.
+  index.ts                  Mastra instance: storage, logger, routes, workflow.
   agents/
     kinds.ts                The three kinds and what differs between them.
     chat.ts work.ts code.ts Identity and instructions of one kind each.
     base/                   The base agent everything is built from:
       agent.ts              factory with the shared processor pipeline
       shared-instructions.ts, identity.ts, limits.ts
-      capabilities/         capability id -> tool, instructions, approvability
+      capabilities/         capability id -> tools, instructions, approvability
       pipeline/             input processors by concern:
                             context/ quality/ budget/ response/ policy/
+                            reminders.ts (factories), evidence.ts (the set
+                            attached with web-search)
       profiles/             tuning profiles (fast, balanced, deep, test)
       skill-preflight.ts    audited skill discovery
     runtime/                Request-scoped runtime: agent factory, results,
                             suspensions, generate/stream/resume/cleanup.
   server/                   HTTP layer: OpenAI-compatible translation, handlers,
                             and Mastra route registrations (routes/).
-  tools/                    Mastra tools, discovered by the Mastra CLI. Grouped by
-                            what they touch: web/ search/ files/ planning/ pilot/
-                            browser/ code/ skills/.
-  workflows/                Mastra workflows.
-  scorers/                  Evaluation scorers.
-  memory/ storage/ cache/   Memory factories, storage adapters, caches.
+  tools/                    Mastra tools by what they touch:
+                            web/ search/ code/ pilot/.
+  workflows/                The task-approval workflow.
+  memory/ storage/ cache/   Memory factories, storage adapter, tool cache.
   activity/ auth/ security/ Pilot activity callback, Vercel OIDC verification,
                             public-URL guard.
   work/                     Durable Work cache (Redis).
-  setup/                    Wires cache and network config into the tools.
-  development/              The full-capability development agent, subagents,
-                            long-form instructions, and memory. Registered only
-                            when PILOT_ENABLE_DEVELOPMENT_TOOLS=true; never
-                            imported by a deployed function.
-src/evals/                  Opt-in live evaluations (pnpm eval:*).
+  setup/                    Wires cache and network config into the web tools.
 scripts/                    Terminal scripts (pnpm verify:memory).
 ```
 
@@ -106,11 +113,16 @@ the matching environment. Local development without that pair uses
 `PILOT_LOG_LEVEL` sets the shared logger level (`debug`, `info`, `warn`,
 `error`, `silent`).
 
-Public web search requires `PILOT_ENABLE_RESEARCH=true` and
-`PILOT_ACTIVITY_CALLBACK_URL`. Skill discovery is separately opt-in through
-`PILOT_ENABLE_RUNTIME_SKILLS=true` and runs per request only when the verified
-Pilot OIDC token and activity callback are available; only a validated
-selected-skill label reaches Pilot activity records.
+Public web search requires `PILOT_ENABLE_WEB_SEARCH=true`,
+`LANGSEARCH_API_KEY`, and `PILOT_ACTIVITY_CALLBACK_URL`. Skill discovery is
+separately opt-in through `PILOT_ENABLE_RUNTIME_SKILLS=true` and runs per
+request only when the verified Pilot OIDC token and activity callback are
+available; only a validated selected-skill label reaches Pilot activity
+records.
+
+`PILOT_PROFILE` (`fast`, `balanced`, `deep`, `test`) picks the cache, timeout,
+and evidence-reminder cadence for the web tools; the `PILOT_*_MS` values in
+`.env.example` override single numbers.
 
 Pilot Work durability is fail-closed: a shared Redis endpoint in
 `PILOT_WORK_REDIS_URL` is required before a Work run can claim reconnectable
@@ -131,15 +143,7 @@ pnpm check        # lint, typecheck, prettier, knip
 pnpm test         # deterministic unit tests
 pnpm build        # mastra build
 pnpm dev          # Mastra playground
-pnpm dev:full     # playground with the development tool set registered
 ```
-
-`pnpm dev:full` and `pnpm build:full` set `PILOT_ENABLE_DEVELOPMENT_TOOLS=true`
-and register the development agent, subagents, workflows, and scorers. That
-registration requires `MASTRA_DATABASE_URL`, `MASTRA_EDITOR_DATABASE_URL`, and
-`MASTRA_MEMORY_DATABASE_URL` pointing outside `src/` so local data is never
-deployed. The `pnpm eval:*` commands run live Kilo and browser evaluations and
-are deliberately opt-in.
 
 `pnpm verify:memory` is an opt-in live persistence check that performs two
 Kilo Gateway generations across two processes and deletes its randomized

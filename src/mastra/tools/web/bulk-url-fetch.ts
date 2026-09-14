@@ -19,7 +19,7 @@ export const bulkUrlFetch = createTool({
     "Fetch several known public URLs concurrently. Prefer this over repeated single-page fetches when multiple pages need reading.",
 
   inputSchema: z.object({
-    urls: z.array(z.string().url()).min(1).max(20),
+    urls: z.array(z.url()).min(1).max(20),
     concurrency: z.number().int().min(1).max(10).default(5),
   }),
 

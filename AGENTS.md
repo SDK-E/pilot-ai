@@ -1,38 +1,55 @@
 # AGENTS.md
 
-## CRITICAL: Verify current Mastra APIs first
+## Verify current Mastra APIs first
 
-There is no bundled `mastra` skill in this repository. Before any Mastra work,
-read the current official documentation at https://mastra.ai/llms.txt and
-inspect the installed package types. Never rely on cached knowledge — APIs
-change between versions.
+Before any Mastra work, read the current official documentation at
+https://mastra.ai/llms.txt and inspect the installed package types. APIs change
+between versions; never rely on cached knowledge.
 
 ## Rules
 
-- Register agents in `src/index.ts`; keep each agent's declarations and
-  instructions in `src/<agent>`. Put shared processors, configuration,
-  schemas, scorers, tools, storage, workflows, skills, and caches in
-  `src/runtime`. Every registered or delegated Pilot agent must use the
-  BaseAgent factory in `src/runtime/agent/base-agent.ts`; its shared pipeline
-  includes normalization, current context, compact prompt enhancement for
-  short requests, reliability gates, token limiting, and a step budget. Put
-  only agent-specific processors after that shared pipeline. A private helper model
-  created inside a processor is not a registered or delegated Pilot agent and
-  must stay narrowly scoped to that processor's work. Request-scoped Pilot
-  runtime adapters may be exported from the entrypoint without registering a
-  general-purpose agent endpoint.
-- Use the `dev` and `build` scripts from `package.json` instead of running `mastra dev` / `mastra build` directly
-- A deployed Pilot runtime route must validate Pilot's Vercel OIDC token before
+- Every agent is built per request from the base agent
+  (`src/mastra/agents/base/agent.ts`) and one kind in `src/mastra/agents/kinds.ts`.
+  A kind holds only what differs: identity, instructions, allowed capabilities,
+  step limits. Anything reusable (processors, tools, caches, config) belongs
+  under `src/mastra/agents/base/` or the shared `src/mastra/*` folders, never
+  under a kind.
+- No agent is registered on the Mastra instance; `src/mastra/index.ts` only
+  wires storage, the durable-work cache, workflows, and the API routes.
+- Use the `dev` and `build` scripts from `package.json` instead of running
+  `mastra dev` / `mastra build` directly.
+- A deployed runtime route must validate Pilot's Vercel OIDC token before
   parsing tenant headers or initializing Mastra. WorkOS session and organization
-  authorization stay in the Pilot application; Pilot AI does not create or
-  accept a separate user session.
-- Any tool that fetches a model-controlled URL must validate the initial URL and every redirect against a public-network boundary before sending a request. Reject loopback, private, link-local, mixed DNS answers, local hostnames, and credential-bearing URLs; do not treat a read-only tool as safe without this check.
-- Production Research must remain request-scoped and import only its explicitly approved tools. Its activity callback must use the original verified Pilot OIDC token, target the fixed `PILOT_ACTIVITY_CALLBACK_URL`, and send only capability ID, lifecycle state, organization ID, and execution ID. Never send prompts, tool inputs, outputs, URLs, errors, or reasoning through that callback.
-- The bounded public `web-search`, private `scratchpad`, and in-chat `ask_user` adapters are shared by request-scoped Pilot and Pilot Research agents. Web search and scratchpad retain the OIDC-verified activity callback and durable Mastra approval suspension regardless of the selected base agent. `web-search` must also retain its public-network URL safeguards. The scratchpad callback must derive organization, conversation, worker, and creator from the active execution record, never from model-controlled input. `ask_user` uses Mastra's persisted tool suspension and automatic resume on the same resource/thread; its question and choices return only through the authenticated runtime response, never the activity callback. Approval requirements must remain scoped to the configured external tool; `ask_user` is a clarification suspension and must never require approval. Unknown or unavailable tools remain fail-closed. Broader tool preferences must not become runtime tools without equivalent boundaries.
+  authorization stay in the Pilot application; Pilot AI never creates or accepts
+  a separate user session.
+- Any tool that fetches a model-controlled URL must pass the initial URL and
+  every redirect through `assertPublicHttpUrl` (`src/mastra/security/public-url.ts`).
+  Reject loopback, private, link-local, mixed DNS answers, local hostnames, and
+  credential-bearing URLs; a read-only tool is not safe without this check.
+- Capabilities (`web-search`, `scratchpad`, `ask-user`) are the only way a tool
+  reaches an agent, and only when Pilot's server-generated command grants them.
+  The activity callback uses the original verified Pilot OIDC token, targets the
+  fixed `PILOT_ACTIVITY_CALLBACK_URL`, and sends only capability id, lifecycle
+  state, organization id, and execution id. Never send prompts, tool inputs,
+  outputs, URLs, errors, or reasoning through that callback.
+- The scratchpad callback derives organization, conversation, worker, and
+  creator from the active execution record, never from model-controlled input.
+  `ask_user` uses Mastra's persisted tool suspension and automatic resume; its
+  question and choices return only through the authenticated runtime response.
+  Approval requirements stay scoped to the approvable capabilities; `ask_user`
+  is a clarification suspension and never requires approval. Unknown or
+  unavailable tools fail closed.
+- The Vercel `api/v1/approvals/resume` entrypoint and the Mastra custom API
+  route must remain behaviorally identical and reject a non-POST or
+  unauthenticated request before parsing an approval command.
+- Durable Pilot Work requires both the environment-specific Turso store and a
+  shared Redis cache. Never fall back to an in-memory cache for a run advertised
+  as reconnectable: a serverless instance change would lose its event history.
+  Keep `PILOT_WORK_REDIS_URL` server-only.
+- Relative imports carry an explicit `.js` extension (functions run unbundled on
+  Node ESM). `pnpm check` (lint, typecheck, prettier, knip) and `pnpm test` must
+  be clean before a commit.
 
 ## Resources
 
 - [Mastra Documentation](https://mastra.ai/llms.txt)
-- The Vercel `api/v1/approvals/resume` entrypoint and the Mastra custom API route must remain behaviorally identical and reject a non-POST or unauthenticated request before parsing an approval command.
-
-- Durable Pilot Work requires both the environment-specific Turso store and a shared Redis cache. Never fall back to an in-memory cache for a run advertised as reconnectable or durable: a serverless instance change would lose its event history. Keep `PILOT_WORK_REDIS_URL` server-only, and do not enable Work dispatch until owner-scoped run creation, recovery, cancellation, and safe event projection are deployed as one contract.
