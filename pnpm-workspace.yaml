@@ -4,3 +4,4 @@ overrides:
 allowBuilds:
   esbuild: true
   onnxruntime-node: true
+  unrs-resolver: true
