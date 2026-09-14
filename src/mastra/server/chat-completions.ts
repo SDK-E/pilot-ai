@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 
-import { isVerifiedPilotRuntimeRequest } from "../auth/vercel-oidc.js";
+import { verifyPilotRuntimeRequestDiag } from "../auth/vercel-oidc.js";
 import { logger } from "../logger.js";
 import {
   getPilotRuntimeStorageConfig,
@@ -43,8 +43,15 @@ async function authorize(
   if (request.method !== "POST") {
     return error("Method not allowed.", "invalid_request_error", 405);
   }
-  if (!(await isVerifiedPilotRuntimeRequest(request))) {
-    return error("Unauthorized.", "authentication_error", 401);
+  const verification = await verifyPilotRuntimeRequestDiag(request);
+  if (!verification.ok) {
+    // TEMPORARY: diagnosing the production 401 (2026-09-14). Revert once
+    // root-caused — see auth/vercel-oidc.ts.
+    return error(
+      `Unauthorized: ${verification.reason}`,
+      "authentication_error",
+      401,
+    );
   }
   return (
     getPilotRuntimeStorageConfig() ??

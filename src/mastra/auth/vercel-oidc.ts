@@ -30,33 +30,61 @@ function deploymentEnvironment(): "preview" | "production" | undefined {
 export async function isVerifiedPilotRuntimeRequest(
   request: Request,
 ): Promise<boolean> {
-  const token = request.headers.get(tokenHeader);
-  const environment = deploymentEnvironment();
+  const result = await verifyPilotRuntimeRequestDiag(request);
+  return result.ok;
+}
 
-  if (!token || !environment) {
-    return false;
-  }
+function issuerAndKeys(
+  token: string,
+):
+  | { issuer: string; verificationKeys: ReturnType<typeof createRemoteJWKSet> }
+  | undefined {
+  const decoded = decodeJwt(token);
+  if (typeof decoded.iss !== "string") return undefined;
+  const verificationKeys = verificationKeysByIssuer.get(decoded.iss);
+  return verificationKeys
+    ? { issuer: decoded.iss, verificationKeys }
+    : undefined;
+}
+
+async function verifySignature(
+  token: string,
+  environment: "preview" | "production",
+): Promise<{ ok: boolean; reason: string }> {
+  const found = issuerAndKeys(token);
+  if (!found) return { ok: false, reason: "bad-issuer" };
 
   try {
-    // Decoding selects one of two fixed Vercel issuers only. jwtVerify below
-    // verifies the signature and pins that issuer before accepting the token.
-    const decoded = decodeJwt(token);
-    const issuer = typeof decoded.iss === "string" ? decoded.iss : undefined;
-    const verificationKeys = issuer
-      ? verificationKeysByIssuer.get(issuer)
-      : undefined;
-
-    if (!issuer || !verificationKeys) {
-      return false;
-    }
-
-    await jwtVerify(token, verificationKeys, {
-      issuer,
+    await jwtVerify(token, found.verificationKeys, {
+      issuer: found.issuer,
       audience,
       subject: `owner:${teamSlug}:project:${sourceProject}:environment:${environment}`,
     });
-    return true;
-  } catch {
-    return false;
+    return { ok: true, reason: "ok" };
+  } catch (verifyError) {
+    const name = verifyError instanceof Error ? verifyError.name : "unknown";
+    const message =
+      verifyError instanceof Error ? verifyError.message : String(verifyError);
+    return { ok: false, reason: `verify-failed:${name}:${message}` };
   }
+}
+
+// TEMPORARY diagnostic (2026-09-14): production has been returning 401 for
+// every request on this path. Surfaces exactly which check fails, without
+// ever returning the token itself. Revert once root-caused.
+export async function verifyPilotRuntimeRequestDiag(
+  request: Request,
+): Promise<{ ok: boolean; reason: string }> {
+  const token = request.headers.get(tokenHeader);
+  if (!token) return { ok: false, reason: "no-token-header" };
+
+  const environment = deploymentEnvironment();
+  if (!environment) {
+    return {
+      ok: false,
+      reason: `bad-own-environment:${process.env.VERCEL_ENV ?? "unset"}`,
+    };
+  }
+
+  return verifySignature(token, environment);
 }
