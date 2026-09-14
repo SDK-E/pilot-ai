@@ -1,7 +1,7 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { pilotConfig } from "../../agents/base/config/index.js";
+import { pilotConfig } from "../../agents/base/profiles/index.js";
 import {
   getCachedValue,
   makeCacheKey,

@@ -8,7 +8,33 @@ export const ALLOWED_TOOL_IDS = [
   "ask-user",
 ] as const;
 
-export const BASE_AGENT_IDS = ["conversational", "research"] as const;
+export type AllowedToolId = (typeof ALLOWED_TOOL_IDS)[number];
+
+/**
+The agent kinds. Every kind is built from the base agent.
+*/
+export const BASE_AGENT_IDS = ["chat", "work", "code"] as const;
+
+export type BaseAgentId = (typeof BASE_AGENT_IDS)[number];
+
+/**
+Ids Pilot sent before the kinds existed. Accepted until Pilot migrates.
+*/
+export const LEGACY_BASE_AGENT_IDS = new Map<string, BaseAgentId>([
+  ["conversational", "chat"],
+  ["research", "chat"],
+]);
+
+export function normalizeBaseAgentId(value: unknown): unknown {
+  return typeof value === "string"
+    ? (LEGACY_BASE_AGENT_IDS.get(value) ?? value)
+    : value;
+}
+
+export const baseAgentIdSchema = z.preprocess(
+  normalizeBaseAgentId,
+  z.enum(BASE_AGENT_IDS),
+);
 
 export const generateConversationReplySchema = z
   .object({
@@ -23,7 +49,7 @@ export const generateConversationReplySchema = z
     }),
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
-    baseAgentId: z.enum(BASE_AGENT_IDS),
+    baseAgentId: baseAgentIdSchema,
     allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(3).default([]),
     approvalRequiredToolIds: z
       .array(z.enum(ALLOWED_TOOL_IDS))

@@ -1,6 +1,6 @@
 import { createClient } from "@libsql/client";
 
-import { setRuntimePreflightConfig } from "../agents/base/skills/preflight.js";
+import { setRuntimePreflightConfig } from "../agents/base/skill-preflight.js";
 import { setRuntimeCache } from "../cache/index.js";
 import { createSkillFeedback } from "../cache/skill-feedback.js";
 import {

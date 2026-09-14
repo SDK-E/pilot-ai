@@ -1,4 +1,4 @@
-import { runRuntimeSkillPreflight } from "../../skills/preflight.js";
+import { runRuntimeSkillPreflight } from "../../skill-preflight.js";
 
 import type {
   Processor,

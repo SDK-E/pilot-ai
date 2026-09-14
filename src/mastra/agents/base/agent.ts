@@ -16,7 +16,7 @@ import {
   qualityGateProcessor,
   responseVerbosityProcessor,
   staleObjectiveResetProcessor,
-} from "./processors/index.js";
+} from "./pipeline/index.js";
 
 interface BaseAgentLimits {
   maxSteps: number;

@@ -1,7 +1,7 @@
 import { checks } from "@mastra/evals/checks";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { pilotConfig } from "../mastra/agents/base/config/index.js";
+import { pilotConfig } from "../mastra/agents/base/profiles/index.js";
 import {
   buildAnswerRelevancyScorer,
   completenessScorer,

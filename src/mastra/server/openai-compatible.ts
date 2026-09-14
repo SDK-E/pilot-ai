@@ -2,9 +2,17 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
-import { PILOT_CONVERSATION_MODEL_ID } from "../../contracts/conversation.js";
+import {
+  ALLOWED_TOOL_IDS,
+  baseAgentIdSchema,
+  type GenerateConversationReply,
+} from "../../contracts/conversation.js";
 
-import type { GenerateConversationReply } from "../../contracts/conversation.js";
+import type { ApprovableCapabilityId } from "../agents/base/capabilities/index.js";
+import type {
+  CompletedResult,
+  RuntimeResult,
+} from "../agents/runtime/results.js";
 
 const chatMessageSchema = z
   .object({
@@ -34,12 +42,10 @@ const pilotContextSchema = z
     workerId: z.uuid(),
     conversationId: z.uuid(),
     executionId: z.uuid(),
-    baseAgentId: z.enum(["conversational", "research"]),
-    allowedToolIds: z
-      .array(z.enum(["web-search", "scratchpad", "ask-user"]))
-      .max(3),
+    baseAgentId: baseAgentIdSchema,
+    allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(3),
     approvalRequiredToolIds: z
-      .array(z.enum(["web-search", "scratchpad", "ask-user"]))
+      .array(z.enum(ALLOWED_TOOL_IDS))
       .max(2)
       .default([]),
     projectId: z.uuid().optional(),
@@ -48,8 +54,17 @@ const pilotContextSchema = z
   })
   .strict();
 
-function parseAllowedToolIds(value: string | null): unknown {
-  if (!value) return [];
+/**
+An absent or empty header means "not provided".
+*/
+function optionalHeader(headers: Headers, name: string): string | undefined {
+  const value = headers.get(name);
+  return value === null || value === "" ? undefined : value;
+}
+
+function jsonHeader(headers: Headers, name: string): unknown {
+  const value = optionalHeader(headers, name);
+  if (value === undefined) return [];
   try {
     return JSON.parse(value);
   } catch {
@@ -57,17 +72,8 @@ function parseAllowedToolIds(value: string | null): unknown {
   }
 }
 
-function parseApprovalRequiredToolIds(value: string | null): unknown {
-  if (!value) return [];
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function parseOptionalBoolean(value: string | null): unknown {
-  if (value === null) return undefined;
+function booleanHeader(headers: Headers, name: string): unknown {
+  const value = optionalHeader(headers, name);
   if (value === "true") return true;
   if (value === "false") return false;
   return undefined;
@@ -84,17 +90,19 @@ export function createConversationCommandFromChatCompletion(
     conversationId: headers.get("x-pilot-conversation-id"),
     executionId: headers.get("x-pilot-execution-id"),
     baseAgentId: headers.get("x-pilot-base-agent-id"),
-    allowedToolIds: parseAllowedToolIds(
-      headers.get("x-pilot-allowed-tool-ids"),
+    allowedToolIds: jsonHeader(headers, "x-pilot-allowed-tool-ids"),
+    approvalRequiredToolIds: jsonHeader(
+      headers,
+      "x-pilot-approval-required-tool-ids",
     ),
-    approvalRequiredToolIds: parseApprovalRequiredToolIds(
-      headers.get("x-pilot-approval-required-tool-ids"),
+    projectId: optionalHeader(headers, "x-pilot-project-id"),
+    projectInstructions: optionalHeader(
+      headers,
+      "x-pilot-project-instructions",
     ),
-    projectId: headers.get("x-pilot-project-id") || undefined,
-    projectInstructions:
-      headers.get("x-pilot-project-instructions") || undefined,
-    projectSharedMemoryEnabled: parseOptionalBoolean(
-      headers.get("x-pilot-project-shared-memory-enabled"),
+    projectSharedMemoryEnabled: booleanHeader(
+      headers,
+      "x-pilot-project-shared-memory-enabled",
     ),
   });
   const message = request.messages.at(-1);
@@ -102,7 +110,7 @@ export function createConversationCommandFromChatCompletion(
     (item) => item.role === "system" || item.role === "developer",
   );
 
-  if (!message || message.role !== "user" || !instructions) {
+  if (message?.role !== "user" || !instructions) {
     throw new Error(
       "A system or developer instruction and a final user message are required.",
     );
@@ -134,7 +142,7 @@ export function createConversationCommandFromChatCompletion(
 export function createApprovalRequiredResponse(result: {
   runId: string;
   toolCallId: string;
-  toolId: "web-search" | "scratchpad";
+  toolId: ApprovableCapabilityId;
 }) {
   return {
     object: "pilot.approval.required" as const,
@@ -161,17 +169,15 @@ export function createUserInputRequiredResponse(result: {
   };
 }
 
-export function createChatCompletionResponse(result: {
-  text: string;
-  finishReason: string | undefined;
-  modelId: string;
-  runId: string | null;
-  usage: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
+function openAiUsage(usage: CompletedResult["usage"]) {
+  return {
+    prompt_tokens: usage.inputTokens,
+    completion_tokens: usage.outputTokens,
+    total_tokens: usage.totalTokens,
   };
-}) {
+}
+
+export function createChatCompletionResponse(result: CompletedResult) {
   return {
     id: `chatcmpl_${result.runId ?? randomUUID()}`,
     object: "chat.completion" as const,
@@ -188,54 +194,15 @@ export function createChatCompletionResponse(result: {
         finish_reason: result.finishReason === "stop" ? "stop" : "length",
       },
     ],
-    usage: {
-      prompt_tokens: result.usage.inputTokens,
-      completion_tokens: result.usage.outputTokens,
-      total_tokens: result.usage.totalTokens,
-    },
+    usage: openAiUsage(result.usage),
   };
 }
 
-interface StreamingConversationResult {
+export interface StreamingConversationResult {
   runId: string | null;
+  modelId: string;
   textStream: AsyncIterable<string>;
-  result(): Promise<
-    | {
-        kind: "completed";
-        finishReason: string | undefined;
-        modelId: string;
-        runId: string | null;
-        usage: {
-          inputTokens: number;
-          outputTokens: number;
-          totalTokens: number;
-        };
-      }
-    | {
-        kind: "suspended";
-        runId: string;
-        toolCallId: string;
-        toolId: "web-search" | "scratchpad";
-        usage: {
-          inputTokens: number;
-          outputTokens: number;
-          totalTokens: number;
-        };
-      }
-    | {
-        kind: "user_input_required";
-        runId: string;
-        toolCallId: string;
-        question: string;
-        options?: { label: string; description?: string }[];
-        selectionMode?: "single_select" | "multi_select";
-        usage: {
-          inputTokens: number;
-          outputTokens: number;
-          totalTokens: number;
-        };
-      }
-  >;
+  result(): Promise<RuntimeResult>;
 }
 
 // The deployed function has a 90-second ceiling. Leave enough time for Pilot
@@ -249,14 +216,63 @@ export function waitForStreamingResult<T>(result: Promise<T>): Promise<T> {
       reject(new Error("Pilot Conversation runtime did not complete in time."));
     }, STREAM_RESULT_TIMEOUT_MS);
 
-    void result.then(resolve, reject).finally(() => {
-      clearTimeout(timer);
-    });
+    void result
+      .then(resolve)
+      .catch(reject)
+      .finally(() => {
+        clearTimeout(timer);
+      });
   });
 }
 
 export function isStreamingChatCompletionRequest(rawRequest: unknown) {
   return chatCompletionRequestSchema.parse(rawRequest).stream === true;
+}
+
+function terminalEvent(
+  id: string,
+  model: string,
+  completed: RuntimeResult,
+): object {
+  if (completed.kind === "suspended") {
+    return {
+      id,
+      object: "pilot.approval.required",
+      model,
+      pilot: {
+        run_id: completed.runId,
+        tool_call_id: completed.toolCallId,
+        tool_id: completed.toolId,
+      },
+    };
+  }
+  if (completed.kind === "user_input_required") {
+    return {
+      id,
+      object: "pilot.user_input.required",
+      model,
+      pilot: {
+        run_id: completed.runId,
+        tool_call_id: completed.toolCallId,
+        question: completed.question,
+        options: completed.options,
+        selection_mode: completed.selectionMode,
+      },
+    };
+  }
+  return {
+    id,
+    object: "chat.completion.chunk",
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [
+      {
+        index: 0,
+        delta: {},
+        finish_reason: completed.finishReason === "stop" ? "stop" : "length",
+      },
+    ],
+  };
 }
 
 export function createChatCompletionStream(
@@ -266,7 +282,7 @@ export function createChatCompletionStream(
   const encoder = new TextEncoder();
   const id = `chatcmpl_${result.runId ?? randomUUID()}`;
   const created = Math.floor(Date.now() / 1000);
-
+  const model = result.modelId;
   const send = (value: unknown) =>
     encoder.encode(`data: ${JSON.stringify(value)}\n\n`);
 
@@ -280,84 +296,24 @@ export function createChatCompletionStream(
               id,
               object: "chat.completion.chunk",
               created,
-              model: "kilo/kilo-auto/free",
+              model,
               choices: [
-                {
-                  index: 0,
-                  delta: { content: text },
-                  finish_reason: null,
-                },
+                { index: 0, delta: { content: text }, finish_reason: null },
               ],
             }),
           );
         }
-
         const completed = await waitForStreamingResult(result.result());
-        if (completed.kind === "suspended") {
-          controller.enqueue(
-            send({
-              id,
-              object: "pilot.approval.required",
-              model: "kilo/kilo-auto/free",
-              pilot: {
-                run_id: completed.runId,
-                tool_call_id: completed.toolCallId,
-                tool_id: completed.toolId,
-              },
-            }),
-          );
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-          return;
-        }
-        if (completed.kind === "user_input_required") {
-          controller.enqueue(
-            send({
-              id,
-              object: "pilot.user_input.required",
-              model: "kilo/kilo-auto/free",
-              pilot: {
-                run_id: completed.runId,
-                tool_call_id: completed.toolCallId,
-                question: completed.question,
-                options: completed.options,
-                selection_mode: completed.selectionMode,
-              },
-            }),
-          );
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-          return;
-        }
-        controller.enqueue(
-          send({
-            id,
-            object: "chat.completion.chunk",
-            created,
-            model: completed.modelId,
-            choices: [
-              {
-                index: 0,
-                delta: {},
-                finish_reason:
-                  completed.finishReason === "stop" ? "stop" : "length",
-              },
-            ],
-          }),
-        );
-        if (options.includeUsage) {
+        controller.enqueue(send(terminalEvent(id, model, completed)));
+        if (completed.kind === "completed" && options.includeUsage) {
           controller.enqueue(
             send({
               id,
               object: "chat.completion.chunk",
               created,
-              model: completed.modelId,
+              model,
               choices: [],
-              usage: {
-                prompt_tokens: completed.usage.inputTokens,
-                completion_tokens: completed.usage.outputTokens,
-                total_tokens: completed.usage.totalTokens,
-              },
+              usage: openAiUsage(completed.usage),
             }),
           );
         }

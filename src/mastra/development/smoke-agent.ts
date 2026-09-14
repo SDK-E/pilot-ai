@@ -1,8 +1,8 @@
 import { webFetchTool } from "@mastra/core/tools";
 
 import { createBaseAgent } from "../agents/base/agent.js";
-import { pilotConfig } from "../agents/base/config/index.js";
-import { buildBaseAgentInstructions } from "../agents/base/instructions.js";
+import { pilotConfig } from "../agents/base/profiles/index.js";
+import { buildBaseAgentInstructions } from "../agents/base/shared-instructions.js";
 
 import { developmentAgentIdentity } from "./identity.js";
 

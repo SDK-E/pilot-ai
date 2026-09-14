@@ -1,6 +1,6 @@
 import { createClient } from "@libsql/client";
 
-import { pilotConfig } from "../agents/base/config/index.js";
+import { pilotConfig } from "../agents/base/profiles/index.js";
 import { createCircuitBreaker } from "../cache/domain-circuit-breaker.js";
 import { createGenericCache } from "../cache/generic-cache.js";
 import { setRuntimeCache } from "../cache/index.js";

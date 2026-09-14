@@ -3,8 +3,6 @@ import { TaskSignalProvider } from "@mastra/core/signals";
 import { askUserTool } from "@mastra/core/tools";
 
 import { createBaseAgent } from "../agents/base/agent.js";
-import { pilotConfig } from "../agents/base/config/index.js";
-import { buildBaseAgentInstructions } from "../agents/base/instructions.js";
 import {
   challengeClaimProcessor,
   contradictionCheckProcessor,
@@ -18,7 +16,9 @@ import {
   sourceConfidenceProcessor,
   sourceDiversityProcessor,
   taskDependencyProcessor,
-} from "../agents/base/processors/index.js";
+} from "../agents/base/pipeline/index.js";
+import { pilotConfig } from "../agents/base/profiles/index.js";
+import { buildBaseAgentInstructions } from "../agents/base/shared-instructions.js";
 import { logger } from "../logger.js";
 import { stagehandBrowser } from "../tools/browser/stagehand.js";
 import { githubPublic } from "../tools/code/github-public.js";

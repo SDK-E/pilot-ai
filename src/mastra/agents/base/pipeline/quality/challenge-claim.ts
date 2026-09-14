@@ -1,4 +1,4 @@
-import { pilotConfig } from "../../config/index.js";
+import { pilotConfig } from "../../profiles/index.js";
 
 import type {
   Processor,

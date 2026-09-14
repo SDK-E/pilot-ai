@@ -14,16 +14,11 @@ const mocks = vi.hoisted(() => {
     verifyRequest,
     stream,
     createRuntime: vi.fn(() => ({ generate, stream, close })),
-    createToolRuntime: vi.fn(() => ({ generate, stream, close })),
   };
 });
 
-vi.mock("../agents/runtime/chat-runtime.js", () => ({
-  createChatRuntime: mocks.createRuntime,
-}));
-
-vi.mock("../agents/runtime/tool-runtime.js", () => ({
-  createToolRuntime: mocks.createToolRuntime,
+vi.mock("../agents/runtime/runtime.js", () => ({
+  createPilotRuntime: mocks.createRuntime,
 }));
 
 vi.mock("../auth/vercel-oidc.js", () => ({
@@ -38,11 +33,39 @@ const headers = {
   "x-pilot-worker-id": "6f96e48d-c27a-4b4b-ab63-e406f69132ce",
   "x-pilot-conversation-id": "2e61a6d9-0b48-4e17-8e0e-97075112953d",
   "x-pilot-execution-id": "843b97b3-b0ec-4244-9a6c-2b872645a9ed",
-  "x-pilot-base-agent-id": "conversational",
+  "x-pilot-base-agent-id": "chat",
   "x-pilot-allowed-tool-ids": "[]",
 };
 
-describe("OpenAI-compatible Pilot Conversation function", () => {
+const body = (extra: object = {}) =>
+  JSON.stringify({
+    model: "kilo/kilo-auto/free",
+    messages: [
+      { role: "system", content: "Be helpful." },
+      { role: "user", content: "Hello." },
+    ],
+    ...extra,
+  });
+
+const completed = (runId: string) => ({
+  kind: "completed",
+  text: "Hello.",
+  finishReason: "stop",
+  modelId: "kilo/kilo-auto/free",
+  runId,
+  usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+});
+
+const post = (init: { headers?: Record<string, string>; body?: string }) =>
+  handler.fetch(
+    new Request("https://ai.pilot.test/v1/chat/completions", {
+      method: "POST",
+      headers: { ...headers, ...init.headers },
+      body: init.body ?? body(),
+    }),
+  );
+
+describe("OpenAI-compatible chat completion function", () => {
   beforeEach(() => {
     vi.stubEnv("TURSO_DATABASE_URL", "libsql://runtime.turso.io");
     vi.stubEnv("TURSO_AUTH_TOKEN", "runtime-token");
@@ -50,7 +73,6 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     mocks.stream.mockReset();
     mocks.close.mockReset();
     mocks.createRuntime.mockClear();
-    mocks.createToolRuntime.mockClear();
     mocks.verifyRequest.mockReset();
     mocks.verifyRequest.mockResolvedValue(true);
   });
@@ -58,28 +80,9 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("returns an OpenAI chat completion for a verified Pilot request", async () => {
-    mocks.generate.mockResolvedValue({
-      text: "Hello.",
-      finishReason: "stop",
-      modelId: "kilo/kilo-auto/free",
-      runId: "run-123",
-      usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
-    });
+    mocks.generate.mockResolvedValue(completed("run-123"));
 
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [
-            { role: "system", content: "Be helpful." },
-            { role: "user", content: "Hello." },
-          ],
-          stream: false,
-        }),
-      }),
-    );
+    const response = await post({ body: body({ stream: false }) });
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -104,7 +107,7 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
       },
       conversationId: "2e61a6d9-0b48-4e17-8e0e-97075112953d",
       message: "Hello.",
-      baseAgentId: "conversational",
+      baseAgentId: "chat",
       allowedToolIds: [],
       approvalRequiredToolIds: [],
       executionId: "843b97b3-b0ec-4244-9a6c-2b872645a9ed",
@@ -112,32 +115,29 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     });
   });
 
-  it("accepts server-provided project context without trusting the request body", async () => {
-    mocks.generate.mockResolvedValue({
-      text: "Hello.",
-      finishReason: "stop",
-      modelId: "kilo/kilo-auto/free",
-      runId: "run-project",
-      usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+  it("maps the legacy conversational base agent id to chat", async () => {
+    mocks.generate.mockResolvedValue(completed("run-legacy"));
+
+    const response = await post({
+      headers: { "x-pilot-base-agent-id": "conversational" },
     });
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          ...headers,
-          "x-pilot-project-id": "46cc2779-64a8-467a-851c-2448c550cd7e",
-          "x-pilot-project-instructions": "Use the project plan.",
-          "x-pilot-project-shared-memory-enabled": "true",
-        },
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [
-            { role: "system", content: "Be helpful." },
-            { role: "user", content: "Hello." },
-          ],
-        }),
-      }),
+
+    expect(response.status).toBe(200);
+    expect(mocks.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ baseAgentId: "chat" }),
     );
+  });
+
+  it("accepts server-provided project context without trusting the request body", async () => {
+    mocks.generate.mockResolvedValue(completed("run-project"));
+
+    const response = await post({
+      headers: {
+        "x-pilot-project-id": "46cc2779-64a8-467a-851c-2448c550cd7e",
+        "x-pilot-project-instructions": "Use the project plan.",
+        "x-pilot-project-shared-memory-enabled": "true",
+      },
+    });
 
     expect(response.status).toBe(200);
     expect(mocks.generate).toHaveBeenCalledWith(
@@ -151,36 +151,22 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     );
   });
 
-  it("preserves approval requirements for only the configured tool", async () => {
-    mocks.generate.mockResolvedValue({
-      text: "Hello.",
-      finishReason: "stop",
-      modelId: "kilo/kilo-auto/free",
-      runId: "run-approval",
-      usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+  it("passes the OIDC token to the runtime when capabilities are granted", async () => {
+    mocks.generate.mockResolvedValue(completed("run-approval"));
+
+    const response = await post({
+      headers: {
+        "x-pilot-allowed-tool-ids": '["scratchpad"]',
+        "x-pilot-approval-required-tool-ids": '["scratchpad"]',
+        "x-pilot-runtime-oidc-token": "runtime-token",
+      },
     });
 
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          ...headers,
-          "x-pilot-allowed-tool-ids": '["scratchpad"]',
-          "x-pilot-approval-required-tool-ids": '["scratchpad"]',
-          "x-pilot-runtime-oidc-token": "runtime-token",
-        },
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [
-            { role: "system", content: "Be helpful." },
-            { role: "user", content: "Hello." },
-          ],
-        }),
-      }),
-    );
-
     expect(response.status).toBe(200);
-    expect(mocks.createToolRuntime).toHaveBeenCalledOnce();
+    expect(mocks.createRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      "runtime-token",
+    );
     expect(mocks.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         allowedToolIds: ["scratchpad"],
@@ -192,16 +178,7 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
   it("rejects requests without a valid Vercel OIDC token before initialization", async () => {
     mocks.verifyRequest.mockResolvedValue(false);
 
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [{ role: "user", content: "Hello." }],
-        }),
-      }),
-    );
+    const response = await post({});
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
@@ -210,24 +187,19 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 
+  it("rejects granted capabilities without a runtime OIDC token", async () => {
+    const response = await post({
+      headers: { "x-pilot-allowed-tool-ids": '["scratchpad"]' },
+    });
+
+    expect(response.status).toBe(401);
+    expect(mocks.createRuntime).not.toHaveBeenCalled();
+  });
+
   it("rejects public web search before the production adapter is enabled", async () => {
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          ...headers,
-          "x-pilot-base-agent-id": "conversational",
-          "x-pilot-allowed-tool-ids": '["web-search"]',
-        },
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [
-            { role: "system", content: "Use primary sources." },
-            { role: "user", content: "Find current sources." },
-          ],
-        }),
-      }),
-    );
+    const response = await post({
+      headers: { "x-pilot-allowed-tool-ids": '["web-search"]' },
+    });
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({
@@ -239,38 +211,7 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 
-  it("accepts the private scratchpad capability without enabling public research", async () => {
-    mocks.generate.mockResolvedValue({
-      text: "Saved.",
-      finishReason: "stop",
-      modelId: "kilo/kilo-auto/free",
-      runId: "scratchpad-123",
-      usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
-    });
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          ...headers,
-          "x-pilot-allowed-tool-ids": '["scratchpad"]',
-          "x-pilot-runtime-oidc-token": "pilot-oidc-token",
-        },
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [
-            { role: "system", content: "Be helpful." },
-            { role: "user", content: "Keep concise notes." },
-          ],
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    expect(mocks.createToolRuntime).toHaveBeenCalledOnce();
-    expect(mocks.createRuntime).not.toHaveBeenCalled();
-  });
-
-  it("accepts the in-chat Ask User capability without enabling public research", async () => {
+  it("returns an Ask User suspension as a user-input-required object", async () => {
     mocks.generate.mockResolvedValue({
       kind: "user_input_required",
       runId: "ask-user-run",
@@ -280,23 +221,14 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
       selectionMode: "single_select",
       usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
     });
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          ...headers,
-          "x-pilot-allowed-tool-ids": '["ask-user"]',
-          "x-pilot-runtime-oidc-token": "pilot-oidc-token",
-        },
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [
-            { role: "system", content: "Be helpful." },
-            { role: "user", content: "Help me plan." },
-          ],
-        }),
-      }),
-    );
+
+    const response = await post({
+      headers: {
+        "x-pilot-allowed-tool-ids": '["ask-user"]',
+        "x-pilot-runtime-oidc-token": "pilot-oidc-token",
+      },
+    });
+
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       object: "pilot.user_input.required",
@@ -307,6 +239,7 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
   it("streams OpenAI-compatible chunks for a verified Pilot request", async () => {
     mocks.stream.mockResolvedValue({
       runId: "stream-123",
+      modelId: "kilo/kilo-auto/free",
       textStream: new ReadableStream({
         start(controller) {
           controller.enqueue("Hello");
@@ -314,32 +247,18 @@ describe("OpenAI-compatible Pilot Conversation function", () => {
           controller.close();
         },
       }),
-      result: vi.fn().mockResolvedValue({
-        finishReason: "stop",
-        modelId: "kilo/kilo-auto/free",
-        runId: "stream-123",
-        usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
-      }),
+      result: vi.fn().mockResolvedValue(completed("stream-123")),
     });
 
-    const response = await handler.fetch(
-      new Request("https://ai.pilot.test/v1/chat/completions", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: "kilo/kilo-auto/free",
-          messages: [
-            { role: "system", content: "Be helpful." },
-            { role: "user", content: "Hello." },
-          ],
-          stream: true,
-          stream_options: { include_usage: true },
-        }),
-      }),
-    );
+    const response = await post({
+      body: body({ stream: true, stream_options: { include_usage: true } }),
+    });
 
     expect(response.headers.get("content-type")).toContain("text/event-stream");
-    await expect(response.text()).resolves.toContain("data: [DONE]");
+    const text = await response.text();
+    expect(text).toContain('"model":"kilo/kilo-auto/free"');
+    expect(text).toContain('"total_tokens":5');
+    expect(text).toContain("data: [DONE]");
     expect(mocks.stream).toHaveBeenCalledOnce();
     expect(mocks.close).toHaveBeenCalledOnce();
   });

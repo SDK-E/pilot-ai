@@ -6,10 +6,30 @@ records, and approvals. This service owns agent construction, memory,
 workflows, and the protected runtime API; it never makes authorization
 decisions and never stores Pilot domain records.
 
+## Agent kinds
+
+Every request builds one agent from the **base agent** and one of three kinds.
+A kind is only what differs: identity, instructions, the capabilities it may
+use, and step limits. Everything reusable belongs to the base agent.
+
+| Kind   | Purpose                                                         |
+| ------ | --------------------------------------------------------------- |
+| `chat` | Conversational answers; uses granted capabilities when needed.  |
+| `work` | Executes one queued work item: plan, act, request approvals.    |
+| `code` | Reads, explains, and proposes code changes as reviewable diffs. |
+
+Pilot sends the kind as `baseAgentId` together with the capabilities it grants
+(`web-search`, `scratchpad`, `ask-user`) and which of those need an approval.
+The legacy ids `conversational` and `research` are accepted and mapped to
+`chat` until Pilot migrates.
+
 ## Project structure
 
-The layout follows Mastra's standard `src/mastra` project structure. Every
-agent is built by the base agent; the base agent owns everything reusable.
+The layout follows Mastra's standard `src/mastra` project structure. Inside
+`src/mastra/agents/`, Mastra's CLI treats any folder containing `config.ts`,
+`instructions.*`, `memory.ts`, `workspace.ts`, or a `tools/`, `skills/`,
+`subagents/`, `workflows/`, `scorers/`, or `processors/` folder as a
+file-based agent, so shared modules deliberately use other names.
 
 ```
 api/v1/                     Vercel Functions. Each file is a thin wrapper over a
@@ -19,12 +39,18 @@ src/contracts/              Pure request/response contract shared with Pilot.
 src/mastra/
   index.ts                  Mastra instance: storage, logger, routes, workflows.
   agents/
-    base/                   The base agent: factory, shared instructions, limits,
-                            config profiles, processors, and skill preflight.
-      processors/           Input processors grouped by concern:
-        context/ quality/ budget/ response/ policy/
-    chat/                   Chat agent: identity and instructions only.
-    runtime/                Request-scoped runtimes used by the server.
+    kinds.ts                The three kinds and what differs between them.
+    chat.ts work.ts code.ts Identity and instructions of one kind each.
+    base/                   The base agent everything is built from:
+      agent.ts              factory with the shared processor pipeline
+      shared-instructions.ts, identity.ts, limits.ts
+      capabilities/         capability id -> tool, instructions, approvability
+      pipeline/             input processors by concern:
+                            context/ quality/ budget/ response/ policy/
+      profiles/             tuning profiles (fast, balanced, deep, test)
+      skill-preflight.ts    audited skill discovery
+    runtime/                Request-scoped runtime: agent factory, results,
+                            suspensions, generate/stream/resume/cleanup.
   server/                   HTTP layer: OpenAI-compatible translation, handlers,
                             and Mastra route registrations (routes/).
   tools/                    Mastra tools, discovered by the Mastra CLI. Grouped by
@@ -65,13 +91,11 @@ The same boundary exposes `POST /v1/approvals/resume`,
 `POST /v1/tasks/approval`. All require the verified Pilot OIDC token and accept
 only typed server commands; the browser never calls them.
 
-A request with granted capabilities runs on the tool runtime with `web-search`,
-`scratchpad`, and `ask-user`. Capabilities are selected only from Pilot's
-server-generated command; per-tool approval requirements travel separately, so
-an `ask` policy for one capability never pauses an allowed one. `ask_user` is a
-clarification suspension, not an approval. The scratchpad callback derives the
-conversation and creator from its active execution record, so the runtime
-never supplies ownership.
+Capabilities are selected only from Pilot's server-generated command; per-tool
+approval requirements travel separately, so an `ask` policy for one capability
+never pauses an allowed one. `ask_user` is a clarification suspension, not an
+approval. The scratchpad callback derives the conversation and creator from
+its active execution record, so the runtime never supplies ownership.
 
 ## Configuration
 
@@ -123,9 +147,9 @@ Mastra thread afterward.
 
 Before adding Mastra code, read the installed package documentation. Every
 agent is constructed through the base agent, including the shared prompt
-enhancer; agent-specific processors run after that shared context. Never add a
-file-backed database to the deployed runtime path or expose a tool before Pilot
-enforces its capability and approval policy.
+enhancer; kind-specific instructions and granted capabilities are layered on
+top. Never add a file-backed database to the deployed runtime path or expose a
+tool before Pilot enforces its capability and approval policy.
 
 GitHub Actions builds the runtime and checks known high-severity
 vulnerabilities for pull requests and `main`.

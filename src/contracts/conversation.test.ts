@@ -1,14 +1,16 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
-  generateConversationReplySchema,
-  type GenerateConversationReply,
-  createConversationResourceId,
-  createProjectResourceId,
-  createMemoryResourceId,
-  PILOT_CONVERSATION_MODEL_ID,
   ALLOWED_TOOL_IDS,
   BASE_AGENT_IDS,
+  createConversationResourceId,
+  createMemoryResourceId,
+  createProjectResourceId,
+  generateConversationReplySchema,
+  PILOT_CONVERSATION_MODEL_ID,
+  type GenerateConversationReply,
 } from "./conversation.js";
 
 const validCommand: GenerateConversationReply = {
@@ -20,7 +22,7 @@ const validCommand: GenerateConversationReply = {
   },
   conversationId: "97e756d5-2c8c-47fa-8a87-0e8dcddb7d28",
   message: "Hello.",
-  baseAgentId: "conversational",
+  baseAgentId: "chat",
   allowedToolIds: [],
   approvalRequiredToolIds: [],
   executionId: "98f1871e-72fb-4c5c-9a09-d89713e64950",
@@ -31,17 +33,35 @@ describe("contract", () => {
     expect(PILOT_CONVERSATION_MODEL_ID).toBe("kilo/kilo-auto/free");
   });
 
-  it("ALLOWED_TOOL_IDS matches production tool set", () => {
+  it("ALLOWED_TOOL_IDS matches the production capability set", () => {
     expect(ALLOWED_TOOL_IDS).toEqual(["web-search", "scratchpad", "ask-user"]);
   });
 
-  it("BASE_AGENT_IDS matches cataloguer bases", () => {
-    expect(BASE_AGENT_IDS).toEqual(["conversational", "research"]);
+  it("BASE_AGENT_IDS lists the three agent kinds", () => {
+    expect(BASE_AGENT_IDS).toEqual(["chat", "work", "code"]);
   });
 
   it("parses a valid GenerateConversationReply", () => {
     const result = generateConversationReplySchema.safeParse(validCommand);
     expect(result.success).toBe(true);
+  });
+
+  it("maps the legacy base agent ids to chat", () => {
+    for (const legacy of ["conversational", "research"]) {
+      const result = generateConversationReplySchema.parse({
+        ...validCommand,
+        baseAgentId: legacy,
+      });
+      expect(result.baseAgentId).toBe("chat");
+    }
+  });
+
+  it("rejects an unknown base agent id", () => {
+    const result = generateConversationReplySchema.safeParse({
+      ...validCommand,
+      baseAgentId: "browser",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects an unallowlisted model", () => {
@@ -136,12 +156,9 @@ describe("contract", () => {
     );
   });
 
-  it("import graph: contract.ts does not import @mastra/* or process.env", () => {
-    // Self-documenting: contract.ts is pure — imports only "zod".
-    // This test asserts the contract is a DTO consumer without
-    // @mastra/* or process.env dependencies.
-    const source = require("node:fs").readFileSync(
-      require("node:path").resolve(__dirname, "conversation.ts"),
+  it("stays pure: the contract imports neither @mastra/* nor process.env", () => {
+    const source = readFileSync(
+      new URL("conversation.ts", import.meta.url),
       "utf8",
     );
     expect(source).not.toContain("@mastra");

@@ -1,7 +1,7 @@
 import { fastembed } from "@mastra/fastembed";
 import { Memory } from "@mastra/memory";
 
-import { pilotConfig } from "../../agents/base/config/index.js";
+import { pilotConfig } from "../../agents/base/profiles/index.js";
 import { memoryStorage, memoryVector } from "../../storage/development.js";
 
 import { memoryTemplate } from "./memory-template.js";

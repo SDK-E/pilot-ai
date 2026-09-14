@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { createChatRuntime } from "../agents/runtime/chat-runtime.js";
+import { createPilotRuntime } from "../agents/runtime/runtime.js";
 import { verifyPilotRuntimeRequest } from "../auth/vercel-oidc.js";
 import { getPilotRuntimeStorageConfig } from "../storage/runtime.js";
 
@@ -42,9 +42,8 @@ function isResponse(value: unknown): value is Response {
 }
 
 function getStorageResponse() {
-  const storageConfig = getPilotRuntimeStorageConfig();
   return (
-    storageConfig ??
+    getPilotRuntimeStorageConfig() ??
     Response.json(
       { error: "Pilot Conversation is not configured." },
       { status: 503 },
@@ -59,22 +58,9 @@ export async function handleConversationCleanup(
   if (isResponse(command)) return command;
   const storageConfig = getStorageResponse();
   if (isResponse(storageConfig)) return storageConfig;
-  const runtime = createChatRuntime(storageConfig);
+  const runtime = createPilotRuntime(storageConfig);
   try {
-    await runtime.deleteConversation({
-      organizationId: command.organizationId,
-      worker: {
-        id: command.workerId,
-        instructions: "Cleanup only.",
-        modelId: "kilo/kilo-auto/free",
-      },
-      conversationId: command.conversationId,
-      message: "Cleanup only.",
-      baseAgentId: "conversational",
-      allowedToolIds: [],
-      executionId: "00000000-0000-4000-8000-000000000000",
-      project: command.project,
-    });
+    await runtime.deleteConversation(command);
     return new Response(null, { status: 204 });
   } finally {
     await runtime.close();
@@ -88,17 +74,9 @@ export async function handleProjectMemoryCleanup(
   if (isResponse(command)) return command;
   const storageConfig = getStorageResponse();
   if (isResponse(storageConfig)) return storageConfig;
-  const runtime = createChatRuntime(storageConfig);
+  const runtime = createPilotRuntime(storageConfig);
   try {
-    await runtime.deleteProjectMemory({
-      organizationId: command.organizationId,
-      worker: {
-        id: command.workerId,
-        instructions: "Cleanup only.",
-        modelId: "kilo/kilo-auto/free",
-      },
-      project: { id: command.projectId, sharedMemoryEnabled: true },
-    });
+    await runtime.deleteProjectMemory(command);
     return new Response(null, { status: 204 });
   } finally {
     await runtime.close();

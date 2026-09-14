@@ -1,12 +1,12 @@
 import { createBaseAgent } from "../../agents/base/agent.js";
-import { pilotConfig } from "../../agents/base/config/index.js";
-import { buildBaseAgentInstructions } from "../../agents/base/instructions.js";
 import {
   entityResolutionProcessor,
   recencyCheckProcessor,
   skillResolverProcessor,
   sourceDiversityProcessor,
-} from "../../agents/base/processors/index.js";
+} from "../../agents/base/pipeline/index.js";
+import { pilotConfig } from "../../agents/base/profiles/index.js";
+import { buildBaseAgentInstructions } from "../../agents/base/shared-instructions.js";
 import { stagehandBrowser } from "../../tools/browser/stagehand.js";
 import { queryPlanner } from "../../tools/planning/query-planner.js";
 import { resultCollector } from "../../tools/planning/result-collector.js";

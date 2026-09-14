@@ -6,7 +6,7 @@ import {
   type MastraScorer,
 } from "@mastra/core/evals";
 
-import { pilotConfig } from "../mastra/agents/base/config/index.js";
+import { pilotConfig } from "../mastra/agents/base/profiles/index.js";
 import { developmentAgent } from "../mastra/development/agent.js";
 
 const EVAL_RESOURCE_ID = "pilot-research-evals";

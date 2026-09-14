@@ -3,7 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { PILOT_CONVERSATION_MODEL_ID } from "../src/contracts/conversation.js";
-import { createChatRuntime } from "../src/mastra/agents/runtime/chat-runtime.js";
+import { createPilotRuntime } from "../src/mastra/agents/runtime/runtime.js";
 import { getPilotRuntimeStorageConfig } from "../src/mastra/storage/runtime.js";
 
 const storageConfig = getPilotRuntimeStorageConfig();
@@ -23,12 +23,12 @@ const command = {
   },
   conversationId: randomUUID(),
   message: `Remember this exact verification code for this conversation: ${memoryCode}.`,
-  baseAgentId: "conversational" as const,
+  baseAgentId: "chat" as const,
   allowedToolIds: [],
   executionId: randomUUID(),
 };
 
-const firstRuntime = createChatRuntime(storageConfig);
+const firstRuntime = createPilotRuntime(storageConfig);
 
 try {
   await firstRuntime.generate(command);
@@ -36,7 +36,7 @@ try {
   await firstRuntime.close();
 }
 
-const secondRuntime = createChatRuntime(storageConfig);
+const secondRuntime = createPilotRuntime(storageConfig);
 
 try {
   const response = await secondRuntime.generate({
@@ -44,12 +44,16 @@ try {
     message: "What exact verification code did I ask you to remember?",
   });
 
-  if (!response.text.includes(memoryCode)) {
+  if (response.kind !== "completed" || !response.text.includes(memoryCode)) {
     throw new Error("The second runtime did not recall the first message.");
   }
 
   console.log("Two-process Pilot Conversation memory verification passed.");
 } finally {
-  await secondRuntime.deleteConversation(command);
+  await secondRuntime.deleteConversation({
+    organizationId: command.organizationId,
+    workerId: command.worker.id,
+    conversationId: command.conversationId,
+  });
   await secondRuntime.close();
 }

@@ -1,4 +1,4 @@
-import { pilotConfig } from "../mastra/agents/base/config/index.js";
+import { pilotConfig } from "../mastra/agents/base/profiles/index.js";
 import { mastra } from "../mastra/index.js";
 
 import { resolvePilotEvalMode, type PilotEvalMode } from "./pilot-dataset.js";

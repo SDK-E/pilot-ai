@@ -1,11 +1,12 @@
-import { createChatRuntime } from "../agents/runtime/chat-runtime.js";
-import { createToolRuntime } from "../agents/runtime/tool-runtime.js";
+import {
+  createPilotRuntime,
+  type PilotRuntime,
+} from "../agents/runtime/runtime.js";
 
 import type { GenerateConversationReply } from "../../contracts/conversation.js";
 import type { PilotRuntimeStorageConfig } from "../storage/runtime.js";
 
-export type ConversationRuntime =
-  ReturnType<typeof createChatRuntime> | ReturnType<typeof createToolRuntime>;
+export type ConversationRuntime = PilotRuntime;
 
 export type RuntimeSelection =
   | { ok: true; runtime: ConversationRuntime }
@@ -21,21 +22,16 @@ export function isPublicWebSearchEnabled(): boolean {
 }
 
 /**
- * A command with granted capabilities runs on the tool runtime, which needs
- * the caller's OIDC token for its activity callbacks. Public web search is
- * additionally gated by the production feature flag.
+ * Opens the runtime for a command. Granted capabilities need the caller's
+ * OIDC token for activity callbacks; public web search is additionally gated
+ * by the production feature flag.
  */
 export function selectConversationRuntime(
   command: GenerateConversationReply,
   oidcToken: string | null,
   storageConfig: PilotRuntimeStorageConfig,
 ): RuntimeSelection {
-  if (command.allowedToolIds.length === 0) {
-    return {
-      ok: true,
-      runtime: createChatRuntime(storageConfig, oidcToken ?? undefined),
-    };
-  }
+  const hasCapabilities = command.allowedToolIds.length > 0;
   if (
     command.allowedToolIds.includes("web-search") &&
     !isPublicWebSearchEnabled()
@@ -47,7 +43,7 @@ export function selectConversationRuntime(
       message: "Pilot public web search is not enabled.",
     };
   }
-  if (!oidcToken) {
+  if (hasCapabilities && !oidcToken) {
     return {
       ok: false,
       status: 401,
@@ -57,6 +53,6 @@ export function selectConversationRuntime(
   }
   return {
     ok: true,
-    runtime: createToolRuntime(storageConfig, oidcToken),
+    runtime: createPilotRuntime(storageConfig, oidcToken ?? undefined),
   };
 }
