@@ -22,8 +22,14 @@ const promptEnhancerAgent = new Agent({
 
   model: [
     {
+      // This step is optional and already fails open (executionBrief()
+      // returns undefined and the turn proceeds without it), but it still
+      // runs synchronously before the main agent call that the user is
+      // actually waiting on. A retry budget above the main agent's own
+      // (baseAgentLimits.maxRetries) would let a best-effort step add more
+      // latency to every short message than the response itself gets.
       model: "kilo/kilo-auto/free",
-      maxRetries: 8,
+      maxRetries: 2,
     },
   ],
 
