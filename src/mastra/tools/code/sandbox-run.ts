@@ -35,6 +35,77 @@ async function stopQuietly(sandbox: Sandbox): Promise<void> {
   }
 }
 
+const MAX_ERROR_MESSAGE_CHARS = 2000;
+
+/**
+ * A thrown sandbox error can carry a provider HTTP error's raw response body
+ * as its message - observed in production as a full HTML error page from the
+ * sandbox provisioning API reaching the model verbatim. Anything that looks
+ * like markup is replaced with a generic message instead of being forwarded.
+ */
+function sandboxErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/^\s*</.test(message)) {
+    return "The sandbox provider returned an unexpected error.";
+  }
+  return message.slice(0, MAX_ERROR_MESSAGE_CHARS);
+}
+
+function sandboxErrorResult(prefix: string, error: unknown) {
+  return {
+    steps: [
+      {
+        cmd: "(sandbox)",
+        exitCode: 1,
+        stdout: "",
+        stderr: prefix
+          ? `${prefix}: ${sandboxErrorMessage(error)}`
+          : sandboxErrorMessage(error),
+      },
+    ],
+    didStopEarly: true,
+  };
+}
+
+async function runCommands(
+  sandbox: Sandbox,
+  commands: z.infer<typeof commandSchema>[],
+  budgetMs: number,
+  abortSignal: AbortSignal | undefined,
+) {
+  const steps: z.infer<typeof stepSchema>[] = [];
+  const deadline = Date.now() + budgetMs;
+  let didStopEarly = false;
+
+  for (const command of commands) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      didStopEarly = true;
+      break;
+    }
+    const result = await sandbox.runCommand({
+      cmd: command.cmd,
+      args: command.args,
+      timeoutMs: remaining,
+      signal: abortSignal,
+    });
+    const stdout = await result.stdout();
+    const stderr = await result.stderr();
+    steps.push({
+      cmd: [command.cmd, ...command.args].join(" "),
+      exitCode: result.exitCode,
+      stdout: stdout.slice(0, MAX_OUTPUT_CHARS),
+      stderr: stderr.slice(0, MAX_OUTPUT_CHARS),
+    });
+    if (result.exitCode !== 0) {
+      didStopEarly = true;
+      break;
+    }
+  }
+
+  return { steps, didStopEarly };
+}
+
 /**
  * Runs a bounded sequence of commands in one fresh Vercel Sandbox: an
  * isolated Linux microVM with its own filesystem and network, unable to
@@ -76,12 +147,17 @@ export const sandboxRun = createTool({
   }),
 
   execute: async ({ files, commands, budgetMs }, { abortSignal }) => {
-    const sandbox = await Sandbox.create({
-      timeout: budgetMs + SANDBOX_BOOT_ALLOWANCE_MS,
-      resources: { vcpus: 1 },
-      persistent: false,
-      signal: abortSignal,
-    });
+    let sandbox: Sandbox;
+    try {
+      sandbox = await Sandbox.create({
+        timeout: budgetMs + SANDBOX_BOOT_ALLOWANCE_MS,
+        resources: { vcpus: 1 },
+        persistent: false,
+        signal: abortSignal,
+      });
+    } catch (error) {
+      return sandboxErrorResult("Could not start the sandbox", error);
+    }
     try {
       if (files.length > 0) {
         await sandbox.writeFiles(
@@ -89,38 +165,9 @@ export const sandboxRun = createTool({
           { signal: abortSignal },
         );
       }
-
-      const steps: z.infer<typeof stepSchema>[] = [];
-      const deadline = Date.now() + budgetMs;
-      let didStopEarly = false;
-
-      for (const command of commands) {
-        const remaining = deadline - Date.now();
-        if (remaining <= 0) {
-          didStopEarly = true;
-          break;
-        }
-        const result = await sandbox.runCommand({
-          cmd: command.cmd,
-          args: command.args,
-          timeoutMs: remaining,
-          signal: abortSignal,
-        });
-        const stdout = await result.stdout();
-        const stderr = await result.stderr();
-        steps.push({
-          cmd: [command.cmd, ...command.args].join(" "),
-          exitCode: result.exitCode,
-          stdout: stdout.slice(0, MAX_OUTPUT_CHARS),
-          stderr: stderr.slice(0, MAX_OUTPUT_CHARS),
-        });
-        if (result.exitCode !== 0) {
-          didStopEarly = true;
-          break;
-        }
-      }
-
-      return { steps, didStopEarly };
+      return await runCommands(sandbox, commands, budgetMs, abortSignal);
+    } catch (error) {
+      return sandboxErrorResult("", error);
     } finally {
       await stopQuietly(sandbox);
     }
