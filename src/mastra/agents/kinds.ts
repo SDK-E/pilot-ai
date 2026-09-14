@@ -49,7 +49,7 @@ export const AGENT_KINDS: Record<BaseAgentId, AgentKind> = {
     id: "code",
     identity: codeAgentIdentity,
     instructions: codeInstructions,
-    capabilities: ["scratchpad", "ask-user", "web-search"],
+    capabilities: ALLOWED_TOOL_IDS,
     limits: { maxSteps: 6, warningAt: 4, finalAt: 5 },
   },
 };

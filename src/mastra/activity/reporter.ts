@@ -7,7 +7,7 @@ const toolActivitySchema = z
     kind: z.literal("tool"),
     organizationId: z.string().min(1).max(255),
     executionId: z.uuid(),
-    toolId: z.enum(["web-search", "scratchpad", "ask-user"]),
+    toolId: z.enum(["web-search", "scratchpad", "ask-user", "plan"]),
     toolCallId: z.string().min(1).max(255).optional(),
     state: z.enum(["started", "completed", "failed", "awaiting_approval"]),
     runtimeRunId: z.string().min(1).max(255).optional(),

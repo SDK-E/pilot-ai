@@ -34,7 +34,12 @@ describe("contract", () => {
   });
 
   it("ALLOWED_TOOL_IDS matches the production capability set", () => {
-    expect(ALLOWED_TOOL_IDS).toEqual(["web-search", "scratchpad", "ask-user"]);
+    expect(ALLOWED_TOOL_IDS).toEqual([
+      "web-search",
+      "scratchpad",
+      "ask-user",
+      "plan",
+    ]);
   });
 
   it("BASE_AGENT_IDS lists the three agent kinds", () => {

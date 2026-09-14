@@ -13,6 +13,7 @@ describe("capabilities", () => {
     expect(capabilityIdFromToolName("web-search")).toBe("web-search");
     expect(capabilityIdFromToolName("scratchpad")).toBe("scratchpad");
     expect(capabilityIdFromToolName("ask_user")).toBe("ask-user");
+    expect(capabilityIdFromToolName("plan")).toBe("plan");
     expect(capabilityIdFromToolName("stagehandBrowser")).toBeUndefined();
     expect(capabilityIdFromToolName(undefined)).toBeUndefined();
   });
@@ -23,6 +24,7 @@ describe("capabilities", () => {
       "web-search",
       "scratchpad",
       "ask-user",
+      "plan",
     ]);
   });
 

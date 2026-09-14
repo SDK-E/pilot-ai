@@ -16,7 +16,10 @@ import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,
 } from "../../storage/runtime.js";
-import { capabilityIdFromToolName } from "../base/capabilities/index.js";
+import {
+  capabilityIdFromToolName,
+  isApprovableCapabilityId,
+} from "../base/capabilities/index.js";
 import { agentKindFor } from "../kinds.js";
 
 import {
@@ -118,6 +121,9 @@ async function toResult(
       toolCallId,
     );
     return { kind: "user_input_required", runId, toolCallId, ...prompt, usage };
+  }
+  if (!isApprovableCapabilityId(toolId)) {
+    throw new Error("The suspended tool does not support approval.");
   }
   await reportActivitySafely(reporter, {
     kind: "tool",

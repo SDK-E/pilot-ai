@@ -6,6 +6,7 @@ import {
   type GenerateConversationReply,
 } from "../../../../contracts/conversation.js";
 import { githubPublic } from "../../../tools/code/github-public.js";
+import { createPilotPlanTool } from "../../../tools/pilot/plan.js";
 import { createPilotScratchpadTool } from "../../../tools/pilot/scratchpad.js";
 import { webSearch } from "../../../tools/search/web-search.js";
 import { bulkUrlFetch } from "../../../tools/web/bulk-url-fetch.js";
@@ -81,6 +82,15 @@ export const CAPABILITIES: Record<CapabilityId, Capability> = {
     instructions:
       "Use ask_user only when a specific answer from the user would materially change the result.",
     tools: () => ({ ask_user: askUserTool }),
+  },
+  plan: {
+    id: "plan",
+    toolNames: ["plan"],
+    instructions:
+      "Use plan to keep a visible step-by-step task list: write it before starting work and update it (marking steps in_progress/done) as you go, so the user can follow progress without reading your reasoning.",
+    tools: ({ command, oidcToken }) => ({
+      plan: createPilotPlanTool({ command, oidcToken }),
+    }),
   },
 };
 
