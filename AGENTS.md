@@ -18,17 +18,19 @@ between versions; never rely on cached knowledge.
   wires storage, the durable-work cache, workflows, and the API routes.
 - Use the `dev` and `build` scripts from `package.json` instead of running
   `mastra dev` / `mastra build` directly.
-- A deployed runtime route must validate Pilot's Vercel OIDC token before
-  parsing tenant headers or initializing Mastra. WorkOS session and organization
-  authorization stay in the Pilot application; Pilot AI never creates or accepts
-  a separate user session.
+- A deployed runtime route must validate Pilot's short-lived WorkOS M2M token
+  (`x-pilot-runtime-token`, verified in `src/mastra/auth/workos-m2m.ts`)
+  before parsing tenant headers or initializing Mastra. WorkOS session and
+  organization authorization stay in the Pilot application; Pilot AI never
+  creates or accepts a separate user session, and never holds Pilot's M2M
+  client secret.
 - Any tool that fetches a model-controlled URL must pass the initial URL and
   every redirect through `assertPublicHttpUrl` (`src/mastra/security/public-url.ts`).
   Reject loopback, private, link-local, mixed DNS answers, local hostnames, and
   credential-bearing URLs; a read-only tool is not safe without this check.
 - Capabilities (`web-search`, `scratchpad`, `ask-user`) are the only way a tool
   reaches an agent, and only when Pilot's server-generated command grants them.
-  The activity callback uses the original verified Pilot OIDC token, targets the
+  The activity callback uses the original verified Pilot runtime token, targets the
   fixed `PILOT_ACTIVITY_CALLBACK_URL`, and sends only capability id, lifecycle
   state, organization id, and execution id. Never send prompts, tool inputs,
   outputs, URLs, errors, or reasoning through that callback.
