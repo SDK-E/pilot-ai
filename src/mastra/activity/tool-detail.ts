@@ -1,15 +1,5 @@
-const MAX_DETAIL_CHARS = 4000;
-const TRUNCATION_MARKER = "\n\n…(truncated)";
-
-function truncate(value: string, limit = MAX_DETAIL_CHARS): string {
-  return value.length > limit
-    ? value.slice(0, limit - TRUNCATION_MARKER.length) + TRUNCATION_MARKER
-    : value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+import { CONNECTOR_FORMATTERS } from "./connector-tool-detail.js";
+import { isRecord, truncate } from "./format-helpers.js";
 
 interface SandboxStep {
   cmd: string;
@@ -189,6 +179,7 @@ const FORMATTERS = new Map<
   ["siteDiscovery", (_input, output) => formatSiteDiscovery(output)],
   ["domainIntelligence", (_input, output) => formatDomainIntelligence(output)],
   ["githubPublic", (_input, output) => formatGithubPublic(output)],
+  ...CONNECTOR_FORMATTERS,
 ]);
 
 /**
