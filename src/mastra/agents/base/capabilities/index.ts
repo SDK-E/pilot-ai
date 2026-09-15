@@ -7,6 +7,14 @@ import {
 } from "../../../../contracts/conversation.js";
 import { githubPublic } from "../../../tools/code/github-public.js";
 import { sandboxRun } from "../../../tools/code/sandbox-run.js";
+import { createConnectorGithubTool } from "../../../tools/connectors/github.js";
+import { createConnectorGmailTool } from "../../../tools/connectors/gmail.js";
+import { createConnectorGoogleDriveTool } from "../../../tools/connectors/google-drive.js";
+import { createConnectorLinearTool } from "../../../tools/connectors/linear.js";
+import { createConnectorMondayTool } from "../../../tools/connectors/monday.js";
+import { createConnectorNotionTool } from "../../../tools/connectors/notion.js";
+import { createConnectorSlackTool } from "../../../tools/connectors/slack.js";
+import { createConnectorVercelTool } from "../../../tools/connectors/vercel.js";
 import { createPilotPlanTool } from "../../../tools/pilot/plan.js";
 import { createPilotScratchpadTool } from "../../../tools/pilot/scratchpad.js";
 import { webSearch } from "../../../tools/search/web-search.js";
@@ -92,6 +100,81 @@ export const CAPABILITIES: Record<CapabilityId, Capability> = {
     instructions:
       "Use sandbox-run to actually execute code — run a script, run tests, reproduce a bug, check that something works — instead of only describing what it would do. Every call gets a fresh, empty sandbox with no memory of earlier calls: write every file a command needs in the same call that runs it.",
     tools: () => ({ "sandbox-run": sandboxRun }),
+  },
+  "connector-github": {
+    id: "connector-github",
+    toolNames: ["connector-github"],
+    instructions:
+      "Use connector-github to read the user's own connected GitHub account (read-only). This is distinct from githubPublic (under web-search), which only reads GitHub's public API with no account connection and cannot see private repositories.",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-github": createConnectorGithubTool({ command, runtimeToken }),
+    }),
+  },
+  "connector-google-drive": {
+    id: "connector-google-drive",
+    toolNames: ["connector-google-drive"],
+    instructions:
+      "Use connector-google-drive to search or read files in the user's own connected Google Drive (read-only).",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-google-drive": createConnectorGoogleDriveTool({
+        command,
+        runtimeToken,
+      }),
+    }),
+  },
+  "connector-gmail": {
+    id: "connector-gmail",
+    toolNames: ["connector-gmail"],
+    instructions:
+      "Use connector-gmail to search or read messages in the user's own connected Gmail account (read-only).",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-gmail": createConnectorGmailTool({ command, runtimeToken }),
+    }),
+  },
+  "connector-slack": {
+    id: "connector-slack",
+    toolNames: ["connector-slack"],
+    instructions:
+      "Use connector-slack to list channels or read recent messages in the user's own connected Slack workspace (read-only).",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-slack": createConnectorSlackTool({ command, runtimeToken }),
+    }),
+  },
+  "connector-notion": {
+    id: "connector-notion",
+    toolNames: ["connector-notion"],
+    instructions:
+      "Use connector-notion to search or read pages in the user's own connected Notion workspace (read-only).",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-notion": createConnectorNotionTool({ command, runtimeToken }),
+    }),
+  },
+  "connector-linear": {
+    id: "connector-linear",
+    toolNames: ["connector-linear"],
+    instructions:
+      "Use connector-linear to search issues in the user's own connected Linear workspace (read-only).",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-linear": createConnectorLinearTool({ command, runtimeToken }),
+    }),
+  },
+  "connector-vercel": {
+    id: "connector-vercel",
+    toolNames: ["connector-vercel"],
+    instructions:
+      "Use connector-vercel to list deployments or read a project's status in the user's own connected Vercel account (read-only).",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-vercel": createConnectorVercelTool({ command, runtimeToken }),
+    }),
+  },
+  "connector-monday": {
+    id: "connector-monday",
+    toolNames: ["connector-monday"],
+    instructions:
+      "Use connector-monday to list boards or query items in the user's own connected Monday.com account (read-only).",
+    tools: ({ command, runtimeToken }) => ({
+      "connector-monday": createConnectorMondayTool({ command, runtimeToken }),
+    }),
   },
 };
 

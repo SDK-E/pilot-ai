@@ -23,8 +23,9 @@ local-only SQLite file (`src/.mastra/pilot-runtime.db`) automatically.
 
 ## Learn more
 
-- [`docs/architecture.md`](docs/architecture.md) — agent kinds, capabilities,
-  project structure, and the runtime API.
+- [`docs/architecture.md`](docs/architecture.md) — agent kinds, capabilities
+  (including the 8 read-only connectors), project structure, and the runtime
+  API.
 - [`docs/development.md`](docs/development.md) — full environment variable
   reference, script reference, and the verify pipeline.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to propose a change and the
