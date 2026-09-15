@@ -16,3 +16,4 @@ src/mastra/public/
 .env*
 /storage/
 /storage/logs/
+.claude/worktrees/
