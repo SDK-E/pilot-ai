@@ -1,3 +1,4 @@
+import { ALLOWED_TOOL_IDS } from "../../contracts/conversation.js";
 import {
   createPilotRuntime,
   type PilotRuntime,
@@ -24,6 +25,20 @@ export function isPublicWebSearchEnabled(): boolean {
 export function isCodeSandboxEnabled(): boolean {
   return process.env.PILOT_ENABLE_CODE_SANDBOX === "true";
 }
+
+export function isConnectorsEnabled(): boolean {
+  return process.env.PILOT_ENABLE_CONNECTORS === "true";
+}
+
+/**
+ * Every connector tool id, derived from ALLOWED_TOOL_IDS rather than listed
+ * again here, so a new connector only needs adding in one place to also be
+ * gated by the single PILOT_ENABLE_CONNECTORS platform circuit breaker,
+ * regardless of which external provider it calls.
+ */
+export const CONNECTOR_TOOL_IDS = new Set<string>(
+  ALLOWED_TOOL_IDS.filter((id) => id.startsWith("connector-")),
+);
 
 /**
  * Opens the runtime for a command. Granted capabilities need the caller's
@@ -57,6 +72,17 @@ export function selectConversationRuntime(
       status: 403,
       type: "invalid_request_error",
       message: "Pilot code sandbox is not enabled.",
+    };
+  }
+  if (
+    command.allowedToolIds.some((id) => CONNECTOR_TOOL_IDS.has(id)) &&
+    !isConnectorsEnabled()
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      type: "invalid_request_error",
+      message: "Pilot connectors are not enabled.",
     };
   }
   if (hasCapabilities && !runtimeToken) {
