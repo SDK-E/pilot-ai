@@ -19,20 +19,9 @@ import type { ToolsInput } from "@mastra/core/agent";
 
 export type CapabilityId = AllowedToolId;
 
-/**
- * Capabilities a Pilot may put behind an approval before they run.
- */
-export const APPROVABLE_CAPABILITY_IDS = [
-  "web-search",
-  "scratchpad",
-  "code-sandbox",
-] as const;
-
-export type ApprovableCapabilityId = (typeof APPROVABLE_CAPABILITY_IDS)[number];
-
 export interface CapabilityContext {
   command: GenerateConversationReply;
-  oidcToken: string;
+  runtimeToken: string;
 }
 
 export interface Capability {
@@ -77,8 +66,8 @@ export const CAPABILITIES: Record<CapabilityId, Capability> = {
     toolNames: ["scratchpad"],
     instructions:
       "Use scratchpad only for concise, durable working state in this private chat.",
-    tools: ({ command, oidcToken }) => ({
-      scratchpad: createPilotScratchpadTool({ command, oidcToken }),
+    tools: ({ command, runtimeToken }) => ({
+      scratchpad: createPilotScratchpadTool({ command, runtimeToken }),
     }),
   },
   "ask-user": {
@@ -93,8 +82,8 @@ export const CAPABILITIES: Record<CapabilityId, Capability> = {
     toolNames: ["plan"],
     instructions:
       "Use plan to keep a visible step-by-step task list: write it before starting work and update it (marking steps in_progress/done) as you go, so the user can follow progress without reading your reasoning.",
-    tools: ({ command, oidcToken }) => ({
-      plan: createPilotPlanTool({ command, oidcToken }),
+    tools: ({ command, runtimeToken }) => ({
+      plan: createPilotPlanTool({ command, runtimeToken }),
     }),
   },
   "code-sandbox": {
@@ -128,15 +117,6 @@ export function isCapabilityId(value: unknown): value is CapabilityId {
   return (
     typeof value === "string" &&
     (ALLOWED_TOOL_IDS as readonly string[]).includes(value)
-  );
-}
-
-export function isApprovableCapabilityId(
-  value: unknown,
-): value is ApprovableCapabilityId {
-  return (
-    typeof value === "string" &&
-    (APPROVABLE_CAPABILITY_IDS as readonly string[]).includes(value)
   );
 }
 

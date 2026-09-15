@@ -71,7 +71,7 @@ src/mastra/
                             web/ search/ code/ pilot/.
   workflows/                The task-approval workflow.
   memory/ storage/ cache/   Memory factories, storage adapter, tool cache.
-  activity/ auth/ security/ Pilot activity callback, Vercel OIDC verification,
+  activity/ auth/ security/ Pilot activity callback, WorkOS M2M verification,
                             public-URL guard.
   work/                     Durable Work cache (Redis).
   setup/                    Wires cache and network config into the web tools.
@@ -87,16 +87,20 @@ The production runtime is `https://ai.pilot.sdk.enterprises`.
 `POST /v1/chat/completions` accepts OpenAI Chat Completions `model`,
 `messages`, and `stream`, and returns a `chat.completion` object or an SSE
 stream. Pilot first checks the user's WorkOS session and tenant authorization,
-then forwards a short-lived Vercel OIDC token. The runtime validates its
-issuer, audience, and exact Pilot project and environment subject before it
-reads the request body, initializes Mastra, or accepts the tenant headers.
-This protects the custom domain even where Vercel Deployment Protection does
-not apply to it. `vercel.json` rewrites `/v1/*` to the function entries.
+then forwards a short-lived WorkOS M2M token minted for its own Connect
+application (`client_credentials` grant). The runtime validates its signature
+against that AuthKit environment's JWKS and its exact subject (Pilot's M2M
+client ID) before it reads the request body, initializes Mastra, or accepts
+the tenant headers. This protects the custom domain even where Vercel
+Deployment Protection does not apply to it, and — unlike the Vercel OIDC token
+it replaced — works identically in local development, since it isn't tied to
+running on Vercel at all. `vercel.json` rewrites `/v1/*` to the function
+entries.
 
 The same boundary exposes `POST /v1/approvals/resume`,
 `POST /v1/conversations/delete`, `POST /v1/projects/delete-memory`, and
-`POST /v1/tasks/approval`. All require the verified Pilot OIDC token and accept
-only typed server commands; the browser never calls them.
+`POST /v1/tasks/approval`. All require the verified Pilot runtime token and
+accept only typed server commands; the browser never calls them.
 
 Capabilities are selected only from Pilot's server-generated command; per-tool
 approval requirements travel separately, so an `ask` policy for one capability
@@ -114,10 +118,9 @@ the matching environment. Local development without that pair uses
 `error`, `silent`).
 
 Public web search requires `PILOT_ENABLE_WEB_SEARCH=true`,
-`LANGSEARCH_API_KEY`, and `PILOT_ACTIVITY_CALLBACK_URL`. Skill discovery is
-separately opt-in through `PILOT_ENABLE_RUNTIME_SKILLS=true` and runs per
-request only when the verified Pilot OIDC token and activity callback are
-available; only a validated selected-skill label reaches Pilot activity
+`LANGSEARCH_API_KEY`, and `PILOT_ACTIVITY_CALLBACK_URL`. Skill discovery runs
+per request whenever the verified Pilot runtime token and activity callback
+are available; only a validated selected-skill label reaches Pilot activity
 records.
 
 `PILOT_PROFILE` (`fast`, `balanced`, `deep`, `test`) picks the cache, timeout,

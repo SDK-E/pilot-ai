@@ -1,7 +1,5 @@
-import {
-  createPilotActivityReporter,
-  isRuntimeSkillsEnabled,
-} from "../../activity/reporter.js";
+import { createPilotActivityReporter } from "../../activity/reporter.js";
+import { buildToolDetail } from "../../activity/tool-detail.js";
 import { createBaseAgent } from "../base/agent.js";
 import {
   capabilityIdFromToolName,
@@ -27,7 +25,7 @@ export type ActivityReporter = ReturnType<typeof createPilotActivityReporter>;
 export interface AgentRequest {
   command: GenerateConversationReply;
   memory: Memory;
-  oidcToken?: string;
+  runtimeToken?: string;
 }
 
 /**
@@ -57,11 +55,11 @@ export async function reportActivitySafely(
 }
 
 export function createActivityReporter(
-  oidcToken: string | undefined,
+  runtimeToken: string | undefined,
 ): ActivityReporter | undefined {
-  if (!oidcToken) return undefined;
+  if (!runtimeToken) return undefined;
   try {
-    return createPilotActivityReporter(oidcToken);
+    return createPilotActivityReporter(runtimeToken);
   } catch {
     // The callback is optional for plain chat and fails closed otherwise.
     return undefined;
@@ -108,9 +106,13 @@ function activityHooks(
     },
     afterToolCall: async ({
       toolName,
+      input,
+      output,
       error,
     }: {
       toolName: string;
+      input?: unknown;
+      output?: unknown;
       error?: unknown;
     }) => {
       const toolId = capabilityIdFromToolName(toolName);
@@ -120,6 +122,7 @@ function activityHooks(
         ...base,
         toolId,
         state: error ? "failed" : "completed",
+        detail: buildToolDetail(toolName, input, output, error),
       });
     },
   };
@@ -127,7 +130,7 @@ function activityHooks(
 
 /**
  * Request-specific processors: evidence discipline when web tools are
- * granted, and audited skill discovery when Pilot enables it.
+ * granted, and audited skill discovery whenever an activity reporter exists.
  */
 function requestProcessors(
   granted: CapabilityId[],
@@ -137,7 +140,7 @@ function requestProcessors(
   const processors: InputProcessorOrWorkflow[] = granted.includes("web-search")
     ? [...evidenceProcessors]
     : [];
-  if (reporter && isRuntimeSkillsEnabled()) {
+  if (reporter) {
     processors.push(
       createSkillResolverProcessor({
         onSkillLoaded: (skillId) =>
@@ -159,15 +162,15 @@ Builds the agent for one request from its kind and granted capabilities.
 export function createAgentForRequest({
   command,
   memory,
-  oidcToken,
+  runtimeToken,
 }: AgentRequest): Agent {
   const kind = agentKindFor(command.baseAgentId);
   const granted = grantedCapabilities(kind, command);
-  const reporter = createActivityReporter(oidcToken);
+  const reporter = createActivityReporter(runtimeToken);
 
-  if (granted.length > 0 && (!oidcToken || !reporter)) {
+  if (granted.length > 0 && (!runtimeToken || !reporter)) {
     throw new Error(
-      "Granted capabilities require the Pilot OIDC token and activity callback.",
+      "Granted capabilities require the Pilot runtime token and activity callback.",
     );
   }
 
@@ -182,7 +185,10 @@ export function createAgentForRequest({
     ],
     memory,
     inputProcessors: requestProcessors(granted, command, reporter),
-    tools: capabilityTools(granted, { command, oidcToken: oidcToken ?? "" }),
+    tools: capabilityTools(granted, {
+      command,
+      runtimeToken: runtimeToken ?? "",
+    }),
     defaultOptions:
       granted.length > 0 ? { hooks: activityHooks(command, reporter) } : {},
   });

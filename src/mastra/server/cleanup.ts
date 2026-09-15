@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { createPilotRuntime } from "../agents/runtime/runtime.js";
-import { isVerifiedPilotRuntimeRequest } from "../auth/vercel-oidc.js";
+import { isVerifiedPilotRuntimeRequest } from "../auth/workos-m2m.js";
 import { getPilotRuntimeStorageConfig } from "../storage/runtime.js";
 
 import { readJsonBody } from "./request-body.js";
@@ -14,6 +14,18 @@ export const conversationCleanupSchema = z
     project: z
       .object({ id: z.uuid(), sharedMemoryEnabled: z.boolean() })
       .optional(),
+  })
+  .strict();
+
+export const conversationTruncateSchema = z
+  .object({
+    organizationId: z.string().min(1).max(255),
+    workerId: z.uuid(),
+    conversationId: z.uuid(),
+    project: z
+      .object({ id: z.uuid(), sharedMemoryEnabled: z.boolean() })
+      .optional(),
+    cutoff: z.iso.datetime(),
   })
   .strict();
 
@@ -63,6 +75,25 @@ export async function handleConversationCleanup(
   const runtime = createPilotRuntime(storageConfig);
   try {
     await runtime.deleteConversation(command);
+    return new Response(null, { status: 204 });
+  } finally {
+    await runtime.close();
+  }
+}
+
+export async function handleConversationTruncate(
+  request: Request,
+): Promise<Response> {
+  const command = await authorizeAndParse(request, conversationTruncateSchema);
+  if (isResponse(command)) return command;
+  const storageConfig = getStorageResponse();
+  if (isResponse(storageConfig)) return storageConfig;
+  const runtime = createPilotRuntime(storageConfig);
+  try {
+    await runtime.truncateConversation({
+      ...command,
+      cutoff: new Date(command.cutoff),
+    });
     return new Response(null, { status: 204 });
   } finally {
     await runtime.close();

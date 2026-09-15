@@ -1,5 +1,3 @@
-import type { ApprovableCapabilityId } from "../base/capabilities/index.js";
-
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
@@ -15,14 +13,6 @@ export interface CompletedResult {
   usage: TokenUsage;
 }
 
-export interface SuspendedResult {
-  kind: "suspended";
-  runId: string;
-  toolCallId: string;
-  toolId: ApprovableCapabilityId;
-  usage: TokenUsage;
-}
-
 export interface UserInputRequiredResult {
   kind: "user_input_required";
   runId: string;
@@ -33,8 +23,7 @@ export interface UserInputRequiredResult {
   usage: TokenUsage;
 }
 
-export type RuntimeResult =
-  CompletedResult | SuspendedResult | UserInputRequiredResult;
+export type RuntimeResult = CompletedResult | UserInputRequiredResult;
 
 /**
  * A model provider outage can return an HTTP error page (a full HTML

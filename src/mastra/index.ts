@@ -10,7 +10,6 @@ import {
   createPilotDurableWorkCache,
   getPilotDurableWorkConfig,
 } from "./work/durable-cache.js";
-import { taskApprovalWorkflow } from "./workflows/task-approval.js";
 
 const runtimeStorageConfig = getPilotRuntimeStorageConfig();
 const durableWorkConfig = getPilotDurableWorkConfig();
@@ -23,7 +22,6 @@ export const mastra = new Mastra({
   storage: runtimeStorageConfig
     ? createPilotRuntimeStorage(runtimeStorageConfig)
     : undefined,
-  workflows: { taskApprovalWorkflow },
   cache: durableWorkConfig
     ? createPilotDurableWorkCache(durableWorkConfig)
     : undefined,

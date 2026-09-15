@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import conversationDelete from "../../../api/v1/conversations/delete.js";
+import conversationTruncate from "../../../api/v1/conversations/truncate.js";
 import projectMemoryDelete from "../../../api/v1/projects/delete-memory.js";
 
 describe("Vercel cleanup entrypoints", () => {
@@ -11,19 +12,16 @@ describe("Vercel cleanup entrypoints", () => {
     expect(response.status).toBe(405);
   });
 
-  it("loads the project cleanup function and rejects non-POST requests", async () => {
-    const response = await projectMemoryDelete.fetch(
-      new Request("https://ai.pilot.test/v1/projects/delete-memory"),
+  it("loads the conversation truncate function and rejects non-POST requests", async () => {
+    const response = await conversationTruncate.fetch(
+      new Request("https://ai.pilot.test/v1/conversations/truncate"),
     );
     expect(response.status).toBe(405);
   });
-});
 
-describe("Vercel approval resume entrypoint", () => {
-  it("loads and rejects a non-POST request before parsing an approval command", async () => {
-    const approvalResume = await import("../../../api/v1/approvals/resume.js");
-    const response = await approvalResume.default.fetch(
-      new Request("https://ai.pilot.test/v1/approvals/resume"),
+  it("loads the project cleanup function and rejects non-POST requests", async () => {
+    const response = await projectMemoryDelete.fetch(
+      new Request("https://ai.pilot.test/v1/projects/delete-memory"),
     );
     expect(response.status).toBe(405);
   });

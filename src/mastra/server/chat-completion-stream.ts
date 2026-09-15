@@ -34,18 +34,6 @@ function terminalEvent(
   model: string,
   completed: RuntimeResult,
 ): object {
-  if (completed.kind === "suspended") {
-    return {
-      id,
-      object: "pilot.approval.required",
-      model,
-      pilot: {
-        run_id: completed.runId,
-        tool_call_id: completed.toolCallId,
-        tool_id: completed.toolId,
-      },
-    };
-  }
   if (completed.kind === "user_input_required") {
     return {
       id,
@@ -132,6 +120,16 @@ export function createChatCompletionStream(
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (error) {
+        // On abort, agent.stream()'s own onFinish/memory-save and workflow
+        // cleanup are still in flight. result() drains the underlying stream
+        // (see getFullOutput -> consumeStream) and waits for that cleanup to
+        // settle, so storage isn't closed out from under it below.
+        try {
+          await result.result();
+        } catch {
+          // The original error below is what the client sees; this only
+          // waits for the abort's own cleanup to settle.
+        }
         controller.error(error);
       } finally {
         await options.onClose();

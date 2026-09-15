@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  APPROVABLE_CAPABILITY_IDS,
   CAPABILITIES,
   capabilityIdFromToolName,
   capabilityInstructions,
@@ -19,12 +18,7 @@ describe("capabilities", () => {
     expect(capabilityIdFromToolName(undefined)).toBeUndefined();
   });
 
-  it("only approvable capabilities can sit behind an approval", () => {
-    expect(APPROVABLE_CAPABILITY_IDS).toEqual([
-      "web-search",
-      "scratchpad",
-      "code-sandbox",
-    ]);
+  it("registers exactly the production capabilities", () => {
     expect(Object.keys(CAPABILITIES)).toEqual([
       "web-search",
       "scratchpad",

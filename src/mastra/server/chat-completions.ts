@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 
-import { verifyPilotRuntimeRequest } from "../auth/vercel-oidc.js";
+import { verifyPilotRuntimeRequest } from "../auth/workos-m2m.js";
 import { logger } from "../logger.js";
 import {
   getPilotRuntimeStorageConfig,
@@ -8,7 +8,6 @@ import {
 } from "../storage/runtime.js";
 
 import {
-  createApprovalRequiredResponse,
   createChatCompletionResponse,
   createChatCompletionStream,
   createConversationCommandFromChatCompletion,
@@ -90,11 +89,9 @@ async function parseChatCompletion(
 async function generateCompletion(
   runtime: ConversationRuntime,
   command: GenerateConversationReply,
+  abortSignal: AbortSignal,
 ): Promise<Response> {
-  const result = await runtime.generate(command);
-  if (result.kind === "suspended") {
-    return Response.json(createApprovalRequiredResponse(result));
-  }
+  const result = await runtime.generate(command, abortSignal);
   if (result.kind === "user_input_required") {
     return Response.json(createUserInputRequiredResponse(result));
   }
@@ -140,7 +137,7 @@ export async function handleChatCompletion(
 
   const selection = selectConversationRuntime(
     parsed.command,
-    request.headers.get("x-pilot-runtime-oidc-token"),
+    request.headers.get("x-pilot-runtime-token"),
     storageConfig,
   );
   if (!selection.ok) {
@@ -151,9 +148,9 @@ export async function handleChatCompletion(
   let isCloseRuntime = true;
   try {
     if (!isStreamingChatCompletionRequest(parsed.body)) {
-      return await generateCompletion(runtime, parsed.command);
+      return await generateCompletion(runtime, parsed.command, request.signal);
     }
-    const stream = await runtime.stream(parsed.command);
+    const stream = await runtime.stream(parsed.command, request.signal);
     isCloseRuntime = false;
     return streamResponse(stream, parsed.body, runtime);
   } catch (error_) {

@@ -16,33 +16,11 @@ import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,
 } from "../../storage/runtime.js";
-import {
-  capabilityIdFromToolName,
-  isApprovableCapabilityId,
-} from "../base/capabilities/index.js";
 import { agentKindFor } from "../kinds.js";
 
-import {
-  createActivityReporter,
-  createAgentForRequest,
-  grantedCapabilities,
-  reportActivitySafely,
-  type ActivityReporter,
-} from "./agent-factory.js";
-import {
-  isHtmlDocumentText,
-  usageOf,
-  type CompletedResult,
-  type RuntimeResult,
-} from "./results.js";
-import {
-  findApprovalRun,
-  isApprovalTarget,
-  isSuspended,
-  suspendedAskUserInput,
-  suspendedCapabilityId,
-  type ApprovalTarget,
-} from "./suspensions.js";
+import { createAgentForRequest, grantedCapabilities } from "./agent-factory.js";
+import { isHtmlDocumentText, usageOf, type RuntimeResult } from "./results.js";
+import { isSuspended, suspendedAskUserInput } from "./suspensions.js";
 
 import type { Agent } from "@mastra/core/agent";
 import type { Memory } from "@mastra/memory";
@@ -52,6 +30,13 @@ export interface ConversationCleanup {
   workerId: string;
   conversationId: string;
   project?: { id: string; sharedMemoryEnabled: boolean };
+}
+
+export interface ConversationTruncate extends ConversationCleanup {
+  /*
+   * Forget every stored message at or after this point.
+   */
+  cutoff: Date;
 }
 
 export interface ProjectMemoryCleanup {
@@ -70,7 +55,10 @@ type AgentOutput = Parameters<typeof isSuspended>[0] & {
   totalUsage: Parameters<typeof usageOf>[0]["totalUsage"];
 };
 
-function generationOptions(command: GenerateConversationReply) {
+function generationOptions(
+  command: GenerateConversationReply,
+  abortSignal?: AbortSignal,
+) {
   const kind = agentKindFor(command.baseAgentId);
   const granted = grantedCapabilities(kind, command);
   return {
@@ -80,11 +68,7 @@ function generationOptions(command: GenerateConversationReply) {
     },
     maxSteps: kind.limits.maxSteps,
     toolChoice: granted.length > 0 ? ("auto" as const) : ("none" as const),
-    requireToolApproval: ({ toolName }: { toolName: string }) => {
-      const toolId = capabilityIdFromToolName(toolName);
-      return toolId ? command.approvalRequiredToolIds.includes(toolId) : false;
-    },
-    autoResumeSuspendedTools: granted.includes("ask-user"),
+    abortSignal,
   };
 }
 
@@ -98,7 +82,6 @@ async function toResult(
   agent: Agent,
   command: GenerateConversationReply,
   output: AgentOutput,
-  reporter: ActivityReporter | undefined,
 ): Promise<RuntimeResult> {
   const usage = usageOf(output);
   if (!isSuspended(output)) {
@@ -118,69 +101,14 @@ async function toResult(
   }
   const { runId } = output;
   const { toolCallId } = output.suspendPayload;
-  const toolId = await suspendedCapabilityId(agent, command, runId, toolCallId);
-  if (toolId === "ask-user") {
-    const prompt = await suspendedAskUserInput(
-      agent,
-      command,
-      runId,
-      toolCallId,
-    );
-    return { kind: "user_input_required", runId, toolCallId, ...prompt, usage };
-  }
-  if (!isApprovableCapabilityId(toolId)) {
-    throw new Error("The suspended tool does not support approval.");
-  }
-  await reportActivitySafely(reporter, {
-    kind: "tool",
-    organizationId: command.organizationId,
-    executionId: command.executionId,
-    toolId,
-    toolCallId,
-    runtimeRunId: runId,
-    state: "awaiting_approval",
-  });
-  return { kind: "suspended", runId, toolCallId, toolId, usage };
+  const prompt = await suspendedAskUserInput(agent, command, runId, toolCallId);
+  return { kind: "user_input_required", runId, toolCallId, ...prompt, usage };
 }
 
-async function resumeRun(
-  agent: Agent,
-  command: GenerateConversationReply,
-  target: ApprovalTarget,
-  isApproved: boolean,
-): Promise<CompletedResult> {
-  const run = await findApprovalRun(agent, command, target);
-  if (!run) throw new Error("The requested approval is not suspended.");
-  const input = {
-    runId: run.runId,
-    toolCallId: target.toolCallId,
-    ...generationOptions(command),
-  };
-  const output = isApproved
-    ? await agent.approveToolCallGenerate(input)
-    : await agent.declineToolCallGenerate({
-        ...input,
-        reason: "The user declined this tool call.",
-      });
-  if (isHtmlDocumentText(output.text)) {
-    throw new Error(
-      "The model provider returned an unexpected response instead of a completion.",
-    );
-  }
-  return {
-    kind: "completed",
-    text: output.text,
-    finishReason: output.finishReason,
-    modelId: command.worker.modelId,
-    runId: output.runId ?? null,
-    usage: usageOf(output),
-  };
-}
-
-async function deleteConversationThread(
+async function resolveConversationThread(
   memories: Memories,
   input: ConversationCleanup,
-): Promise<void> {
+) {
   const isShared = input.project?.sharedMemoryEnabled === true;
   const resourceId =
     isShared && input.project
@@ -199,7 +127,39 @@ async function deleteConversationThread(
   if (thread.resourceId !== resourceId) {
     throw new Error("Conversation thread has an unexpected resource owner.");
   }
-  await memory.deleteThread(input.conversationId);
+  return { memory, resourceId };
+}
+
+async function deleteConversationThread(
+  memories: Memories,
+  input: ConversationCleanup,
+): Promise<void> {
+  const resolved = await resolveConversationThread(memories, input);
+  if (!resolved) return;
+  await resolved.memory.deleteThread(input.conversationId);
+}
+
+/**
+ * Forgets every message Mastra stored for this conversation at or after
+ * `cutoff` — the point Pilot is about to overwrite (an edited message) or
+ * discard (a regenerated reply). Pilot's own Postgres history is the source
+ * of truth for what the user sees; this only keeps the model's own memory of
+ * the conversation from staying stale once Pilot's copy no longer matches.
+ */
+async function truncateConversationThread(
+  memories: Memories,
+  input: ConversationTruncate,
+): Promise<void> {
+  const resolved = await resolveConversationThread(memories, input);
+  if (!resolved) return;
+  const { messages } = await resolved.memory.recall({
+    threadId: input.conversationId,
+    resourceId: resolved.resourceId,
+    perPage: false,
+    filter: { dateRange: { start: input.cutoff } },
+  });
+  if (messages.length === 0) return;
+  await resolved.memory.deleteMessages(messages.map((message) => message.id));
 }
 
 async function deleteProjectThreads(
@@ -223,7 +183,7 @@ async function deleteProjectThreads(
 interface RuntimeContext {
   storage: ReturnType<typeof createPilotRuntimeStorage>;
   memories: Memories;
-  oidcToken: string | undefined;
+  runtimeToken: string | undefined;
 }
 
 function prepareAgent(context: RuntimeContext, rawCommand: unknown) {
@@ -231,7 +191,7 @@ function prepareAgent(context: RuntimeContext, rawCommand: unknown) {
   const agent = createAgentForRequest({
     command,
     memory: memoryFor(context.memories, command),
-    oidcToken: context.oidcToken,
+    runtimeToken: context.runtimeToken,
   });
   // Registering the agent over the shared store is what lets a suspended
   // run be found again from another process.
@@ -245,7 +205,7 @@ function prepareAgent(context: RuntimeContext, rawCommand: unknown) {
  */
 export function createPilotRuntime(
   storageConfig: PilotRuntimeStorageConfig,
-  oidcToken?: string,
+  runtimeToken?: string,
 ) {
   const storage = createPilotRuntimeStorage(storageConfig);
   configureWebTools(storageConfig);
@@ -253,48 +213,42 @@ export function createPilotRuntime(
     conversation: createConversationMemory(storage),
     project: createProjectMemory(storage),
   };
-  const context: RuntimeContext = { storage, memories, oidcToken };
-  const reporter = createActivityReporter(oidcToken);
+  const context: RuntimeContext = { storage, memories, runtimeToken };
   const prepare = (rawCommand: unknown) => prepareAgent(context, rawCommand);
 
   return {
-    async generate(rawCommand: unknown): Promise<RuntimeResult> {
+    async generate(
+      rawCommand: unknown,
+      abortSignal?: AbortSignal,
+    ): Promise<RuntimeResult> {
       const { command, agent } = prepare(rawCommand);
       const output = await agent.generate(
         command.message,
-        generationOptions(command),
+        generationOptions(command, abortSignal),
       );
-      return toResult(agent, command, output, reporter);
+      return toResult(agent, command, output);
     },
 
-    async stream(rawCommand: unknown) {
+    async stream(rawCommand: unknown, abortSignal?: AbortSignal) {
       const { command, agent } = prepare(rawCommand);
       const output = await agent.stream(
         command.message,
-        generationOptions(command),
+        generationOptions(command, abortSignal),
       );
       return {
         runId: output.runId,
         modelId: command.worker.modelId,
         textStream: output.textStream,
         result: async () =>
-          toResult(agent, command, await output.getFullOutput(), reporter),
+          toResult(agent, command, await output.getFullOutput()),
       };
-    },
-
-    async resume(
-      rawCommand: unknown,
-      isApproved: boolean,
-    ): Promise<CompletedResult> {
-      const { command, agent } = prepare(rawCommand);
-      if (!isApprovalTarget(rawCommand)) {
-        throw new Error("Invalid approval resume command.");
-      }
-      return resumeRun(agent, command, rawCommand, isApproved);
     },
 
     deleteConversation: (input: ConversationCleanup) =>
       deleteConversationThread(memories, input),
+
+    truncateConversation: (input: ConversationTruncate) =>
+      truncateConversationThread(memories, input),
 
     deleteProjectMemory: (input: ProjectMemoryCleanup) =>
       deleteProjectThreads(memories, input),

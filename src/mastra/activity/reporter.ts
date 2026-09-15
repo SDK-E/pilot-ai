@@ -15,8 +15,9 @@ const toolActivitySchema = z
       "code-sandbox",
     ]),
     toolCallId: z.string().min(1).max(255).optional(),
-    state: z.enum(["started", "completed", "failed", "awaiting_approval"]),
+    state: z.enum(["started", "completed", "failed"]),
     runtimeRunId: z.string().min(1).max(255).optional(),
+    detail: z.string().max(4000).optional(),
   })
   .strict();
 
@@ -32,11 +33,7 @@ const skillActivitySchema = z
 type ActivityEvent =
   z.infer<typeof toolActivitySchema> | z.infer<typeof skillActivitySchema>;
 
-export function isRuntimeSkillsEnabled(): boolean {
-  return process.env.PILOT_ENABLE_RUNTIME_SKILLS === "true";
-}
-
-export function createPilotActivityReporter(oidcToken: string) {
+export function createPilotActivityReporter(runtimeToken: string) {
   const callbackUrl = pilotCallbackUrl();
 
   return async (event: ActivityEvent): Promise<void> => {
@@ -48,7 +45,7 @@ export function createPilotActivityReporter(oidcToken: string) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-pilot-runtime-oidc-token": oidcToken,
+        "x-pilot-runtime-token": runtimeToken,
       },
       body: JSON.stringify(validated),
       cache: "no-store",

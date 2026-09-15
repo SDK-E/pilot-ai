@@ -53,10 +53,6 @@ export const generateConversationReplySchema = z
     message: z.string().min(1).max(10_000),
     baseAgentId: baseAgentIdSchema,
     allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(5).default([]),
-    approvalRequiredToolIds: z
-      .array(z.enum(ALLOWED_TOOL_IDS))
-      .max(3)
-      .default([]),
     executionId: z.uuid(),
     project: z
       .object({
@@ -66,26 +62,7 @@ export const generateConversationReplySchema = z
       })
       .optional(),
   })
-  .strict()
-  .superRefine((command, context) => {
-    for (const toolId of command.approvalRequiredToolIds) {
-      if (!command.allowedToolIds.includes(toolId)) {
-        context.addIssue({
-          code: "custom",
-          message: "An approval-required tool must be allowed.",
-          path: ["approvalRequiredToolIds"],
-        });
-      }
-      if (toolId === "ask-user") {
-        context.addIssue({
-          code: "custom",
-          message:
-            "Ask User is a clarification flow and cannot require approval.",
-          path: ["approvalRequiredToolIds"],
-        });
-      }
-    }
-  });
+  .strict();
 
 export type GenerateConversationReply = z.infer<
   typeof generateConversationReplySchema

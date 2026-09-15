@@ -16,7 +16,7 @@ const responseSchema = z
 
 export function createPilotPlanTool(input: {
   command: GenerateConversationReply;
-  oidcToken: string;
+  runtimeToken: string;
 }) {
   const callbackUrl = new URL("/api/runtime/plan", pilotCallbackUrl().origin);
 
@@ -37,7 +37,7 @@ export function createPilotPlanTool(input: {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-pilot-runtime-oidc-token": input.oidcToken,
+          "x-pilot-runtime-token": input.runtimeToken,
         },
         body: JSON.stringify({
           organizationId: input.command.organizationId,

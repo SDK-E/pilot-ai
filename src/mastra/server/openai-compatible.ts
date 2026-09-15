@@ -8,7 +8,6 @@ import {
   type GenerateConversationReply,
 } from "../../contracts/conversation.js";
 
-import type { ApprovableCapabilityId } from "../agents/base/capabilities/index.js";
 import type { CompletedResult } from "../agents/runtime/results.js";
 
 const chatMessageSchema = z
@@ -40,11 +39,9 @@ const pilotContextSchema = z
     conversationId: z.uuid(),
     executionId: z.uuid(),
     baseAgentId: baseAgentIdSchema,
-    allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(3),
-    approvalRequiredToolIds: z
+    allowedToolIds: z
       .array(z.enum(ALLOWED_TOOL_IDS))
-      .max(2)
-      .default([]),
+      .max(ALLOWED_TOOL_IDS.length),
     projectId: z.uuid().optional(),
     projectInstructions: z.string().min(1).max(10_000).optional(),
     projectSharedMemoryEnabled: z.boolean().optional(),
@@ -88,10 +85,6 @@ export function createConversationCommandFromChatCompletion(
     executionId: headers.get("x-pilot-execution-id"),
     baseAgentId: headers.get("x-pilot-base-agent-id"),
     allowedToolIds: jsonHeader(headers, "x-pilot-allowed-tool-ids"),
-    approvalRequiredToolIds: jsonHeader(
-      headers,
-      "x-pilot-approval-required-tool-ids",
-    ),
     projectId: optionalHeader(headers, "x-pilot-project-id"),
     projectInstructions: optionalHeader(
       headers,
@@ -125,7 +118,6 @@ export function createConversationCommandFromChatCompletion(
     executionId: context.executionId,
     baseAgentId: context.baseAgentId,
     allowedToolIds: context.allowedToolIds,
-    approvalRequiredToolIds: context.approvalRequiredToolIds,
     project: context.projectId
       ? {
           id: context.projectId,
@@ -133,19 +125,6 @@ export function createConversationCommandFromChatCompletion(
           sharedMemoryEnabled: context.projectSharedMemoryEnabled ?? false,
         }
       : undefined,
-  };
-}
-
-export function createApprovalRequiredResponse(result: {
-  runId: string;
-  toolCallId: string;
-  toolId: ApprovableCapabilityId;
-}) {
-  return {
-    object: "pilot.approval.required" as const,
-    run_id: result.runId,
-    tool_call_id: result.toolCallId,
-    tool_id: result.toolId,
   };
 }
 

@@ -24,7 +24,6 @@ const validCommand: GenerateConversationReply = {
   message: "Hello.",
   baseAgentId: "chat",
   allowedToolIds: [],
-  approvalRequiredToolIds: [],
   executionId: "98f1871e-72fb-4c5c-9a09-d89713e64950",
 };
 
@@ -84,40 +83,6 @@ describe("contract", () => {
       allowedToolIds: ["stagehand-browser"],
     });
     expect(result.success).toBe(false);
-  });
-
-  it("rejects approval requirements for a tool that is not allowed", () => {
-    const result = generateConversationReplySchema.safeParse({
-      ...validCommand,
-      approvalRequiredToolIds: ["web-search"],
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects an approval requirement for Ask User", () => {
-    const result = generateConversationReplySchema.safeParse({
-      ...validCommand,
-      allowedToolIds: ["ask-user"],
-      approvalRequiredToolIds: ["ask-user"],
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts a granular approval configuration", () => {
-    const result = generateConversationReplySchema.safeParse({
-      ...validCommand,
-      allowedToolIds: ["web-search", "scratchpad", "ask-user"],
-      approvalRequiredToolIds: ["web-search"],
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.allowedToolIds).toEqual([
-        "web-search",
-        "scratchpad",
-        "ask-user",
-      ]);
-      expect(result.data.approvalRequiredToolIds).toEqual(["web-search"]);
-    }
   });
 
   it("createConversationResourceId scopes by organization + worker", () => {

@@ -27,13 +27,13 @@ export function isCodeSandboxEnabled(): boolean {
 
 /**
  * Opens the runtime for a command. Granted capabilities need the caller's
- * OIDC token for activity callbacks; public web search and the code sandbox
+ * runtime token for activity callbacks; public web search and the code sandbox
  * are additionally gated by their own production feature flags — pilot
  * checks these too, but a request must not depend on that alone.
  */
 export function selectConversationRuntime(
   command: GenerateConversationReply,
-  oidcToken: string | null,
+  runtimeToken: string | null,
   storageConfig: PilotRuntimeStorageConfig,
 ): RuntimeSelection {
   const hasCapabilities = command.allowedToolIds.length > 0;
@@ -59,7 +59,7 @@ export function selectConversationRuntime(
       message: "Pilot code sandbox is not enabled.",
     };
   }
-  if (hasCapabilities && !oidcToken) {
+  if (hasCapabilities && !runtimeToken) {
     return {
       ok: false,
       status: 401,
@@ -69,6 +69,6 @@ export function selectConversationRuntime(
   }
   return {
     ok: true,
-    runtime: createPilotRuntime(storageConfig, oidcToken ?? undefined),
+    runtime: createPilotRuntime(storageConfig, runtimeToken ?? undefined),
   };
 }

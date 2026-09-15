@@ -23,7 +23,7 @@ vi.mock("../agents/runtime/runtime.js", () => ({
   createPilotRuntime: mocks.createRuntime,
 }));
 
-vi.mock("../auth/vercel-oidc.js", () => ({
+vi.mock("../auth/workos-m2m.js", () => ({
   verifyPilotRuntimeRequest: mocks.verifyRequest,
 }));
 
@@ -98,21 +98,23 @@ describe("OpenAI-compatible chat completion function", () => {
       ],
       usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 },
     });
-    expect(mocks.generate).toHaveBeenCalledWith({
-      organizationId: "org-preview",
-      worker: {
-        id: "6f96e48d-c27a-4b4b-ab63-e406f69132ce",
-        instructions: "Be helpful.",
-        modelId: "kilo/kilo-auto/free",
+    expect(mocks.generate).toHaveBeenCalledWith(
+      {
+        organizationId: "org-preview",
+        worker: {
+          id: "6f96e48d-c27a-4b4b-ab63-e406f69132ce",
+          instructions: "Be helpful.",
+          modelId: "kilo/kilo-auto/free",
+        },
+        conversationId: "2e61a6d9-0b48-4e17-8e0e-97075112953d",
+        message: "Hello.",
+        baseAgentId: "chat",
+        allowedToolIds: [],
+        executionId: "843b97b3-b0ec-4244-9a6c-2b872645a9ed",
+        project: undefined,
       },
-      conversationId: "2e61a6d9-0b48-4e17-8e0e-97075112953d",
-      message: "Hello.",
-      baseAgentId: "chat",
-      allowedToolIds: [],
-      approvalRequiredToolIds: [],
-      executionId: "843b97b3-b0ec-4244-9a6c-2b872645a9ed",
-      project: undefined,
-    });
+      expect.anything(),
+    );
   });
 
   it("maps the legacy conversational base agent id to chat", async () => {
@@ -125,6 +127,7 @@ describe("OpenAI-compatible chat completion function", () => {
     expect(response.status).toBe(200);
     expect(mocks.generate).toHaveBeenCalledWith(
       expect.objectContaining({ baseAgentId: "chat" }),
+      expect.anything(),
     );
   });
 
@@ -148,17 +151,17 @@ describe("OpenAI-compatible chat completion function", () => {
           sharedMemoryEnabled: true,
         },
       }),
+      expect.anything(),
     );
   });
 
-  it("passes the OIDC token to the runtime when capabilities are granted", async () => {
+  it("passes the runtime token to the runtime when capabilities are granted", async () => {
     mocks.generate.mockResolvedValue(completed("run-approval"));
 
     const response = await post({
       headers: {
         "x-pilot-allowed-tool-ids": '["scratchpad"]',
-        "x-pilot-approval-required-tool-ids": '["scratchpad"]',
-        "x-pilot-runtime-oidc-token": "runtime-token",
+        "x-pilot-runtime-token": "runtime-token",
       },
     });
 
@@ -170,12 +173,12 @@ describe("OpenAI-compatible chat completion function", () => {
     expect(mocks.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         allowedToolIds: ["scratchpad"],
-        approvalRequiredToolIds: ["scratchpad"],
       }),
+      expect.anything(),
     );
   });
 
-  it("rejects requests without a valid Vercel OIDC token before initialization", async () => {
+  it("rejects requests without a valid runtime token before initialization", async () => {
     mocks.verifyRequest.mockResolvedValue({
       ok: false,
       reason: "no-token-header",
@@ -193,7 +196,7 @@ describe("OpenAI-compatible chat completion function", () => {
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 
-  it("rejects granted capabilities without a runtime OIDC token", async () => {
+  it("rejects granted capabilities without a runtime token", async () => {
     const response = await post({
       headers: { "x-pilot-allowed-tool-ids": '["scratchpad"]' },
     });
@@ -246,7 +249,7 @@ describe("OpenAI-compatible chat completion function", () => {
     const response = await post({
       headers: {
         "x-pilot-allowed-tool-ids": '["ask-user"]',
-        "x-pilot-runtime-oidc-token": "pilot-oidc-token",
+        "x-pilot-runtime-token": "pilot-runtime-token",
       },
     });
 

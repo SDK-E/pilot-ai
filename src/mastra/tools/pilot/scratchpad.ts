@@ -9,7 +9,7 @@ const responseSchema = z.object({ content: z.string().max(16_000) }).strict();
 
 export function createPilotScratchpadTool(input: {
   command: GenerateConversationReply;
-  oidcToken: string;
+  runtimeToken: string;
 }) {
   const callbackUrl = new URL(
     "/api/runtime/scratchpad",
@@ -33,7 +33,7 @@ export function createPilotScratchpadTool(input: {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-pilot-runtime-oidc-token": input.oidcToken,
+          "x-pilot-runtime-token": input.runtimeToken,
         },
         body: JSON.stringify({
           organizationId: input.command.organizationId,
