@@ -69,6 +69,13 @@ describe("OpenAI-compatible chat completion function", () => {
   beforeEach(() => {
     vi.stubEnv("TURSO_DATABASE_URL", "libsql://runtime.turso.io");
     vi.stubEnv("TURSO_AUTH_TOKEN", "runtime-token");
+    // These tests assert the disabled-by-default behavior of each platform
+    // circuit breaker, so they must not inherit an ambient "true" from the
+    // shell or CI runner's own environment — stub all three explicitly
+    // rather than relying on them being unset.
+    vi.stubEnv("PILOT_ENABLE_WEB_SEARCH", "false");
+    vi.stubEnv("PILOT_ENABLE_CODE_SANDBOX", "false");
+    vi.stubEnv("PILOT_ENABLE_CONNECTORS", "false");
     mocks.generate.mockReset();
     mocks.stream.mockReset();
     mocks.close.mockReset();
@@ -205,35 +212,24 @@ describe("OpenAI-compatible chat completion function", () => {
     expect(mocks.createRuntime).not.toHaveBeenCalled();
   });
 
-  it("rejects public web search before the production adapter is enabled", async () => {
-    const response = await post({
-      headers: { "x-pilot-allowed-tool-ids": '["web-search"]' },
-    });
+  it.each([
+    ["web-search", "Pilot public web search is not enabled."],
+    ["code-sandbox", "Pilot code sandbox is not enabled."],
+    ["connector-github", "Pilot connectors are not enabled."],
+  ])(
+    "rejects %s before its production adapter is enabled",
+    async (toolId, message) => {
+      const response = await post({
+        headers: { "x-pilot-allowed-tool-ids": JSON.stringify([toolId]) },
+      });
 
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: {
-        message: "Pilot public web search is not enabled.",
-        type: "invalid_request_error",
-      },
-    });
-    expect(mocks.createRuntime).not.toHaveBeenCalled();
-  });
-
-  it("rejects the code sandbox before the production adapter is enabled", async () => {
-    const response = await post({
-      headers: { "x-pilot-allowed-tool-ids": '["code-sandbox"]' },
-    });
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: {
-        message: "Pilot code sandbox is not enabled.",
-        type: "invalid_request_error",
-      },
-    });
-    expect(mocks.createRuntime).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual({
+        error: { message, type: "invalid_request_error" },
+      });
+      expect(mocks.createRuntime).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns an Ask User suspension as a user-input-required object", async () => {
     mocks.generate.mockResolvedValue({

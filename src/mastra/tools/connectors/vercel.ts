@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-vercel";
 
@@ -35,13 +39,22 @@ const outputSchema = z
       })
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (output) =>
+      output.deployments !== undefined || output.project !== undefined,
+    {
+      message:
+        "Vercel connector response is missing both deployments and project.",
+    },
+  );
 
 /**
  * Reads the user's own connected Vercel account through Pilot's connectors
  * callback. Read-only; it cannot trigger, cancel, or promote deployments.
  */
 export function createConnectorVercelTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -51,6 +64,7 @@ export function createConnectorVercelTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "Vercel",
         action: rawInput.action,

@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-notion";
 
@@ -36,13 +40,17 @@ const outputSchema = z
       })
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine((output) => output.items !== undefined || output.page !== undefined, {
+    message: "Notion connector response is missing both items and page.",
+  });
 
 /**
  * Reads the user's own connected Notion workspace through Pilot's
  * connectors callback. Read-only; it cannot create, edit, or delete pages.
  */
 export function createConnectorNotionTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -52,6 +60,7 @@ export function createConnectorNotionTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "Notion",
         action: rawInput.action,

@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-github";
 
@@ -39,6 +43,7 @@ const outputSchema = z.object({ items: z.array(issueSchema).max(25) }).strict();
  * otherwise modify anything on GitHub.
  */
 export function createConnectorGithubTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -48,6 +53,7 @@ export function createConnectorGithubTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "GitHub",
         action: rawInput.action,

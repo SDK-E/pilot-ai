@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-monday";
 
@@ -35,7 +39,14 @@ const outputSchema = z
     boards: z.array(boardSchema).max(25).optional(),
     items: z.array(itemSchema).max(25).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (output) => output.boards !== undefined || output.items !== undefined,
+    {
+      message:
+        "Monday.com connector response is missing both boards and items.",
+    },
+  );
 
 /**
  * Reads the user's own connected Monday.com account through Pilot's
@@ -43,6 +54,7 @@ const outputSchema = z
  * boards or items.
  */
 export function createConnectorMondayTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -52,6 +64,7 @@ export function createConnectorMondayTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "Monday.com",
         action: rawInput.action,

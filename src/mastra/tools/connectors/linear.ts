@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-linear";
 
@@ -27,6 +31,7 @@ const outputSchema = z.object({ items: z.array(issueSchema).max(25) }).strict();
  * connectors callback. Read-only; it cannot create, edit, or close issues.
  */
 export function createConnectorLinearTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -36,6 +41,7 @@ export function createConnectorLinearTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "Linear",
         action: rawInput.action,

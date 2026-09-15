@@ -1,3 +1,4 @@
+import { ALLOWED_TOOL_IDS } from "../../contracts/conversation.js";
 import {
   createPilotRuntime,
   type PilotRuntime,
@@ -30,19 +31,14 @@ export function isConnectorsEnabled(): boolean {
 }
 
 /**
- * The eight connector tool ids, all gated by the single PILOT_ENABLE_CONNECTORS
- * platform circuit breaker regardless of which external provider they call.
+ * Every connector tool id, derived from ALLOWED_TOOL_IDS rather than listed
+ * again here, so a new connector only needs adding in one place to also be
+ * gated by the single PILOT_ENABLE_CONNECTORS platform circuit breaker,
+ * regardless of which external provider it calls.
  */
-export const CONNECTOR_TOOL_IDS = new Set<string>([
-  "connector-github",
-  "connector-google-drive",
-  "connector-gmail",
-  "connector-slack",
-  "connector-notion",
-  "connector-linear",
-  "connector-vercel",
-  "connector-monday",
-]);
+export const CONNECTOR_TOOL_IDS = new Set<string>(
+  ALLOWED_TOOL_IDS.filter((id) => id.startsWith("connector-")),
+);
 
 /**
  * Opens the runtime for a command. Granted capabilities need the caller's

@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-gmail";
 
@@ -39,13 +43,20 @@ const outputSchema = z
       })
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (output) => output.items !== undefined || output.message !== undefined,
+    {
+      message: "Gmail connector response is missing both items and message.",
+    },
+  );
 
 /**
  * Reads the user's own connected Gmail account through Pilot's connectors
  * callback. Read-only; it cannot send, reply, delete, or modify labels.
  */
 export function createConnectorGmailTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -55,6 +66,7 @@ export function createConnectorGmailTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "Gmail",
         action: rawInput.action,

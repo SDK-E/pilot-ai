@@ -24,6 +24,16 @@ async function safeErrorBody(response: Response): Promise<{ error?: string }> {
 }
 
 /**
+ * The callback URL every connector tool posts to, computed once by each tool
+ * factory (not at module load, so importing this file never throws just
+ * because PILOT_ACTIVITY_CALLBACK_URL is unset — e.g. in unit tests — and
+ * not inside callConnector, so it isn't re-parsed on every execute() call).
+ */
+export function connectorsExecuteUrl(): URL {
+  return new URL("/api/runtime/connectors/execute", pilotCallbackUrl().origin);
+}
+
+/**
  * Posts one connector action to Pilot's `/api/runtime/connectors/execute`
  * callback and returns its `result` field, parsed by the caller's own
  * outputSchema. Every connector tool shares this shape: same callback URL,
@@ -31,13 +41,9 @@ async function safeErrorBody(response: Response): Promise<{ error?: string }> {
  * differ per tool.
  */
 export async function callConnector(
-  request: ConnectorCallRequest,
+  request: ConnectorCallRequest & { callbackUrl: URL },
 ): Promise<unknown> {
-  const { context, toolId, toolLabel, action, params } = request;
-  const callbackUrl = new URL(
-    "/api/runtime/connectors/execute",
-    pilotCallbackUrl().origin,
-  );
+  const { context, toolId, toolLabel, action, params, callbackUrl } = request;
   const response = await fetch(callbackUrl, {
     method: "POST",
     headers: {

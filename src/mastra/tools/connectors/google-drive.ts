@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-google-drive";
 
@@ -37,13 +41,17 @@ const outputSchema = z
       })
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine((output) => output.items !== undefined || output.file !== undefined, {
+    message: "Google Drive connector response is missing both items and file.",
+  });
 
 /**
  * Reads the user's own connected Google Drive through Pilot's connectors
  * callback. Read-only; it cannot create, edit, move, share, or delete files.
  */
 export function createConnectorGoogleDriveTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -53,6 +61,7 @@ export function createConnectorGoogleDriveTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "Google Drive",
         action: rawInput.action,

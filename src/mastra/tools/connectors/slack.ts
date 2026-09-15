@@ -1,7 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import { callConnector, type ConnectorToolContext } from "./callback.js";
+import {
+  callConnector,
+  connectorsExecuteUrl,
+  type ConnectorToolContext,
+} from "./callback.js";
 
 const TOOL_ID = "connector-slack";
 
@@ -35,13 +39,21 @@ const outputSchema = z
     channels: z.array(channelSchema).max(25).optional(),
     messages: z.array(messageSchema).max(25).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (output) => output.channels !== undefined || output.messages !== undefined,
+    {
+      message:
+        "Slack connector response is missing both channels and messages.",
+    },
+  );
 
 /**
  * Reads the user's own connected Slack workspace through Pilot's connectors
  * callback. Read-only; it cannot post, edit, or delete messages.
  */
 export function createConnectorSlackTool(context: ConnectorToolContext) {
+  const callbackUrl = connectorsExecuteUrl();
   return createTool({
     id: TOOL_ID,
     description:
@@ -51,6 +63,7 @@ export function createConnectorSlackTool(context: ConnectorToolContext) {
     execute: async (rawInput) => {
       const result = await callConnector({
         context,
+        callbackUrl,
         toolId: TOOL_ID,
         toolLabel: "Slack",
         action: rawInput.action,
