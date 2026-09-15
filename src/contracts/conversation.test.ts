@@ -39,6 +39,14 @@ describe("contract", () => {
       "ask-user",
       "plan",
       "code-sandbox",
+      "connector-github",
+      "connector-google-drive",
+      "connector-gmail",
+      "connector-slack",
+      "connector-notion",
+      "connector-linear",
+      "connector-vercel",
+      "connector-monday",
     ]);
   });
 

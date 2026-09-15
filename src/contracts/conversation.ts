@@ -8,6 +8,14 @@ export const ALLOWED_TOOL_IDS = [
   "ask-user",
   "plan",
   "code-sandbox",
+  "connector-github",
+  "connector-google-drive",
+  "connector-gmail",
+  "connector-slack",
+  "connector-notion",
+  "connector-linear",
+  "connector-vercel",
+  "connector-monday",
 ] as const;
 
 export type AllowedToolId = (typeof ALLOWED_TOOL_IDS)[number];
@@ -52,7 +60,9 @@ export const generateConversationReplySchema = z
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
     baseAgentId: baseAgentIdSchema,
-    allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(5).default([]),
+    // 20 is generous headroom above ALLOWED_TOOL_IDS's current length, not a
+    // cap tied to the number of tools that exist today.
+    allowedToolIds: z.array(z.enum(ALLOWED_TOOL_IDS)).max(20).default([]),
     executionId: z.uuid(),
     project: z
       .object({
