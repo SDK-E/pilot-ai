@@ -25,6 +25,25 @@ export function isCodeSandboxEnabled(): boolean {
   return process.env.PILOT_ENABLE_CODE_SANDBOX === "true";
 }
 
+export function isConnectorsEnabled(): boolean {
+  return process.env.PILOT_ENABLE_CONNECTORS === "true";
+}
+
+/**
+ * The eight connector tool ids, all gated by the single PILOT_ENABLE_CONNECTORS
+ * platform circuit breaker regardless of which external provider they call.
+ */
+export const CONNECTOR_TOOL_IDS = new Set<string>([
+  "connector-github",
+  "connector-google-drive",
+  "connector-gmail",
+  "connector-slack",
+  "connector-notion",
+  "connector-linear",
+  "connector-vercel",
+  "connector-monday",
+]);
+
 /**
  * Opens the runtime for a command. Granted capabilities need the caller's
  * runtime token for activity callbacks; public web search and the code sandbox
@@ -57,6 +76,17 @@ export function selectConversationRuntime(
       status: 403,
       type: "invalid_request_error",
       message: "Pilot code sandbox is not enabled.",
+    };
+  }
+  if (
+    command.allowedToolIds.some((id) => CONNECTOR_TOOL_IDS.has(id)) &&
+    !isConnectorsEnabled()
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      type: "invalid_request_error",
+      message: "Pilot connectors are not enabled.",
     };
   }
   if (hasCapabilities && !runtimeToken) {

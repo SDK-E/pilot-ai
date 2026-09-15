@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ALLOWED_TOOL_IDS } from "../../contracts/conversation.js";
+
 import { pilotCallbackUrl } from "./callback-url.js";
 
 const toolActivitySchema = z
@@ -7,13 +9,7 @@ const toolActivitySchema = z
     kind: z.literal("tool"),
     organizationId: z.string().min(1).max(255),
     executionId: z.uuid(),
-    toolId: z.enum([
-      "web-search",
-      "scratchpad",
-      "ask-user",
-      "plan",
-      "code-sandbox",
-    ]),
+    toolId: z.enum(ALLOWED_TOOL_IDS),
     toolCallId: z.string().min(1).max(255).optional(),
     state: z.enum(["started", "completed", "failed"]),
     runtimeRunId: z.string().min(1).max(255).optional(),
