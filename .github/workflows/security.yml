@@ -1,4 +1,4 @@
-name: Quality
+name: Security
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  audit:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -27,14 +27,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build runtime
-        run: pnpm build
-
-      - name: Type check
-        run: pnpm typecheck
-
-      - name: Run unit tests
-        run: pnpm test
-
-      - name: Find unused production code
-        run: pnpm knip
+      - name: Check known vulnerabilities
+        run: pnpm audit --audit-level high
