@@ -28,6 +28,7 @@
     "env:check": "bash scripts/check-env.sh development .env.local",
     "env:check:preview": "bash scripts/check-env.sh preview",
     "env:check:production": "bash scripts/check-env.sh production",
+    "db:reset": "rm -f mastra.db mastra-editor.db pilot-memory.db database/pilot-browser.db src/.mastra/pilot-runtime.db",
     "deploy": "vercel deploy",
     "deploy:production": "vercel deploy --prod",
     "redeploy": "vercel redeploy",
