@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/mastra/index.ts!", "api/**/*.ts!", "scripts/*.ts!"],
+  "entry": ["src/mastra/index.ts!", "api/**/*.ts!", "scripts/*.{ts,mts}!"],
   "project": ["src/**/*.ts!"],
   "ignoreExportsUsedInFile": true
 }
