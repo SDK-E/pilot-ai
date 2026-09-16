@@ -33,8 +33,12 @@ while IFS= read -r line || [ -n "$line" ]; do
   # vercel env add fails if the var already exists for this environment;
   # remove it first so the script is safe to re-run (an env "switcher").
   vercel env rm "$name" "$ENVIRONMENT" --yes >/dev/null 2>&1 || true
+  # --no-sensitive: Preview/Production vars default to "Sensitive" (write-only
+  # — `vercel env pull` returns a literal "[SENSITIVE]" placeholder instead of
+  # the value), which silently breaks the local env-switcher workflow. Keep
+  # every var pull-able so switching environments locally actually works.
   # vercel strips a trailing newline from stdin itself; keep it here so an
   # empty value still sends one byte, since a fully empty stdin hangs the CLI.
-  printf '%s\n' "$value" | vercel env add "$name" "$ENVIRONMENT" --yes >/dev/null
+  printf '%s\n' "$value" | vercel env add "$name" "$ENVIRONMENT" --yes --no-sensitive >/dev/null
   echo "set $name -> $ENVIRONMENT"
 done < "$ENV_FILE"
