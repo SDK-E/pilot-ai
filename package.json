@@ -27,7 +27,12 @@
     "env:sync:production": "bash scripts/sync-env.sh .env.local production",
     "env:check": "bash scripts/check-env.sh development .env.local",
     "env:check:preview": "bash scripts/check-env.sh preview",
-    "env:check:production": "bash scripts/check-env.sh production"
+    "env:check:production": "bash scripts/check-env.sh production",
+    "deploy": "vercel deploy",
+    "deploy:preview": "vercel deploy",
+    "deploy:production": "vercel deploy --prod",
+    "redeploy": "vercel redeploy",
+    "deploy:clean": "vercel remove pilot-ai --safe --yes"
   },
   "keywords": [],
   "author": "",
