@@ -7,3 +7,7 @@ src/public
 coverage
 *.db
 *.db-*
+
+# Vendored agent skill packages, not edited by hand.
+.agents/skills
+.claude/skills
