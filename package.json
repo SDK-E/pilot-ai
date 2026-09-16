@@ -15,7 +15,13 @@
     "format:check": "prettier --check .",
     "knip": "knip --production",
     "check": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm knip",
-    "verify:memory": "tsx scripts/verify-memory.ts"
+    "verify:memory": "tsx scripts/verify-memory.ts",
+    "env:pull": "vercel env pull .env.local",
+    "env:pull:preview": "vercel env pull --environment=preview .env.local",
+    "env:pull:production": "vercel env pull --environment=production .env.local",
+    "env:push": "bash scripts/push-env.sh .env.local development",
+    "env:push:preview": "bash scripts/push-env.sh .env.local preview",
+    "env:push:production": "bash scripts/push-env.sh .env.local production"
   },
   "keywords": [],
   "author": "",
