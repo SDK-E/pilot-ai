@@ -29,10 +29,12 @@
     "env:check:preview": "bash scripts/check-env.sh preview",
     "env:check:production": "bash scripts/check-env.sh production",
     "deploy": "vercel deploy",
-    "deploy:preview": "vercel deploy",
     "deploy:production": "vercel deploy --prod",
     "redeploy": "vercel redeploy",
-    "deploy:clean": "vercel remove pilot-ai --safe --yes"
+    "redeploy:preview": "vercel redeploy --target preview",
+    "redeploy:production": "vercel redeploy --target production",
+    "deploy:clean": "bash scripts/clean-deployments.sh preview",
+    "deploy:clean:production": "bash scripts/clean-deployments.sh production"
   },
   "keywords": [],
   "author": "",
