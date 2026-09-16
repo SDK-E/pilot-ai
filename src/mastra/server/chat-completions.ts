@@ -135,7 +135,7 @@ export async function handleChatCompletion(
   const parsed = await parseChatCompletion(request);
   if (parsed instanceof Response) return parsed;
 
-  const selection = selectConversationRuntime(
+  const selection = await selectConversationRuntime(
     parsed.command,
     request.headers.get("x-pilot-runtime-token"),
     storageConfig,

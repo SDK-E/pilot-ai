@@ -9,12 +9,14 @@ const mocks = vi.hoisted(() => {
   const stream = vi.fn();
   const close = vi.fn();
   const verifyRequest = vi.fn();
+  const getFeatureFlags = vi.fn();
 
   return {
     generate,
     close,
     verifyRequest,
     stream,
+    getFeatureFlags,
     createRuntime: vi.fn(() => ({ generate, stream, close })),
   };
 });
@@ -25,6 +27,10 @@ vi.mock("../agents/runtime/runtime.js", () => ({
 
 vi.mock("../auth/workos-m2m.js", () => ({
   verifyPilotRuntimeRequest: mocks.verifyRequest,
+}));
+
+vi.mock("./feature-flags.js", () => ({
+  getFeatureFlags: mocks.getFeatureFlags,
 }));
 
 const headers = {
@@ -69,19 +75,21 @@ describe("OpenAI-compatible chat completion function", () => {
   beforeEach(() => {
     vi.stubEnv("TURSO_DATABASE_URL", "libsql://runtime.turso.io");
     vi.stubEnv("TURSO_AUTH_TOKEN", "runtime-token");
-    // These tests assert the disabled-by-default behavior of each platform
-    // circuit breaker, so they must not inherit an ambient "true" from the
-    // shell or CI runner's own environment — stub all three explicitly
-    // rather than relying on them being unset.
-    vi.stubEnv("PILOT_ENABLE_WEB_SEARCH", "false");
-    vi.stubEnv("PILOT_ENABLE_CODE_SANDBOX", "false");
-    vi.stubEnv("PILOT_ENABLE_CONNECTORS", "false");
     mocks.generate.mockReset();
     mocks.stream.mockReset();
     mocks.close.mockReset();
     mocks.createRuntime.mockClear();
     mocks.verifyRequest.mockReset();
     mocks.verifyRequest.mockResolvedValue({ ok: true, reason: "ok" });
+    mocks.getFeatureFlags.mockReset();
+    // These tests assert the disabled-by-default behavior of each platform
+    // circuit breaker, so default the mock to all-disabled rather than an
+    // ambient value.
+    mocks.getFeatureFlags.mockResolvedValue({
+      webSearchEnabled: false,
+      codeSandboxEnabled: false,
+      connectorsEnabled: false,
+    });
   });
 
   afterEach(() => vi.unstubAllEnvs());

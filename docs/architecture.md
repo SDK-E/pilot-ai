@@ -52,7 +52,7 @@ sources. A plain chat turn pays nothing for them.
 Every connector tool reaches only the requesting user's own connected
 account for that provider, is strictly read-only (it cannot create, edit,
 send, or delete anything), and is only available at all when Pilot's
-`PILOT_ENABLE_CONNECTORS` platform flag is on.
+`connectorsEnabled` Edge Config platform flag is on.
 
 An enabled tool that a kind is allowed to use just runs — there is no
 approval or suspension step for using it, matching Claude Code/Codex. `plan`

@@ -52,8 +52,9 @@ pass runtime secrets (Turso, Redis, WorkOS, activity callback token) into the
 sandboxed process's environment.
 
 The tool is gated twice: the org-level `codeSandboxEnabled` preference (set in
-Pilot, not this repo) and pilot-ai's own `PILOT_ENABLE_CODE_SANDBOX` env flag
-as a platform circuit breaker — both must allow it.
+Pilot, not this repo) and pilot-ai's own `codeSandboxEnabled` Edge Config flag
+(`src/mastra/server/feature-flags.ts`, backed by `EDGE_CONFIG`) as a platform
+circuit breaker — both must allow it.
 
 ## Local development
 

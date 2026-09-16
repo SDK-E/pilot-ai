@@ -4,6 +4,8 @@ import {
   type PilotRuntime,
 } from "../agents/runtime/runtime.js";
 
+import { getFeatureFlags } from "./feature-flags.js";
+
 import type { GenerateConversationReply } from "../../contracts/conversation.js";
 import type { PilotRuntimeStorageConfig } from "../storage/runtime.js";
 
@@ -18,18 +20,6 @@ export type RuntimeSelection =
       message: string;
     };
 
-export function isPublicWebSearchEnabled(): boolean {
-  return process.env.PILOT_ENABLE_WEB_SEARCH === "true";
-}
-
-export function isCodeSandboxEnabled(): boolean {
-  return process.env.PILOT_ENABLE_CODE_SANDBOX === "true";
-}
-
-export function isConnectorsEnabled(): boolean {
-  return process.env.PILOT_ENABLE_CONNECTORS === "true";
-}
-
 /**
  * Every connector tool id, derived from ALLOWED_TOOL_IDS rather than listed
  * again here, so a new connector only needs adding in one place to also be
@@ -42,19 +32,21 @@ export const CONNECTOR_TOOL_IDS = new Set<string>(
 
 /**
  * Opens the runtime for a command. Granted capabilities need the caller's
- * runtime token for activity callbacks; public web search and the code sandbox
- * are additionally gated by their own production feature flags — pilot
- * checks these too, but a request must not depend on that alone.
+ * runtime token for activity callbacks; public web search, the code sandbox,
+ * and connectors are additionally gated by their own production feature
+ * flags (Edge Config, see feature-flags.ts) — pilot checks these too, but a
+ * request must not depend on that alone.
  */
-export function selectConversationRuntime(
+export async function selectConversationRuntime(
   command: GenerateConversationReply,
   runtimeToken: string | null,
   storageConfig: PilotRuntimeStorageConfig,
-): RuntimeSelection {
+): Promise<RuntimeSelection> {
   const hasCapabilities = command.allowedToolIds.length > 0;
+  const flags = await getFeatureFlags();
   if (
     command.allowedToolIds.includes("web-search") &&
-    !isPublicWebSearchEnabled()
+    !flags.webSearchEnabled
   ) {
     return {
       ok: false,
@@ -65,7 +57,7 @@ export function selectConversationRuntime(
   }
   if (
     command.allowedToolIds.includes("code-sandbox") &&
-    !isCodeSandboxEnabled()
+    !flags.codeSandboxEnabled
   ) {
     return {
       ok: false,
@@ -76,7 +68,7 @@ export function selectConversationRuntime(
   }
   if (
     command.allowedToolIds.some((id) => CONNECTOR_TOOL_IDS.has(id)) &&
-    !isConnectorsEnabled()
+    !flags.connectorsEnabled
   ) {
     return {
       ok: false,
