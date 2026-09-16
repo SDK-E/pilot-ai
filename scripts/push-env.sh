@@ -33,6 +33,8 @@ while IFS= read -r line || [ -n "$line" ]; do
   # vercel env add fails if the var already exists for this environment;
   # remove it first so the script is safe to re-run (an env "switcher").
   vercel env rm "$name" "$ENVIRONMENT" --yes >/dev/null 2>&1 || true
-  printf '%s' "$value" | vercel env add "$name" "$ENVIRONMENT" --yes >/dev/null
+  # vercel strips a trailing newline from stdin itself; keep it here so an
+  # empty value still sends one byte, since a fully empty stdin hangs the CLI.
+  printf '%s\n' "$value" | vercel env add "$name" "$ENVIRONMENT" --yes >/dev/null
   echo "set $name -> $ENVIRONMENT"
 done < "$ENV_FILE"
