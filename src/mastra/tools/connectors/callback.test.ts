@@ -37,7 +37,7 @@ describe("callConnector", () => {
     const result = await callConnector({
       context: { command, runtimeToken: "token-1" },
       callbackUrl: connectorsExecuteUrl(),
-      toolId: "connector-github",
+      toolId: "connector",
       toolLabel: "GitHub",
       action: "search-issues",
       params: { query: "bug" },
@@ -55,10 +55,28 @@ describe("callConnector", () => {
     expect(JSON.parse(init.body as string)).toEqual({
       organizationId: "org_1",
       executionId: "11111111-1111-1111-1111-111111111111",
-      toolId: "connector-github",
+      toolId: "connector",
       action: "search-issues",
       params: { query: "bug" },
     });
+  });
+
+  it("includes confirm in the envelope only when explicitly set", async () => {
+    fetchMock.mockResolvedValue(Response.json({ result: { item: null } }));
+
+    await callConnector({
+      context: { command, runtimeToken: "token-1" },
+      callbackUrl: connectorsExecuteUrl(),
+      toolId: "connector",
+      toolLabel: "Connector",
+      action: "post-message",
+      params: { text: "hi" },
+      connectorSlug: "slack",
+      confirm: true,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(JSON.parse(init.body as string)).toMatchObject({ confirm: true });
   });
 
   it("throws the server-provided error message on a non-2xx response", async () => {
@@ -70,7 +88,7 @@ describe("callConnector", () => {
       callConnector({
         context: { command, runtimeToken: "token-1" },
         callbackUrl: connectorsExecuteUrl(),
-        toolId: "connector-github",
+        toolId: "connector",
         toolLabel: "GitHub",
         action: "search-issues",
         params: {},
@@ -87,7 +105,7 @@ describe("callConnector", () => {
       callConnector({
         context: { command, runtimeToken: "token-1" },
         callbackUrl: connectorsExecuteUrl(),
-        toolId: "connector-github",
+        toolId: "connector",
         toolLabel: "GitHub",
         action: "search-issues",
         params: {},

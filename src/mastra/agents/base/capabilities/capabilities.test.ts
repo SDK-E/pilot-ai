@@ -14,9 +14,7 @@ describe("capabilities", () => {
     expect(capabilityIdFromToolName("ask_user")).toBe("ask-user");
     expect(capabilityIdFromToolName("plan")).toBe("plan");
     expect(capabilityIdFromToolName("sandbox-run")).toBe("code-sandbox");
-    expect(capabilityIdFromToolName("connector-github")).toBe(
-      "connector-github",
-    );
+    expect(capabilityIdFromToolName("connector")).toBe("connector");
     expect(capabilityIdFromToolName("stagehandBrowser")).toBeUndefined();
     expect(capabilityIdFromToolName(undefined)).toBeUndefined();
   });
@@ -28,14 +26,7 @@ describe("capabilities", () => {
       "ask-user",
       "plan",
       "code-sandbox",
-      "connector-github",
-      "connector-google-drive",
-      "connector-gmail",
-      "connector-slack",
-      "connector-notion",
-      "connector-linear",
-      "connector-vercel",
-      "connector-monday",
+      "connector",
     ]);
   });
 

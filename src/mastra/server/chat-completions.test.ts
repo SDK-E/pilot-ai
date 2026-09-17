@@ -223,7 +223,7 @@ describe("OpenAI-compatible chat completion function", () => {
   it.each([
     ["web-search", "Pilot public web search is not enabled."],
     ["code-sandbox", "Pilot code sandbox is not enabled."],
-    ["connector-github", "Pilot connectors are not enabled."],
+    ["connector", "Pilot connectors are not enabled."],
   ])(
     "rejects %s before its production adapter is enabled",
     async (toolId, message) => {

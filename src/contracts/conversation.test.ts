@@ -39,14 +39,7 @@ describe("contract", () => {
       "ask-user",
       "plan",
       "code-sandbox",
-      "connector-github",
-      "connector-google-drive",
-      "connector-gmail",
-      "connector-slack",
-      "connector-notion",
-      "connector-linear",
-      "connector-vercel",
-      "connector-monday",
+      "connector",
     ]);
   });
 
@@ -77,10 +70,49 @@ describe("contract", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects an unallowlisted model", () => {
+  it("accepts any provider/model id, not only kilo/...", () => {
+    // Pilot resolves an organization's chosen model against its own
+    // `model_gateways` before this ever reaches pilot-ai — Kilo, Vercel AI
+    // Gateway, and custom OpenAI-compatible endpoints all route through the
+    // Mastra model-router's generic "<provider>/<model>" id shape.
     const result = generateConversationReplySchema.safeParse({
       ...validCommand,
       worker: { ...validCommand.worker, modelId: "openai/gpt-5" },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a malformed model id", () => {
+    const result = generateConversationReplySchema.safeParse({
+      ...validCommand,
+      worker: { ...validCommand.worker, modelId: "not-a-provider-model-id" },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts an explicit gateway credential and passes it through", () => {
+    const result = generateConversationReplySchema.safeParse({
+      ...validCommand,
+      worker: {
+        ...validCommand.worker,
+        modelId: "openai/gpt-4o-mini",
+        gatewayApiKey: "sk-test-key",
+        gatewayBaseUrl: "https://api.example.com/v1",
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.worker.gatewayApiKey).toBe("sk-test-key");
+      expect(result.data.worker.gatewayBaseUrl).toBe(
+        "https://api.example.com/v1",
+      );
+    }
+  });
+
+  it("rejects an unknown field on worker", () => {
+    const result = generateConversationReplySchema.safeParse({
+      ...validCommand,
+      worker: { ...validCommand.worker, unexpectedField: "nope" },
     });
     expect(result.success).toBe(false);
   });

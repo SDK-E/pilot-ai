@@ -21,13 +21,13 @@ export type RuntimeSelection =
     };
 
 /**
- * Every connector tool id, derived from ALLOWED_TOOL_IDS rather than listed
- * again here, so a new connector only needs adding in one place to also be
- * gated by the single PILOT_ENABLE_CONNECTORS platform circuit breaker,
- * regardless of which external provider it calls.
+ * The connector tool id — one dynamic tool covering every connected
+ * connector (see docs/decisions/0023-dynamic-connectors.md), gated by the
+ * single PILOT_ENABLE_CONNECTORS platform circuit breaker regardless of
+ * which underlying provider a call ends up hitting.
  */
 export const CONNECTOR_TOOL_IDS = new Set<string>(
-  ALLOWED_TOOL_IDS.filter((id) => id.startsWith("connector-")),
+  ALLOWED_TOOL_IDS.filter((id) => id === "connector"),
 );
 
 /**

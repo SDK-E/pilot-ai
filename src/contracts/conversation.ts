@@ -8,14 +8,7 @@ export const ALLOWED_TOOL_IDS = [
   "ask-user",
   "plan",
   "code-sandbox",
-  "connector-github",
-  "connector-google-drive",
-  "connector-gmail",
-  "connector-slack",
-  "connector-notion",
-  "connector-linear",
-  "connector-vercel",
-  "connector-monday",
+  "connector",
 ] as const;
 
 export type AllowedToolId = (typeof ALLOWED_TOOL_IDS)[number];
@@ -49,14 +42,25 @@ export const baseAgentIdSchema = z.preprocess(
 export const generateConversationReplySchema = z
   .object({
     organizationId: z.string().min(1).max(255),
-    worker: z.object({
-      id: z.uuid(),
-      instructions: z.string().min(1).max(20_000),
-      modelId: z
-        .string()
-        .regex(/^kilo\/[a-z0-9][a-z0-9._:-]*(?:\/[a-z0-9][a-z0-9._:-]*)*$/i)
-        .max(200),
-    }),
+    worker: z
+      .object({
+        id: z.uuid(),
+        instructions: z.string().min(1).max(20_000),
+        // A Mastra model-router id: "<provider>/<model>" — not tied to one
+        // provider. Pilot resolves an organization's chosen model into this
+        // plus the credential fields below via its own `model_gateways`.
+        modelId: z
+          .string()
+          .regex(/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:/-]*$/i)
+          .max(200),
+        // The gateway credential to call `modelId` with. Omitted means
+        // fall back to this service's own environment (legacy path, or no
+        // gateway configured on Pilot's side yet).
+        gatewayApiKey: z.string().min(1).max(2000).optional(),
+        // Only set for a custom OpenAI-compatible gateway.
+        gatewayBaseUrl: z.url().max(500).optional(),
+      })
+      .strict(),
     conversationId: z.uuid(),
     message: z.string().min(1).max(10_000),
     baseAgentId: baseAgentIdSchema,

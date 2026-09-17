@@ -13,13 +13,45 @@ export interface ConnectorCallRequest {
   toolLabel: string;
   action: string;
   params: Record<string, unknown>;
+  /**
+  Target a specific connection instead of the provider's default one.
+  */
+  connectionId?: string;
+  /**
+   * Which connector to call — the `connector` tool only.
+   */
+  connectorSlug?: string;
+  /**
+   * Required to actually run a mutating action; omitting it (or `false`)
+   * returns a `confirmationRequired` result instead of a side effect.
+   */
+  confirm?: boolean;
 }
 
-async function safeErrorBody(response: Response): Promise<{ error?: string }> {
+async function safeErrorBody(
+  response: Response,
+): Promise<{ error?: string; kind?: string }> {
   try {
-    return (await response.json()) as { error?: string };
+    return (await response.json()) as { error?: string; kind?: string };
   } catch {
     return {};
+  }
+}
+
+/**
+ * A failed connector call, carrying Pilot's structured failure `kind`
+ * (invalid-input / auth-required / not-found / rate-limited / etc. — see
+ * `connector-error.ts` in the Pilot app) instead of only a message, so a
+ * tool's `execute` (or a future retry policy) can react to why it failed,
+ * not just that it failed.
+ */
+export class ConnectorCallError extends Error {
+  readonly kind: string;
+
+  constructor(kind: string, message: string) {
+    super(message);
+    this.name = "ConnectorCallError";
+    this.kind = kind;
   }
 }
 
@@ -43,7 +75,17 @@ export function connectorsExecuteUrl(): URL {
 export async function callConnector(
   request: ConnectorCallRequest & { callbackUrl: URL },
 ): Promise<unknown> {
-  const { context, toolId, toolLabel, action, params, callbackUrl } = request;
+  const {
+    context,
+    toolId,
+    toolLabel,
+    action,
+    params,
+    callbackUrl,
+    connectionId,
+    connectorSlug,
+    confirm,
+  } = request;
   const response = await fetch(callbackUrl, {
     method: "POST",
     headers: {
@@ -56,12 +98,16 @@ export async function callConnector(
       toolId,
       action,
       params,
+      ...(connectionId && { connectionId }),
+      ...(connectorSlug && { connectorSlug }),
+      ...(confirm !== undefined && { confirm }),
     }),
     cache: "no-store",
   });
   if (!response.ok) {
     const body = await safeErrorBody(response);
-    throw new Error(
+    throw new ConnectorCallError(
+      body.kind ?? "unknown",
       body.error ??
         `${toolLabel} connector callback returned ${response.status}.`,
     );

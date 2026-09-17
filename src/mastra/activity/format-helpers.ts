@@ -14,7 +14,3 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 export function str(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
-
-export function num(value: unknown, fallback = 0): number {
-  return typeof value === "number" ? value : fallback;
-}
