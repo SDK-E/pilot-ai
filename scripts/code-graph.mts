@@ -250,14 +250,16 @@ function parseArgs(argv: string[]): {
   isSymbol: boolean;
 } {
   const depthIndex = argv.indexOf("--depth");
-  const depthValue = depthIndex === -1 ? undefined : argv[depthIndex + 1];
+  const depthValueIndex = depthIndex === -1 ? undefined : depthIndex + 1;
+  const depthValue =
+    depthValueIndex === undefined ? undefined : argv[depthValueIndex];
   const depth = depthValue ? Number(depthValue) : 1;
   const isSymbol = argv.includes("--symbol");
   const target = argv.find(
     (arg, i) =>
       arg !== "--depth" &&
       arg !== "--symbol" &&
-      i !== depthIndex + 1 &&
+      i !== depthValueIndex &&
       !arg.startsWith("--"),
   );
   return { target, depth, isSymbol };
