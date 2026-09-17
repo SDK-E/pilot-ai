@@ -1,5 +1,6 @@
 import { createPilotActivityReporter } from "../../activity/reporter.js";
 import { buildToolDetail } from "../../activity/tool-detail.js";
+import { logger } from "../../logger.js";
 import { createBaseAgent } from "../base/agent.js";
 import {
   capabilityIdFromToolName,
@@ -19,6 +20,10 @@ import type { GenerateConversationReply } from "../../../contracts/conversation.
 import type { Agent } from "@mastra/core/agent";
 import type { InputProcessorOrWorkflow } from "@mastra/core/processors";
 import type { Memory } from "@mastra/memory";
+
+function toolCallErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export type ActivityReporter = ReturnType<typeof createPilotActivityReporter>;
 
@@ -117,6 +122,15 @@ function activityHooks(
     }) => {
       const toolId = capabilityIdFromToolName(toolName);
       if (!toolId) return;
+      if (error) {
+        // Never reaches the client (the activity `detail` below stays
+        // undefined on failure) — this is only for operators, since without
+        // it a tool failure is otherwise undebuggable from server logs.
+        logger.error(`Tool call failed: ${toolName}`, {
+          executionId: command.executionId,
+          error: toolCallErrorMessage(error),
+        });
+      }
       await reportActivitySafely(reporter, {
         kind: "tool",
         ...base,
@@ -157,6 +171,31 @@ function requestProcessors(
 }
 
 /**
+ * The model-router config for this request's worker. When Pilot resolved
+ * an explicit gateway credential (`gatewayApiKey`), that's passed straight
+ * to `ModelRouterLanguageModel` as `{id, url, apiKey}` — the router's own
+ * per-call override, so it never has to fall back to reading this
+ * service's own environment variables for the key. No credential means a
+ * legacy/no-gateway-configured request, which still resolves `modelId`
+ * against this service's own environment as before.
+ */
+// Mastra's own ModelWithRetries.model accepts exactly this
+// string-or-config-object union.
+// eslint-disable-next-line sonarjs/function-return-type
+function workerModelConfig(
+  command: GenerateConversationReply,
+): string | { id: `${string}/${string}`; apiKey: string; url?: string } {
+  if (!command.worker.gatewayApiKey) return command.worker.modelId;
+  return {
+    id: command.worker.modelId as `${string}/${string}`,
+    apiKey: command.worker.gatewayApiKey,
+    ...(command.worker.gatewayBaseUrl && {
+      url: command.worker.gatewayBaseUrl,
+    }),
+  };
+}
+
+/**
 Builds the agent for one request from its kind and granted capabilities.
 */
 export function createAgentForRequest({
@@ -181,7 +220,10 @@ export function createAgentForRequest({
     description: kind.identity.jobDescription,
     instructions: buildInstructions(kind, granted, command),
     model: [
-      { model: command.worker.modelId, maxRetries: baseAgentLimits.maxRetries },
+      {
+        model: workerModelConfig(command),
+        maxRetries: baseAgentLimits.maxRetries,
+      },
     ],
     memory,
     inputProcessors: requestProcessors(granted, command, reporter),

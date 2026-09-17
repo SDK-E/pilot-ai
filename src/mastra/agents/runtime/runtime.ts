@@ -55,6 +55,16 @@ type AgentOutput = Parameters<typeof isSuspended>[0] & {
   totalUsage: Parameters<typeof usageOf>[0]["totalUsage"];
 };
 
+// `maxSteps` alone was observed not to stop the loop (a Work-kind run with
+// maxSteps: 8 made 9+ webSearch calls in one `agent.stream()` invocation
+// before the server's own turn timeout cut it off). `stopWhen` is the
+// underlying AI SDK stopping mechanism `maxSteps` is documented to map to;
+// setting it explicitly gives a hard, verifiable cap independent of whatever
+// gap exists in that mapping.
+function stopAtStepCount(stepCount: number) {
+  return ({ steps }: { steps: unknown[] }) => steps.length >= stepCount;
+}
+
 function generationOptions(
   command: GenerateConversationReply,
   abortSignal?: AbortSignal,
@@ -67,6 +77,7 @@ function generationOptions(
       thread: command.conversationId,
     },
     maxSteps: kind.limits.maxSteps,
+    stopWhen: stopAtStepCount(kind.limits.maxSteps),
     toolChoice: granted.length > 0 ? ("auto" as const) : ("none" as const),
     abortSignal,
   };

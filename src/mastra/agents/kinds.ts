@@ -36,21 +36,21 @@ export const AGENT_KINDS: Record<BaseAgentId, AgentKind> = {
     identity: chatAgentIdentity,
     instructions: chatInstructions,
     capabilities: ALLOWED_TOOL_IDS,
-    limits: { maxSteps: 5, warningAt: 3, finalAt: 4 },
+    limits: { maxSteps: 50, warningAt: 3, finalAt: 4 },
   },
   work: {
     id: "work",
     identity: workAgentIdentity,
     instructions: workInstructions,
     capabilities: ALLOWED_TOOL_IDS,
-    limits: { maxSteps: 8, warningAt: 6, finalAt: 7 },
+    limits: { maxSteps: 150, warningAt: 6, finalAt: 7 },
   },
   code: {
     id: "code",
     identity: codeAgentIdentity,
     instructions: codeInstructions,
     capabilities: ALLOWED_TOOL_IDS,
-    limits: { maxSteps: 6, warningAt: 4, finalAt: 5 },
+    limits: { maxSteps: 300, warningAt: 4, finalAt: 5 },
   },
 };
 

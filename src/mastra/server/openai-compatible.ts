@@ -21,7 +21,7 @@ export const chatCompletionRequestSchema = z
   .object({
     model: z
       .string()
-      .regex(/^kilo\/[a-z0-9][a-z0-9._:-]*(?:\/[a-z0-9][a-z0-9._:-]*)*$/i)
+      .regex(/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:/-]*$/i)
       .max(200),
     messages: z.array(chatMessageSchema).min(1).max(2),
     stream: z.boolean().optional(),
@@ -73,6 +73,21 @@ function booleanHeader(headers: Headers, name: string): unknown {
   return undefined;
 }
 
+function gatewayHeaders(headers: Headers) {
+  const gatewayApiKey = optionalHeader(
+    headers,
+    "x-pilot-model-gateway-api-key",
+  );
+  const gatewayBaseUrl = optionalHeader(
+    headers,
+    "x-pilot-model-gateway-base-url",
+  );
+  return {
+    ...(gatewayApiKey && { gatewayApiKey }),
+    ...(gatewayBaseUrl && { gatewayBaseUrl }),
+  };
+}
+
 export function createConversationCommandFromChatCompletion(
   rawRequest: unknown,
   headers: Headers,
@@ -112,6 +127,7 @@ export function createConversationCommandFromChatCompletion(
       id: context.workerId,
       instructions: instructions.content,
       modelId: request.model,
+      ...gatewayHeaders(headers),
     },
     conversationId: context.conversationId,
     message: message.content,
