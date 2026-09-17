@@ -20,7 +20,9 @@ export type SearchResult = z.infer<typeof searchResultSchema>;
 
 const langSearchResponseSchema = z.object({
   code: z.number().optional(),
-  msg: z.string().optional(),
+  // The real API sends `"msg": null` on a successful response, not a missing
+  // field — `.optional()` alone rejects `null` and fails every response.
+  msg: z.string().nullable().optional(),
   data: z
     .object({
       webPages: z

@@ -1,6 +1,11 @@
 import { lookup } from "node:dns/promises";
 
-import * as ipaddr from "ipaddr.js";
+// ipaddr.js is CJS-only with a single `module.exports = ipaddr` object; a
+// namespace import (`import * as ipaddr`) leaves methods under `.default` at
+// runtime under this project's module interop, so `ipaddr.isValid` resolves
+// to undefined. A default import unwraps it correctly in both Node and the
+// bundled output.
+import ipaddr from "ipaddr.js";
 
 type ResolveAddresses = (hostname: string) => Promise<{ address: string }[]>;
 
