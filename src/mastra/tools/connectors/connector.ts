@@ -84,9 +84,17 @@ function connectorsToText(connectors: ConnectorSummary[]): string {
   return connectors.map((connector) => connectorLine(connector)).join("\n");
 }
 
-function itemsToText(items: NonNullable<ConnectorOutput["items"]>): string {
-  if (items.length === 0) return "No results.";
-  return items.map((item) => `- ${item.title ?? item.id ?? "item"}`).join("\n");
+function itemsToText(
+  items: NonNullable<ConnectorOutput["items"]>,
+  nextCursor: string | undefined,
+): string {
+  const list =
+    items.length === 0
+      ? "No results."
+      : items.map((item) => `- ${item.title ?? item.id ?? "item"}`).join("\n");
+  return nextCursor
+    ? `${list}\n\nMore results are available. Call again with params.cursor set to "${nextCursor}" to get the next page.`
+    : list;
 }
 
 /**
@@ -114,7 +122,10 @@ export function connectorToModelOutput(output: ConnectorOutput) {
       value: output.item.title ?? output.item.id ?? "OK",
     };
   }
-  return { type: "text" as const, value: itemsToText(output.items ?? []) };
+  return {
+    type: "text" as const,
+    value: itemsToText(output.items ?? [], output.nextCursor),
+  };
 }
 
 async function executeConnectorCall(
