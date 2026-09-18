@@ -1,9 +1,7 @@
-import type { createClient } from "@libsql/client";
-
-type Client = ReturnType<typeof createClient>;
+import type { Pool } from "pg";
 
 interface GenericCacheConfig {
-  client: Client;
+  pool: Pool;
   tableName: string;
 }
 
@@ -23,76 +21,61 @@ function makeCacheKey(type: string, input: unknown): string {
 }
 
 async function createTable({
-  client,
+  pool,
   tableName,
 }: GenericCacheConfig): Promise<void> {
-  await client.execute(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS ${tableName} (
       cache_key TEXT PRIMARY KEY,
       cache_type TEXT NOT NULL,
       value_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL
+      created_at TIMESTAMPTZ NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
     )
   `);
 }
 
 async function readValue<T>(
-  { client, tableName }: GenericCacheConfig,
+  { pool, tableName }: GenericCacheConfig,
   key: string,
 ): Promise<T | undefined> {
-  const result = await client.execute({
-    sql: `SELECT value_json, expires_at FROM ${tableName} WHERE cache_key = ? LIMIT 1`,
-    args: [key],
-  });
+  const result = await pool.query<{ value_json: string; expires_at: Date }>(
+    `SELECT value_json, expires_at FROM ${tableName} WHERE cache_key = $1 LIMIT 1`,
+    [key],
+  );
   const row = result.rows.at(0);
   if (!row) return undefined;
 
-  const expiresAt = row.expires_at;
-  const isExpired =
-    typeof expiresAt !== "string" ||
-    new Date(expiresAt).getTime() <= Date.now();
-  if (isExpired) {
-    await client.execute({
-      sql: `DELETE FROM ${tableName} WHERE cache_key = ?`,
-      args: [key],
-    });
+  if (row.expires_at.getTime() <= Date.now()) {
+    await pool.query(`DELETE FROM ${tableName} WHERE cache_key = $1`, [key]);
     return undefined;
   }
 
-  const raw = row.value_json;
-  if (typeof raw !== "string") return undefined;
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(row.value_json) as T;
   } catch {
     return undefined;
   }
 }
 
 async function writeValue(
-  { client, tableName }: GenericCacheConfig,
+  { pool, tableName }: GenericCacheConfig,
   entry: { key: string; type: string; value: unknown; ttlMs: number },
 ): Promise<void> {
   const createdAt = new Date();
   const expiresAt = new Date(createdAt.getTime() + entry.ttlMs);
-  await client.execute({
-    sql: `
+  await pool.query(
+    `
       INSERT INTO ${tableName} (cache_key, cache_type, value_json, created_at, expires_at)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(cache_key) DO UPDATE SET
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (cache_key) DO UPDATE SET
         cache_type = excluded.cache_type,
         value_json = excluded.value_json,
         created_at = excluded.created_at,
         expires_at = excluded.expires_at
     `,
-    args: [
-      entry.key,
-      entry.type,
-      JSON.stringify(entry.value),
-      createdAt.toISOString(),
-      expiresAt.toISOString(),
-    ],
-  });
+    [entry.key, entry.type, JSON.stringify(entry.value), createdAt, expiresAt],
+  );
 }
 
 /**

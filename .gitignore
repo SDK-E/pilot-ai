@@ -17,3 +17,4 @@ src/mastra/public/
 /storage/
 /storage/logs/
 .claude/worktrees/
+.neon

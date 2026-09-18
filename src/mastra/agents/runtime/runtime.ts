@@ -11,7 +11,10 @@ import {
   createConversationMemory,
   createProjectMemory,
 } from "../../memory/project-memory.js";
-import { configureWebTools, type WebToolSecrets } from "../../setup/web-tools.js";
+import {
+  configureWebTools,
+  type WebToolSecrets,
+} from "../../setup/web-tools.js";
 import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,

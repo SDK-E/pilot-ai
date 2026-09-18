@@ -1,4 +1,4 @@
-import { createClient } from "@libsql/client";
+import { Pool } from "pg";
 
 import { pilotConfig } from "../agents/base/profiles/index.js";
 import { createCircuitBreaker } from "../cache/domain-circuit-breaker.js";
@@ -15,7 +15,7 @@ export interface WebToolSecrets {
   githubToken?: string;
 }
 
-const configured: { storageUrl?: string } = {};
+const configured: { connectionString?: string } = {};
 
 /**
  * Wires the public-web tools (search, fetch, discovery, GitHub) to the
@@ -31,22 +31,19 @@ export function configureWebTools(
   setLangSearchApiKey(secrets.langsearchApiKey);
   setGithubToken(secrets.githubToken);
 
-  if (configured.storageUrl === storage.url) return;
-  const client = createClient({
-    url: storage.url,
-    authToken: storage.authToken,
-  });
-  const cache = createGenericCache({ client, tableName: "pilot_tool_cache" });
+  if (configured.connectionString === storage.connectionString) return;
+  const pool = new Pool({ connectionString: storage.connectionString });
+  const cache = createGenericCache({ pool, tableName: "pilot_tool_cache" });
   const circuitBreaker = createCircuitBreaker(
     pilotConfig.network.circuitBreaker,
   );
 
-  setRuntimeCache(client);
+  setRuntimeCache(pool);
   setUrlFetchConfig({
     fetchTimeoutMs: pilotConfig.network.fetchTimeoutMs,
     fetchTtlMs: pilotConfig.cache.fetchTtlMs,
     ...circuitBreaker,
     ...cache,
   });
-  configured.storageUrl = storage.url;
+  configured.connectionString = storage.connectionString;
 }

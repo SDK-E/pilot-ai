@@ -1,6 +1,6 @@
 ---
 name: deploy-maintenance
-description: Clean up stale Vercel preview/production deployments, or reset the local dev database (sqlite/libsql files), for this repo. Use when the user wants to prune old Vercel deployments, free up deployment slots, or wipe local Mastra/memory db files back to a clean state.
+description: Clean up stale Vercel preview/production deployments, or reset Mastra's own local devtool db files, for this repo. Use when the user wants to prune old Vercel deployments, free up deployment slots, or wipe Mastra's playground/observability db files back to a clean state.
 ---
 
 # Deploy maintenance (pilot-ai)
@@ -17,12 +17,12 @@ vercel list --environment "$TARGET" --json | <extract urls> | xargs vercel remov
 
 Removes deployments for the given environment via `vercel remove --safe` (safe mode won't remove a deployment that's the current alias target). Use this to prune accumulated preview deployments; think twice before running the `:production` variant since it operates on production deployment history, not just previews.
 
-## Reset local database
+## Reset local devtool databases
 
-`pnpm db:reset` just deletes the local sqlite/libsql files:
+`pnpm db:reset` deletes Mastra's own local sqlite files (playground/observability caches, unrelated to the actual runtime storage):
 
 ```bash
-rm -f mastra.db mastra-editor.db pilot-memory.db database/pilot-browser.db src/.mastra/pilot-runtime.db
+rm -f mastra.db mastra-editor.db pilot-memory.db database/pilot-browser.db
 ```
 
-All five paths are gitignored — this only ever touches local files, never a remote Turso database. If `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` are set (remote Turso instead of the local sqlite fallback), this script does nothing useful — there's no remote-reset equivalent here, and you should not improvise one against a shared Turso instance without the user explicitly asking for it.
+All four paths are gitignored and local-only. The actual runtime storage (`DATABASE_URL`, a Postgres/Neon database) has no local-file fallback and no reset equivalent here — never improvise a reset against a shared Postgres database without the user explicitly asking for it.

@@ -35,7 +35,13 @@ export default defineConfig([
       globals: globals.node,
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.mjs", "*.js", "*.cjs", "*.config.ts"],
+          allowDefaultProject: [
+            "*.mjs",
+            "*.js",
+            "*.cjs",
+            "*.config.ts",
+            "neon.ts",
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },

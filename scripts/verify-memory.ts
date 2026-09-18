@@ -9,7 +9,7 @@ import { getPilotRuntimeStorageConfig } from "../src/mastra/storage/runtime.js";
 const storageConfig = getPilotRuntimeStorageConfig();
 
 if (!storageConfig) {
-  throw new Error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are required.");
+  throw new Error("DATABASE_URL is required.");
 }
 
 const memoryCode = `pilot-memory-${randomUUID()}`;

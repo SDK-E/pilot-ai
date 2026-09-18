@@ -34,8 +34,7 @@ const stepSchema = z.object({
  * be passed explicitly instead.
  */
 function sandboxAuth():
-  | Record<string, never>
-  | { token: string; teamId: string; projectId: string } {
+  Record<string, never> | { token: string; teamId: string; projectId: string } {
   const token = process.env.VERCEL_TOKEN?.trim();
   const teamId = process.env.VERCEL_TEAM_ID?.trim();
   const projectId = process.env.VERCEL_PROJECT_ID?.trim();

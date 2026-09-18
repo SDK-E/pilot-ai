@@ -73,8 +73,7 @@ const post = (init: { headers?: Record<string, string>; body?: string }) =>
 
 describe("OpenAI-compatible chat completion function", () => {
   beforeEach(() => {
-    vi.stubEnv("TURSO_DATABASE_URL", "libsql://runtime.turso.io");
-    vi.stubEnv("TURSO_AUTH_TOKEN", "runtime-token");
+    vi.stubEnv("DATABASE_URL", "postgresql://user:password@host/runtime");
     mocks.generate.mockReset();
     mocks.stream.mockReset();
     mocks.close.mockReset();

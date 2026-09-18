@@ -3,9 +3,9 @@ import { Memory } from "@mastra/memory";
 import { PILOT_CONVERSATION_MODEL_ID } from "../../contracts/conversation.js";
 import { baseAgentLimits } from "../agents/base/limits.js";
 
-import type { LibSQLStore } from "@mastra/libsql";
+import type { PostgresStore } from "@mastra/pg";
 
-export function createConversationMemory(storage: LibSQLStore) {
+export function createConversationMemory(storage: PostgresStore) {
   return new Memory({
     storage,
     options: { lastMessages: baseAgentLimits.lastMessages },
@@ -17,7 +17,7 @@ export function createConversationMemory(storage: LibSQLStore) {
  * across the project resource. This only becomes reachable when Pilot sends a
  * server-authorized project command with shared memory enabled.
  */
-export function createProjectMemory(storage: LibSQLStore) {
+export function createProjectMemory(storage: PostgresStore) {
   return new Memory({
     storage,
     options: {

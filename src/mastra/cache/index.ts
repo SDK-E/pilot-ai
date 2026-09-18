@@ -1,17 +1,15 @@
 import { createGenericCache, type GenericCache } from "./generic-cache.js";
 
-import type { createClient } from "@libsql/client";
-
-type Client = ReturnType<typeof createClient>;
+import type { Pool } from "pg";
 
 const shared: { toolCache?: GenericCache } = {};
 
 /**
  * Points the shared tool cache at the runtime database.
  */
-export function setRuntimeCache(client: Client): void {
+export function setRuntimeCache(pool: Pool): void {
   shared.toolCache = createGenericCache({
-    client,
+    pool,
     tableName: "pilot_tool_cache",
   });
 }

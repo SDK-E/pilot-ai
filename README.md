@@ -13,13 +13,11 @@ calls with a short-lived WorkOS M2M token.
 Requires Node.js 24 and pnpm.
 
 ```sh
-cp .env.example .env      # fill in KILO_API_KEY at minimum; see docs/development.md
+neon link                 # populates DATABASE_URL in .env.local
+cp .env.example .env      # fill in the rest; see docs/development.md
 pnpm install --frozen-lockfile
 pnpm dev                  # Mastra playground at http://localhost:4111
 ```
-
-Without `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` set, local development uses a
-local-only SQLite file (`src/.mastra/pilot-runtime.db`) automatically.
 
 ## Learn more
 

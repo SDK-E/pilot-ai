@@ -5,8 +5,8 @@ is specific to this directory.
 
 ## Contract
 
-- `generic-cache.ts` implements a table-backed cache over the runtime LibSQL
-  client; `index.ts` exposes it as a module-level singleton
+- `generic-cache.ts` implements a table-backed cache over the runtime
+  Postgres pool; `index.ts` exposes it as a module-level singleton
   (`setRuntimeCache`, `makeCacheKey`, `getCachedValue`, `setCachedValue`) that
   the web tools (`src/mastra/tools/web/`, `src/mastra/tools/search/`) share
   for response caching, keyed by `pilot_tool_cache`.
