@@ -11,7 +11,7 @@ import {
   createConversationMemory,
   createProjectMemory,
 } from "../../memory/project-memory.js";
-import { configureWebTools } from "../../setup/web-tools.js";
+import { configureWebTools, type WebToolSecrets } from "../../setup/web-tools.js";
 import {
   createPilotRuntimeStorage,
   type PilotRuntimeStorageConfig,
@@ -217,9 +217,10 @@ function prepareAgent(context: RuntimeContext, rawCommand: unknown) {
 export function createPilotRuntime(
   storageConfig: PilotRuntimeStorageConfig,
   runtimeToken?: string,
+  webToolSecrets?: WebToolSecrets,
 ) {
   const storage = createPilotRuntimeStorage(storageConfig);
-  configureWebTools(storageConfig);
+  configureWebTools(storageConfig, webToolSecrets);
   const memories: Memories = {
     conversation: createConversationMemory(storage),
     project: createProjectMemory(storage),

@@ -70,9 +70,14 @@ export function buildSkillCapabilityQuery(request: string): string {
 }
 
 function authHeaders(): Record<string, string> {
+  // Vercel-issued project identity used to authenticate to the skills.sh
+  // marketplace; unavailable off Vercel, so this preflight step is disabled
+  // there (caught by runRuntimeSkillPreflight's try/catch, not a crash).
   const token = process.env.VERCEL_OIDC_TOKEN;
   if (!token) {
-    throw new Error("VERCEL_OIDC_TOKEN is missing");
+    throw new Error(
+      "Runtime skill preflight is unavailable outside Vercel (no VERCEL_OIDC_TOKEN).",
+    );
   }
 
   return {

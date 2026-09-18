@@ -27,6 +27,22 @@ const stepSchema = z.object({
   stderr: z.string(),
 });
 
+/**
+ * Vercel Sandbox is a Vercel product API, callable from anywhere - it
+ * auto-authenticates via VERCEL_OIDC_TOKEN only when the caller itself runs
+ * on Vercel. Off Vercel, a personal access token plus team/project id must
+ * be passed explicitly instead.
+ */
+function sandboxAuth():
+  | Record<string, never>
+  | { token: string; teamId: string; projectId: string } {
+  const token = process.env.VERCEL_TOKEN?.trim();
+  const teamId = process.env.VERCEL_TEAM_ID?.trim();
+  const projectId = process.env.VERCEL_PROJECT_ID?.trim();
+  if (!token || !teamId || !projectId) return {};
+  return { token, teamId, projectId };
+}
+
 async function stopQuietly(sandbox: Sandbox): Promise<void> {
   try {
     await sandbox.stop();
@@ -150,6 +166,7 @@ export const sandboxRun = createTool({
     let sandbox: Sandbox;
     try {
       sandbox = await Sandbox.create({
+        ...sandboxAuth(),
         timeout: budgetMs + SANDBOX_BOOT_ALLOWANCE_MS,
         resources: { vcpus: 1 },
         persistent: false,

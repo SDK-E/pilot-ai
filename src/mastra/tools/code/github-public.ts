@@ -22,14 +22,26 @@ interface GithubInput {
   limit: number;
 }
 
+const state: { token?: string } = {};
+
+/**
+ * Set from the `x-pilot-github-token` header on each request (see
+ * setup/web-tools.ts) — the platform admin-managed value takes precedence
+ * over the environment variable, which remains a local-dev fallback.
+ */
+export function setGithubToken(token: string | undefined): void {
+  state.token = token;
+}
+
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
     "user-agent": "SDK-Pilot",
   };
-  if (process.env.GITHUB_TOKEN) {
-    headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const token = state.token ?? process.env.GITHUB_TOKEN;
+  if (token) {
+    headers.authorization = `Bearer ${token}`;
   }
   return headers;
 }

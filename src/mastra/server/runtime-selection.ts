@@ -7,6 +7,7 @@ import {
 import { getFeatureFlags } from "./feature-flags.js";
 
 import type { GenerateConversationReply } from "../../contracts/conversation.js";
+import type { WebToolSecrets } from "../setup/web-tools.js";
 import type { PilotRuntimeStorageConfig } from "../storage/runtime.js";
 
 export type ConversationRuntime = PilotRuntime;
@@ -41,6 +42,7 @@ export async function selectConversationRuntime(
   command: GenerateConversationReply,
   runtimeToken: string | null,
   storageConfig: PilotRuntimeStorageConfig,
+  webToolSecrets?: WebToolSecrets,
 ): Promise<RuntimeSelection> {
   const hasCapabilities = command.allowedToolIds.length > 0;
   const flags = await getFeatureFlags();
@@ -87,6 +89,10 @@ export async function selectConversationRuntime(
   }
   return {
     ok: true,
-    runtime: createPilotRuntime(storageConfig, runtimeToken ?? undefined),
+    runtime: createPilotRuntime(
+      storageConfig,
+      runtimeToken ?? undefined,
+      webToolSecrets,
+    ),
   };
 }

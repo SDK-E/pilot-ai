@@ -1,4 +1,4 @@
-import { get } from "@vercel/edge-config";
+import Redis from "ioredis";
 
 import { logger } from "../logger.js";
 
@@ -16,38 +16,55 @@ const DISABLED: FeatureFlags = {
 
 type FlagEnvironment = "development" | "preview" | "production";
 
-// The account's Vercel plan caps Edge Config at one store total, so the
-// three environments share it: each flag's value is an object keyed by
-// environment rather than a single boolean. VERCEL_ENV is set by Vercel
-// itself at runtime (unset locally outside `vercel dev`, hence the fallback).
+// One Key Value store is shared across environments (Render free tier, one
+// instance per workspace), so each flag's value is an object keyed by
+// environment rather than a single boolean. PILOT_DEPLOY_ENVIRONMENT is set
+// per Render service; unset locally, hence the "development" fallback.
 type PerEnvironmentFlag = Partial<Record<FlagEnvironment, boolean>>;
 
 function currentEnvironment(): FlagEnvironment {
-  const value = process.env.VERCEL_ENV;
+  const value = process.env.PILOT_DEPLOY_ENVIRONMENT;
   return value === "production" || value === "preview" ? value : "development";
 }
 
+const state: { client?: Redis } = {};
+
+function getClient(): Redis | undefined {
+  const url = process.env.PILOT_FEATURE_FLAGS_REDIS_URL?.trim();
+  if (!url) return undefined;
+  state.client ??= new Redis(url, {
+    lazyConnect: true,
+    maxRetriesPerRequest: 1,
+  });
+  return state.client;
+}
+
 /**
- * Platform-level circuit breakers, one per gated capability, read from
- * Vercel Edge Config so they can be flipped per environment without a
- * redeploy. Independent of any org's own preference — pilot checks those
- * separately. Any read failure (missing EDGE_CONFIG, network error, unset
- * key) fails closed to `DISABLED` rather than throwing, since a broken flag
- * read must not grant a capability.
+ * Platform-level circuit breakers, one per gated capability, read from a
+ * Key Value store independent of Pilot's own database so they can be
+ * flipped per environment without a redeploy and without a compromised
+ * Pilot admin account also being able to flip them. Any read failure
+ * (missing URL, connection error, unset key) fails closed to `DISABLED`
+ * rather than throwing, since a broken flag read must not grant a
+ * capability.
  */
 export async function getFeatureFlags(): Promise<FeatureFlags> {
   const environment = currentEnvironment();
+  const redis = getClient();
+  if (!redis) return DISABLED;
   try {
     const [webSearchEnabled, codeSandboxEnabled, connectorsEnabled] =
       await Promise.all([
-        get<PerEnvironmentFlag>("webSearchEnabled"),
-        get<PerEnvironmentFlag>("codeSandboxEnabled"),
-        get<PerEnvironmentFlag>("connectorsEnabled"),
+        redis.get("flag:webSearchEnabled"),
+        redis.get("flag:codeSandboxEnabled"),
+        redis.get("flag:connectorsEnabled"),
       ]);
+    const parse = (raw: string | null): PerEnvironmentFlag =>
+      raw ? (JSON.parse(raw) as PerEnvironmentFlag) : {};
     return {
-      webSearchEnabled: webSearchEnabled?.[environment] === true,
-      codeSandboxEnabled: codeSandboxEnabled?.[environment] === true,
-      connectorsEnabled: connectorsEnabled?.[environment] === true,
+      webSearchEnabled: parse(webSearchEnabled)[environment] === true,
+      codeSandboxEnabled: parse(codeSandboxEnabled)[environment] === true,
+      connectorsEnabled: parse(connectorsEnabled)[environment] === true,
     };
   } catch (error) {
     logger.error("Feature flag read failed; failing closed.", {

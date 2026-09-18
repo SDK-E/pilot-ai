@@ -14,7 +14,11 @@ export function getPilotRuntimeStorageConfig():
   const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
   if (!url && !authToken) {
+    // A real deployment (RENDER is set automatically on every Render
+    // service; VERCEL_ENV covers a Vercel one) must not silently fall back
+    // to a local file, which would hide a missing Turso config.
     if (
+      process.env.RENDER === "true" ||
       process.env.VERCEL_ENV === "production" ||
       process.env.VERCEL_ENV === "preview"
     ) {

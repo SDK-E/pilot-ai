@@ -184,6 +184,7 @@ describe("OpenAI-compatible chat completion function", () => {
     expect(mocks.createRuntime).toHaveBeenCalledWith(
       expect.anything(),
       "runtime-token",
+      expect.anything(),
     );
     expect(mocks.generate).toHaveBeenCalledWith(
       expect.objectContaining({

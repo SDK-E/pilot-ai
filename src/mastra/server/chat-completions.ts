@@ -139,6 +139,11 @@ export async function handleChatCompletion(
     parsed.command,
     request.headers.get("x-pilot-runtime-token"),
     storageConfig,
+    {
+      langsearchApiKey:
+        request.headers.get("x-pilot-langsearch-api-key") ?? undefined,
+      githubToken: request.headers.get("x-pilot-github-token") ?? undefined,
+    },
   );
   if (!selection.ok) {
     return error(selection.message, selection.type, selection.status);
