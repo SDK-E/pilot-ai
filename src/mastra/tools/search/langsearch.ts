@@ -58,17 +58,16 @@ const state: { apiKey?: string } = {};
 
 /**
  * Set from the `x-pilot-langsearch-api-key` header on each request (see
- * setup/web-tools.ts) — the platform admin-managed value takes precedence
- * over the environment variable, which remains a local-dev fallback.
+ * setup/web-tools.ts) — pilot-ai is never run without Pilot in front of it,
+ * so this is the only source; there is no environment-variable fallback.
  */
 export function setLangSearchApiKey(key: string | undefined): void {
   state.apiKey = key;
 }
 
 function apiKey(): string {
-  const key = state.apiKey ?? process.env.LANGSEARCH_API_KEY;
-  if (!key) throw new Error("LANGSEARCH_API_KEY is not configured");
-  return key;
+  if (!state.apiKey) throw new Error("LANGSEARCH_API_KEY is not configured");
+  return state.apiKey;
 }
 
 function parseSearchResponse(rawText: string, count: number): SearchResult[] {

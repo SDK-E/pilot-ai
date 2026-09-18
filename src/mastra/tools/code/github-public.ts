@@ -26,8 +26,8 @@ const state: { token?: string } = {};
 
 /**
  * Set from the `x-pilot-github-token` header on each request (see
- * setup/web-tools.ts) — the platform admin-managed value takes precedence
- * over the environment variable, which remains a local-dev fallback.
+ * setup/web-tools.ts) — pilot-ai is never run without Pilot in front of it,
+ * so this is the only source; there is no environment-variable fallback.
  */
 export function setGithubToken(token: string | undefined): void {
   state.token = token;
@@ -39,9 +39,8 @@ function githubHeaders(): Record<string, string> {
     "x-github-api-version": "2022-11-28",
     "user-agent": "SDK-Pilot",
   };
-  const token = state.token ?? process.env.GITHUB_TOKEN;
-  if (token) {
-    headers.authorization = `Bearer ${token}`;
+  if (state.token) {
+    headers.authorization = `Bearer ${state.token}`;
   }
   return headers;
 }
