@@ -19,7 +19,7 @@ Copy `.env.example` to `.env` and fill in what your task needs.
 | (none — `x-pilot-langsearch-api-key` header)            | To use `web-search`                           | pilot-ai is never run without Pilot in front of it, so LangSearch's key has no environment variable at all — Pilot forwards its admin-managed value as this header on every request.                                                                                                         |
 | (none — `x-pilot-github-token` header)                  | Optional                                      | Same as above: Pilot forwards its admin-managed value as this header to raise the unauthenticated rate limit on the public-web GitHub tool. Never required either way.                                                                                                                       |
 | `VERCEL_OIDC_TOKEN`                                     | Optional, Vercel only                         | `skills.sh` API auth for runtime skill preflight (unrelated to the WorkOS M2M runtime boundary — see `docs/architecture.md`). Unset outside Vercel just disables that one preflight step. Locally: `vercel link && vercel env pull`.                                                         |
-| `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`   | Optional, off Vercel                          | `@vercel/sandbox` authentication for the `code-sandbox` tool when not running on Vercel (no `VERCEL_OIDC_TOKEN` available). Create a personal access token at vercel.com/account/tokens.                                                                                                     |
+| `E2B_API_KEY`                                           | To use `code-sandbox`                         | E2B authentication for the `code-sandbox` tool. Create a key at e2b.dev/dashboard (or `e2b auth login`) under the workspace this deployment should provision sandboxes in.                                                                                                                   |
 | `PILOT_PROFILE`                                         | Optional                                      | Tuning profile for the public-web tools: `fast`, `balanced`, `deep`, or `test`.                                                                                                                                                                                                              |
 | `PILOT_SEARCH_CACHE_TTL_MS`, `PILOT_FETCH_CACHE_TTL_MS` | Optional                                      | Override single cache TTL values from the selected profile.                                                                                                                                                                                                                                  |
 | `PILOT_WORK_REDIS_URL`                                  | To run durable Pilot Work                     | Shared Redis endpoint (`rediss://` for managed TLS) required before a Work run can claim reconnectable observation across serverless instances. Keep server-only.                                                                                                                            |
@@ -50,9 +50,10 @@ pnpm install --frozen-lockfile
 pnpm dev          # Mastra playground, http://localhost:4111
 ```
 
-`api/v1/*` Vercel Functions are not exercised by `pnpm dev`; use the Vercel
-CLI (`vercel dev`) or a deployed preview to exercise those directly (see the
-`vercel` and `agent-browser` Claude Code skills under `.claude/skills/`).
+The `/v1/*` runtime API routes (`src/mastra/server/routes/`) are not exercised
+by `pnpm dev` (the Mastra playground); use `pnpm build && pnpm start` or a
+deployed preview to exercise those directly (see the `agent-browser` Claude
+Code skill under `.claude/skills/`).
 
 ## Verify pipeline
 

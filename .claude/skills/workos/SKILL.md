@@ -1,6 +1,6 @@
 ---
 name: workos
-description: "WorkOS M2M authentication rules for the pilot-ai runtime boundary. Use before touching src/mastra/auth/, api/v1/*, or any /api/runtime/* callback."
+description: "WorkOS M2M authentication rules for the pilot-ai runtime boundary. Use before touching src/mastra/auth/, any /v1/* runtime route, or any /api/runtime/* callback."
 ---
 
 # WorkOS M2M auth (pilot-ai)
@@ -30,8 +30,8 @@ reintroduce OIDC verification here.
 
 ## Non-negotiable rules
 
-- Every `/api/v1/*` Vercel Function and every custom Mastra API route must call
-  the verifier and reject a non-POST or unauthenticated request **before**
+- Every `/v1/*` runtime route (`src/mastra/server/routes/`) must call the
+  verifier and reject a non-POST or unauthenticated request **before**
   parsing the request body, initializing Mastra, or reading tenant headers.
 - Derive organization, conversation, execution, and creator identity from the
   **verified execution record**, never from the request payload. A model or a

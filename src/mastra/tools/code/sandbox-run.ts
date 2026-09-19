@@ -1,5 +1,5 @@
 import { createTool } from "@mastra/core/tools";
-import { Sandbox } from "@vercel/sandbox";
+import { CommandExitError, Sandbox } from "e2b";
 import { z } from "zod";
 
 const MAX_FILES = 20;
@@ -27,24 +27,9 @@ const stepSchema = z.object({
   stderr: z.string(),
 });
 
-/**
- * Vercel Sandbox is a Vercel product API, callable from anywhere - it
- * auto-authenticates via VERCEL_OIDC_TOKEN only when the caller itself runs
- * on Vercel. Off Vercel, a personal access token plus team/project id must
- * be passed explicitly instead.
- */
-function sandboxAuth():
-  Record<string, never> | { token: string; teamId: string; projectId: string } {
-  const token = process.env.VERCEL_TOKEN?.trim();
-  const teamId = process.env.VERCEL_TEAM_ID?.trim();
-  const projectId = process.env.VERCEL_PROJECT_ID?.trim();
-  if (!token || !teamId || !projectId) return {};
-  return { token, teamId, projectId };
-}
-
 async function stopQuietly(sandbox: Sandbox): Promise<void> {
   try {
-    await sandbox.stop();
+    await sandbox.kill();
   } catch {
     // The commands already ran; a failed cleanup call shouldn't fail the tool.
   }
@@ -82,6 +67,17 @@ function sandboxErrorResult(prefix: string, error: unknown) {
   };
 }
 
+/**
+ * E2B's `commands.run` takes one shell-interpreted string, unlike Vercel
+ * Sandbox's argv-array exec — each arg is single-quoted so the command still
+ * runs with exactly the argv this tool was given, not whatever the shell
+ * would do with unescaped spaces or metacharacters.
+ */
+function shellQuote(value: string): string {
+  const escaped = value.replaceAll("'", String.raw`'\''`);
+  return `'${escaped}'`;
+}
+
 async function runCommands(
   sandbox: Sandbox,
   commands: z.infer<typeof commandSchema>[],
@@ -98,19 +94,26 @@ async function runCommands(
       didStopEarly = true;
       break;
     }
-    const result = await sandbox.runCommand({
-      cmd: command.cmd,
-      args: command.args,
-      timeoutMs: remaining,
-      signal: abortSignal,
-    });
-    const stdout = await result.stdout();
-    const stderr = await result.stderr();
+    const cmd = [command.cmd, ...command.args].join(" ");
+    const shellCmd = [
+      command.cmd,
+      ...command.args.map((arg) => shellQuote(arg)),
+    ].join(" ");
+    let result;
+    try {
+      result = await sandbox.commands.run(shellCmd, {
+        timeoutMs: remaining,
+        signal: abortSignal,
+      });
+    } catch (error) {
+      if (!(error instanceof CommandExitError)) throw error;
+      result = error;
+    }
     steps.push({
-      cmd: [command.cmd, ...command.args].join(" "),
+      cmd,
       exitCode: result.exitCode,
-      stdout: stdout.slice(0, MAX_OUTPUT_CHARS),
-      stderr: stderr.slice(0, MAX_OUTPUT_CHARS),
+      stdout: result.stdout.slice(0, MAX_OUTPUT_CHARS),
+      stderr: result.stderr.slice(0, MAX_OUTPUT_CHARS),
     });
     if (result.exitCode !== 0) {
       didStopEarly = true;
@@ -122,11 +125,11 @@ async function runCommands(
 }
 
 /**
- * Runs a bounded sequence of commands in one fresh Vercel Sandbox: an
- * isolated Linux microVM with its own filesystem and network, unable to
- * reach Pilot's own systems, secrets, or database. `budgetMs` is a shared
- * wall-clock deadline across every command in the call, not a per-command
- * timeout, so one slow step can't silently starve the rest of the turn.
+ * Runs a bounded sequence of commands in one fresh E2B sandbox: an isolated
+ * microVM with its own filesystem and network, unable to reach Pilot's own
+ * systems, secrets, or database. `budgetMs` is a shared wall-clock deadline
+ * across every command in the call, not a per-command timeout, so one slow
+ * step can't silently starve the rest of the turn.
  */
 export const sandboxRun = createTool({
   id: "sandbox-run",
@@ -165,19 +168,15 @@ export const sandboxRun = createTool({
     let sandbox: Sandbox;
     try {
       sandbox = await Sandbox.create({
-        ...sandboxAuth(),
-        timeout: budgetMs + SANDBOX_BOOT_ALLOWANCE_MS,
-        resources: { vcpus: 1 },
-        persistent: false,
-        signal: abortSignal,
+        timeoutMs: budgetMs + SANDBOX_BOOT_ALLOWANCE_MS,
       });
     } catch (error) {
       return sandboxErrorResult("Could not start the sandbox", error);
     }
     try {
       if (files.length > 0) {
-        await sandbox.writeFiles(
-          files.map((file) => ({ path: file.path, content: file.content })),
+        await sandbox.files.write(
+          files.map((file) => ({ path: file.path, data: file.content })),
           { signal: abortSignal },
         );
       }

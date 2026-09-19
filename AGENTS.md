@@ -41,13 +41,10 @@ between versions; never rely on cached knowledge.
   Approval requirements stay scoped to the approvable capabilities; `ask_user`
   is a clarification suspension and never requires approval. Unknown or
   unavailable tools fail closed.
-- The Vercel `api/v1/approvals/resume` entrypoint and the Mastra custom API
-  route must remain behaviorally identical and reject a non-POST or
-  unauthenticated request before parsing an approval command.
-- Durable Pilot Work requires both the environment-specific Turso store and a
-  shared Redis cache. Never fall back to an in-memory cache for a run advertised
-  as reconnectable: a serverless instance change would lose its event history.
-  Keep `PILOT_WORK_REDIS_URL` server-only.
+- Durable Pilot Work requires both the environment-specific Postgres store and
+  a shared Redis cache. Never fall back to an in-memory cache for a run
+  advertised as reconnectable: a process restart would lose its event
+  history. Keep `PILOT_WORK_REDIS_URL` server-only.
 - Relative imports carry an explicit `.js` extension (functions run unbundled on
   Node ESM). `pnpm check` (lint, typecheck, prettier, knip) and `pnpm test` must
   be clean before a commit.

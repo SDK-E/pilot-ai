@@ -63,7 +63,7 @@ or `src/mastra/storage/`; it does not run in CI.
 ## Security
 
 Read the "Security rules" section of the root `AGENTS.md` before touching
-`src/mastra/auth/`, any `/api/v1/*` route, or the activity/scratchpad
+`src/mastra/auth/`, any `/v1/*` runtime route, or the activity/scratchpad
 callbacks — in short: verify the WorkOS M2M token before parsing a request
 body, derive ownership only from the verified execution record, and never
 send prompts, tool inputs/outputs, or reasoning through the Pilot activity

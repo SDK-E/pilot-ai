@@ -34,7 +34,7 @@ Pilot migrates (`src/contracts/conversation.ts`).
 | `scratchpad`             | `scratchpad` (private per-chat working state through the Pilot callback)                       |
 | `ask-user`               | `ask_user` (Mastra clarification suspension)                                                   |
 | `plan`                   | The agent's own visible step list                                                              |
-| `code-sandbox`           | A fresh, isolated `@vercel/sandbox` run per call                                               |
+| `code-sandbox`           | A fresh, isolated E2B sandbox run per call                                                     |
 | `connector-github`       | `connector-github` (the user's own connected GitHub account, read-only)                        |
 | `connector-google-drive` | `connector-google-drive` (the user's own connected Google Drive, read-only)                    |
 | `connector-gmail`        | `connector-gmail` (the user's own connected Gmail account, read-only)                          |
@@ -51,8 +51,9 @@ sources. A plain chat turn pays nothing for them.
 
 Every connector tool reaches only the requesting user's own connected
 account for that provider, is strictly read-only (it cannot create, edit,
-send, or delete anything), and is only available at all when Pilot's
-`connectorsEnabled` Edge Config platform flag is on.
+send, or delete anything), and is only available at all when this service's
+own `connectorsEnabled` Redis-backed platform circuit breaker is on (see
+`src/mastra/server/feature-flags.ts`).
 
 An enabled tool that a kind is allowed to use just runs — there is no
 approval or suspension step for using it, matching Claude Code/Codex. `plan`
@@ -69,8 +70,6 @@ The layout follows Mastra's standard `src/mastra` project structure. Inside
 file-based agent, so shared modules deliberately use other names.
 
 ```
-api/v1/                     Vercel Functions. Each file is a thin wrapper over a
-                            handler in src/mastra/server.
 src/contracts/              Pure request/response contract shared with Pilot.
                             Zero @mastra imports, zero process.env.
 src/mastra/
@@ -102,8 +101,8 @@ src/mastra/
 scripts/                    Terminal scripts (pnpm verify:memory).
 ```
 
-Relative imports carry an explicit `.js` extension because the Vercel
-functions run unbundled on Node ESM. ESLint enforces this.
+Relative imports carry an explicit `.js` extension because the runtime runs
+unbundled on Node ESM. ESLint enforces this.
 
 ## Runtime API
 
@@ -115,11 +114,11 @@ authorization, then forwards a short-lived WorkOS M2M token minted for its
 own Connect application (`client_credentials` grant). The runtime validates
 its signature against that AuthKit environment's JWKS and its exact subject
 (Pilot's M2M client ID) before it reads the request body, initializes
-Mastra, or accepts the tenant headers. This protects the custom domain even
-where Vercel Deployment Protection does not apply to it, and — unlike the
-Vercel OIDC token it replaced — works identically in local development,
-since it isn't tied to running on Vercel at all. `vercel.json` rewrites
-`/v1/*` to the function entries.
+Mastra, or accepts the tenant headers. This is the sole boundary protecting
+the custom domain, and — unlike the Vercel OIDC token it replaced — works
+identically in local development, since it isn't tied to running on any
+particular platform. `src/mastra/server/routes/` registers `/v1/*` directly
+on the Mastra instance.
 
 The same boundary exposes `POST /v1/conversations/delete`,
 `POST /v1/conversations/truncate`, and `POST /v1/projects/delete-memory`. All

@@ -14,14 +14,12 @@ is specific to this directory.
   Mastra instance in `src/mastra/index.ts`. Each `routes/*.ts` registration
   pairs a path with the handler that actually does the work — keep the
   registration thin and the logic in the sibling top-level file
-  (`chat-completions.ts`, `cleanup.ts`, etc.), matching how `api/v1/*.ts`
-  wrappers stay thin over the same handlers.
-- Every handler here that Vercel or Mastra's custom API exposes must reject a
+  (`chat-completions.ts`, `cleanup.ts`, etc.).
+- Every handler here that Mastra's custom API exposes must reject a
   non-POST or unauthenticated request — via
   `isVerifiedPilotRuntimeRequest`/`verifyPilotRuntimeRequest`
   (`src/mastra/auth/workos-m2m.ts`) — before parsing the body or touching
-  Mastra state. The Vercel `api/v1/*` entrypoint and the Mastra custom route
-  for the same operation must stay behaviorally identical.
+  Mastra state.
 
 ## Invariants
 

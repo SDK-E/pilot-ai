@@ -1,21 +1,9 @@
 ---
 name: deploy-maintenance
-description: Clean up stale Vercel preview/production deployments, or reset Mastra's own local devtool db files, for this repo. Use when the user wants to prune old Vercel deployments, free up deployment slots, or wipe Mastra's playground/observability db files back to a clean state.
+description: Reset Mastra's own local devtool db files for this repo. Use when the user wants to wipe Mastra's playground/observability db files back to a clean state.
 ---
 
 # Deploy maintenance (pilot-ai)
-
-Two independent, unrelated tools.
-
-## Clean old deployments
-
-`pnpm deploy:clean` (preview) / `pnpm deploy:clean:production` — runs `scripts/clean-deployments.sh <target>`:
-
-```bash
-vercel list --environment "$TARGET" --json | <extract urls> | xargs vercel remove --safe --yes
-```
-
-Removes deployments for the given environment via `vercel remove --safe` (safe mode won't remove a deployment that's the current alias target). Use this to prune accumulated preview deployments; think twice before running the `:production` variant since it operates on production deployment history, not just previews.
 
 ## Reset local devtool databases
 

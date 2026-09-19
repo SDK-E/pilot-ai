@@ -1,26 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import conversationDelete from "../../../api/v1/conversations/delete.js";
-import conversationTruncate from "../../../api/v1/conversations/truncate.js";
-import projectMemoryDelete from "../../../api/v1/projects/delete-memory.js";
+import {
+  handleConversationCleanup,
+  handleConversationTruncate,
+  handleProjectMemoryCleanup,
+} from "./cleanup.js";
 
-describe("Vercel cleanup entrypoints", () => {
+describe("cleanup entrypoints", () => {
   it("loads the conversation cleanup function and rejects non-POST requests", async () => {
-    const response = await conversationDelete.fetch(
+    const response = await handleConversationCleanup(
       new Request("https://ai.pilot.test/v1/conversations/delete"),
     );
     expect(response.status).toBe(405);
   });
 
   it("loads the conversation truncate function and rejects non-POST requests", async () => {
-    const response = await conversationTruncate.fetch(
+    const response = await handleConversationTruncate(
       new Request("https://ai.pilot.test/v1/conversations/truncate"),
     );
     expect(response.status).toBe(405);
   });
 
   it("loads the project cleanup function and rejects non-POST requests", async () => {
-    const response = await projectMemoryDelete.fetch(
+    const response = await handleProjectMemoryCleanup(
       new Request("https://ai.pilot.test/v1/projects/delete-memory"),
     );
     expect(response.status).toBe(405);

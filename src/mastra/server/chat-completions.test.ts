@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import handler from "../../../api/v1/chat/completions.js";
-
 import { waitForStreamingResult } from "./chat-completion-stream.js";
+import { handleChatCompletion } from "./chat-completions.js";
 
 const mocks = vi.hoisted(() => {
   const generate = vi.fn();
@@ -63,7 +62,7 @@ const completed = (runId: string) => ({
 });
 
 const post = (init: { headers?: Record<string, string>; body?: string }) =>
-  handler.fetch(
+  handleChatCompletion(
     new Request("https://ai.pilot.test/v1/chat/completions", {
       method: "POST",
       headers: { ...headers, ...init.headers },

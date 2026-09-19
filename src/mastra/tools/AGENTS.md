@@ -22,8 +22,8 @@ is specific to this directory.
   (`x-pilot-runtime-token`); they derive organization/execution identity from
   the already-validated `GenerateConversationReply` command passed in at
   construction time, never from model output.
-- `code/sandbox-run.ts` runs in a fresh Vercel Sandbox per call with no access
-  to this service's secrets or storage — see the `vercel` Claude skill.
+- `code/sandbox-run.ts` runs in a fresh E2B sandbox per call with no access
+  to this service's secrets or storage. Authenticates via `E2B_API_KEY`.
 
 ## Invariants
 

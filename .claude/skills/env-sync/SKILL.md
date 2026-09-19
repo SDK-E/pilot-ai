@@ -20,7 +20,9 @@ Pull is destructive to the *local* file; push/sync are destructive to *Vercel*. 
 
 Vars added via `vercel env add` without `--no-sensitive` come back as `"[SENSITIVE]"` on pull and can't be read locally — these scripts always pass `--no-sensitive`, but a var added by hand outside these scripts might not be, which check-env can't distinguish from truly missing.
 
-This repo (pilot-ai) also reads `EDGE_CONFIG` for the `webSearchEnabled`/`codeSandboxEnabled`/`connectorsEnabled` circuit-breaker flags — those live in Vercel Edge Config, not in `.env.local`/`vercel env`, so these scripts don't touch them. Managing those is a separate concern from this env-var sync.
+This repo (pilot-ai) also reads `PILOT_FEATURE_FLAGS_REDIS_URL` for the `webSearchEnabled`/`codeSandboxEnabled`/`connectorsEnabled` circuit-breaker flags — those live as keys in that Redis store, not in `.env.local`/`vercel env`, so these scripts don't touch them. Managing those is a separate concern from this env-var sync.
+
+pilot-ai itself now runs on Render, not Vercel — these scripts only sync a copy of env vars kept in Vercel's Environment Variables storage as a convenience, and have no effect on what the deployed Render services actually read. Use the Render MCP tools (or `render env` via the CLI) to change what's actually live; treat Vercel here as local-dev secret storage only.
 
 ## When to just ask instead of running sync
 

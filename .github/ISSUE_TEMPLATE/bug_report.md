@@ -12,7 +12,7 @@ A clear, concise description of what's wrong.
 
 ## Where
 
-- Affected area (e.g. `src/mastra/agents/`, `api/v1/chat/completions.ts`,
+- Affected area (e.g. `src/mastra/agents/`, `src/mastra/server/chat-completions.ts`,
   memory, activity callback, sandbox tool):
 - Agent kind involved, if applicable (`chat` / `work` / `code`):
 - Environment (local / preview / production):
